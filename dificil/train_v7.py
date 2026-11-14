@@ -58,6 +58,19 @@ if __name__ == "__main__":
                     m = lgb.LGBMRegressor(**P).fit(X[ok][:, cols], np.log(y[ok] / b[ok]))
                     ms.append((m.booster_.model_to_string(), cols, kind))
         dump["mkt2"][key] = ms
+        # models per tram d'horitzó (+3..+5, +6..+11): CO2 en log-quocient, preu en residu additiu
+        cols = [N.index(n) for n in N if n not in ("lag168", "wk7", "wk7_o", "wk3")]
+        Hh = X[:, N.index("h")]; k2 = X[:, N.index("k2")]; grp = []
+        for a, b_ in ((3, 5), (6, 11)):
+            sel = (Hh >= a) & (Hh <= b_) & np.isfinite(y)
+            if key == "co2":
+                sel &= (k2 > 0) & (y > 0)
+                m = lgb.LGBMRegressor(**P).fit(X[sel][:, cols], np.log(y[sel] / k2[sel])); kind = "log"
+            else:
+                sel &= np.isfinite(k2)
+                m = lgb.LGBMRegressor(**P).fit(X[sel][:, cols], (y - k2)[sel]); kind = "add"
+            grp.append((a, b_, m.booster_.model_to_string(), cols, kind))
+        dump.setdefault("mktg", {})[key] = grp
     # consum v2: residu respecte a lag24 i respecte al perfil d'ahir desplaçat
     L = feats.LOAD2_NAMES; hist, eh = full_hist(tr); present = set(eh.tolist()); X, y = [], []
     for t in eh:

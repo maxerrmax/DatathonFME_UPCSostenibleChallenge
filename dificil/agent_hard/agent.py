@@ -61,6 +61,7 @@ class BatteryAgent:
         self.mk2 = {}
         self.ld2 = []
         self.n0 = None
+        self.mkg = {}
         try:
             raw = p.get("_models")
             if raw is None:
@@ -72,6 +73,8 @@ class BatteryAgent:
             mk2 = raw.pop("mkt2", None) or {}
             self.mk2 = {k: [(lgb.Booster(model_str=ms), list(cols), base) for ms, cols, base in v] for k, v in mk2.items()}
             self.ld2 = [(lgb.Booster(model_str=ms), list(cols), base) for ms, cols, base in (raw.pop("load2", None) or [])]
+            self.mkg = {k: [(a, b_, lgb.Booster(model_str=ms), list(cols), kind) for a, b_, ms, cols, kind in v]
+                        for k, v in (raw.pop("mktg", None) or {}).items()}
             n0 = raw.pop("net0", None)
             self.n0 = lgb.Booster(model_str=n0) if n0 else None
             self.m = {k: (lgb.Booster(model_str=v) if isinstance(v, str) else v) for k, v in raw.items()}
@@ -134,7 +137,16 @@ class BatteryAgent:
                 out.append(np.where(xsl > 0, xsl * np.exp(pr), xsl))
             else:
                 out.append((xs if base == "xs" else k2) + pr)
-        return np.mean(out, axis=0)
+        res = np.mean(out, axis=0)
+        # horitzons propers: models especialitzats per tram (molt més precisos a +3..+11 h)
+        hs_a = np.asarray(hs)
+        for a, b_, bst, cols, kind in self.mkg.get(key, []):
+            sel = (hs_a >= a) & (hs_a <= b_)
+            if sel.any():
+                pr = bst.predict(X[sel][:, cols], num_threads=1)
+                v = np.where(k2[sel] > 0, k2[sel] * np.exp(pr), k2[sel]) if kind == "log" else k2[sel] + pr
+                res[sel] = np.where(np.isfinite(v), v, res[sel])
+        return res
 
     def _pred_load2(self, t, hs):
         """Consum: perfil d'ahir desplaçat al nivell actual (hores properes) barrejat amb lag24 + residu (hores llunyanes)."""
