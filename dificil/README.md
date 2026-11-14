@@ -72,3 +72,38 @@ pujava a 200–250 kW entre les 10 i les 15 h (solar).
   MAE solar a l'hora actual 148 → 76 kW. Validació 19,42 → 19,71.
 - Sensibilitat: `pv_blend` 0,15 (més pes a la persistència de cel clar), `k_dis` 1,0, `k_future` 0,4;
   el valor terminal no influeix (19,74–19,75). Validació **19,80**.
+
+## v7 / v8 (`hard_v7.zip`, `hard_v8.zip`) — validació 20,12 / 20,44
+
+Resultats reals al rànquing públic: v2 18,17 · v6 **22,79** · agent d'un company (arquitectura equivalent) 22,95.
+
+Diagnòstic nou (`dificil/exp.py`, puntuació per blocs mensuals; `dificil/lab.py`, laboratori de previsió):
+
+| Si sabéssim exactament… | Guany a validació |
+|---|---|
+| el CO₂ de les 24 h | +1,2 (les 5 hores següents a les 3 conegudes: +0,6) |
+| el preu de les 24 h | +0,2 |
+| consum i solar de l'hora actual | +0,7 |
+
+Canvis (tots validats amb models entrenats només amb `fit`):
+
+- **Historial inicial**: el fitxer de models porta les sèries d'entrenament; l'agent comença amb l'historial ple
+  (el dia abans de cada setmana de test és al train). Error del primer dia: consum 84 → 57 kW, preu −30 %.
+- **Fora el lag setmanal** (168 h): empitjorava CO₂ i consum quan estava disponible.
+- **CO₂** (`mkt_features2`): perfil de les últimes 24 h, pendent de les 3 hores conegudes, perfil d'ahir desplaçat;
+  ensemble de 4 LightGBM sobre el **logaritme del quocient** respecte a l'últim valor conegut. MAE 0,0146 → 0,0128.
+- **Preu**: mateixes features, residu additiu (ensemble de 4). MAE 0,0171 → 0,0158 (gairebé no mou el score).
+- **Consum** (`load_features2`): perfil d'ahir desplaçat al nivell actual per a les hores properes, lag24 + residu
+  per a les llunyanes. MAE de l'hora actual 49 → 38 kW.
+- **Hora actual estocàstica**: el LP minimitza el cost esperat de la importació sobre 15 escenaris de l'error del
+  consum net (quantils dels errors recents a la mateixa franja horària), en lloc del marge fix `k_dis`.
+- Provat i descartat: biaixos `load_bias`/`pv_bias` (equivalents a la cautela que ja tenim), contrast del CO₂,
+  preu en logaritme, valor terminal i horitzó (no influeixen).
+
+| Versió | Validació (`fit`) | Públic |
+|---|---|---|
+| v6 | 19,80 | 22,79 |
+| v7 (CO₂ nou + historial inicial) | 20,12 | pendent |
+| v8 (+ CO₂ log, consum v2, hora actual estocàstica) | 20,44 | pendent |
+
+Reproduir: `python dificil/train_v7.py fit` (validació) i `python dificil/train_v7.py all` (lliurament).
