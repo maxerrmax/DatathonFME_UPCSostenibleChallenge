@@ -102,3 +102,20 @@ continuació (+3..+23 h) adaptada a l'últim valor conegut. Es barreja amb el CO
   exactament com la v12.
 
 Experiment de soroll: `hard_v12_llavor1.zip` (v12 amb models d'una altra llavor) per mesurar la variació del públic.
+
+## Estat a les 00:45 del 15/11
+
+Públic: v14 (CBR) **23,30** · v12 23,53 (millor). Enunciat oficial (PMF): una sola simulació de 2.016 h, el SOC no es
+reinicia entre setmanes, el públic és "el 50 % de cada setmana de test" i el privat l'altre 50 %.
+
+- **Les millores de previsió no se sumen.** v12 = 20,74 · + trams d'horitzó 20,65–20,77 · + CBR 20,80 · trams + CBR
+  20,67–20,73 · trams sense calibratge (v10) 20,85. Totes les variants queden entre 20,65 i 20,85: és el mateix
+  senyal capturat de maneres diferents, i les diferències són soroll de validació.
+- **Quina part de cada setmana és pública.** Cerca de la màscara (dies sencers o 84 h seguides) que reprodueix millor
+  els sis resultats públics (buidar, quiet, salt, v10, v14, v9): totes les que encaixen contenen el **dia 1** i
+  exclouen el **dia 7** de cada setmana; la resta no es pot determinar. Conseqüència: l'energia que queda a la
+  bateria al final de cada setmana passa del privat (dia 7) al públic (dia 1 de la setmana següent). Buidar-la a
+  final de setmana va treure 3,9 punts al públic; la simulació diu que el privat en guanya una quantitat semblant i
+  que el total baixa ~0,7.
+- Les versions amb més puntuació total a validació (v10, v14) baixen una mica al públic en les màscares que
+  encaixen (ràtios 0,97–0,99 simulats i reals): el públic sol no permet distingir-les de la v12.
