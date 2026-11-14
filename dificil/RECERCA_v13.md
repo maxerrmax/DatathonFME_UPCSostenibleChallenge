@@ -69,3 +69,22 @@ Validació (models fit-only, setmanes enganxades): v12 20,74 → **20,98**; mitj
 - La v12 manté el SOC 3–7 punts per sobre de l'agent amb informació perfecta a totes les hores: és prudència davant
   la incertesa; reduir-la no millora.
 - Pèrdua de la v12 respecte a l'agent perfecte: 1,16 punts repartits per tot el dia, sense una franja dominant.
+
+## Diagnòstics al públic dels canvis de setmana (14/11, 23:23)
+
+- `hard_v13_salts.zip` (planificar a través del salt entre setmanes): **23,03** (v12 23,53). Hipòtesi refutada:
+  el model "setmanes enganxades en ordre cronològic + públic = 1a meitat de cada setmana" no explica els tres
+  diagnòstics. **No tocar res que depengui del final de mes.**
+
+## Branques noves (14/11, 23:30–23:50), totes amb models fit-only i blocs no vistos
+
+| Branca | Resultat (v12 = 20,74) |
+|---|---|
+| Indicadors de règim del mercat (nivell de 7 i 30 dies, perfil horari de 30 dies) | 20,69 |
+| A. MLP de trajectòria del CO₂ (+3..+23 h, entrada = última setmana), 3 llavors, combinada amb els LightGBM | sola: MAE 0,0146 (LGBM 0,0128); combinada 20,72–20,75. Errors correlacionats 0,74 amb els LGBM |
+| C. Correcció residual de l'acció (etiquetes = acció de l'agent perfecte al mateix estat, estil DAgger) | R² fora de bloc 0,027; aplicada: 20,57 / 20,29 / 19,75 (λ = 0,3 / 0,6 / 1) |
+
+**Conclusió quantitativa.** Previsió perfecta del CO₂ = +1,2 punts; les millores d'error assolibles (3–5 %) valen
+~+0,05, dins del soroll. La correcció que faria l'agent perfecte no és predictible a partir de l'estat (R² 0,03):
+ni RL ni aprenentatge orientat a la decisió poden recuperar-la amb la mateixa informació. La v12 és a prop del màxim
+assolible amb la informació de l'entorn.
