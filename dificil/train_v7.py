@@ -35,6 +35,9 @@ def mkt2_matrix(tr, key):
 
 if __name__ == "__main__":
     which = sys.argv[1] if len(sys.argv) > 1 else "fit"
+    seed = int(sys.argv[2]) if len(sys.argv) > 2 else 0
+    if seed:
+        P["random_state"] = seed
     df = load_hard(); fit, val = split_val(df); tr = fit if which == "fit" else df
     CS = make_cs(tr); feats.set_cs(CS); t0 = time.time()
     dump = {"pv_cs": CS, "mkt2": {}}
@@ -89,5 +92,5 @@ if __name__ == "__main__":
         dump[k + "_res"] = lgb.LGBMRegressor(**P).fit(X[ok], (y - lag)[ok]).booster_.model_to_string()
     eh = epoch_hours(tr.index).values
     dump["hist0"] = {k: (eh.astype(np.int64), tr[c].values.astype(float)) for k, c in COLS.items()}
-    out = HERE / "agent_hard" / f"models_{which}7.pkl"; joblib.dump(dump, out, compress=3)
+    out = HERE / "agent_hard" / (f"models_{which}7.pkl" if not seed else f"models_{which}7_s{seed}.pkl"); joblib.dump(dump, out, compress=3)
     print("desat", out, f"{time.time()-t0:.0f}s", f"{out.stat().st_size/1e6:.1f} MB")

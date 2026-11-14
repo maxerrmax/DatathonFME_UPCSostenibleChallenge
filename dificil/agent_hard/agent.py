@@ -62,6 +62,7 @@ class BatteryAgent:
         self.mk2 = {}
         self.ld2 = []
         self.n0 = None
+        self.cbr = None
         try:
             raw = p.get("_models")
             if raw is None:
@@ -73,6 +74,8 @@ class BatteryAgent:
             mk2 = raw.pop("mkt2", None) or {}
             self.mk2 = {k: [(lgb.Booster(model_str=ms), list(cols), base) for ms, cols, base in v] for k, v in mk2.items()}
             self.ld2 = [(lgb.Booster(model_str=ms), list(cols), base) for ms, cols, base in (raw.pop("load2", None) or [])]
+            cb = raw.pop("cbr", None)                       # base de casos (CBR) del CO2
+            self.cbr = (np.asarray(cb[0], np.float32), np.asarray(cb[1], np.float32)) if cb is not None else None
             n0 = raw.pop("net0", None)
             self.n0 = lgb.Booster(model_str=n0) if n0 else None
             self.m = {k: (lgb.Booster(model_str=v) if isinstance(v, str) else v) for k, v in raw.items()}
@@ -152,6 +155,28 @@ class BatteryAgent:
         w = np.exp(-X[:, 0] / self.p.get("load_tau", 4.0))
         return w * pr["xs"] + (1 - w) * pr["lag24"]
 
+    def _cbr_co2(self, t):
+        """Raonament basat en casos: els k dies més semblants (forma de les últimes 24 h de CO2 i preu, hora, tipus de
+        dia, estació i nivell) i la seva continuació, adaptada a l'últim valor conegut."""
+        try:
+            g = self.hist.get
+            k2 = g("co2", t + 2); p2 = g("price", t + 2)
+            if not (math.isfinite(k2) and k2 > 0 and math.isfinite(p2) and p2 > 0):
+                return None
+            c = np.array([g("co2", t + 2 - i) for i in range(27)]); p = np.array([g("price", t + 2 - i) for i in range(27)])
+            if np.isnan(c).sum() > 3:
+                return None
+            c = np.nan_to_num(np.log(np.maximum(c, 1e-4) / k2)); p = np.nan_to_num(np.log(np.maximum(p, 1e-4) / p2))
+            ts = pd.Timestamp(int(t) * 3600, unit="s"); h = ts.hour; wk = 1.0 if ts.dayofweek >= 5 else 0.0
+            doy = ts.dayofyear / 365.25 * 2 * np.pi
+            q = np.concatenate([c * 3, p, [np.sin(2 * np.pi * h / 24) * 3, np.cos(2 * np.pi * h / 24) * 3, wk * 2,
+                                            np.sin(doy), np.cos(doy), np.log(k2) * 2]]).astype(np.float32)
+            D, F = self.cbr; k = int(self.p.get("cbr_k", 15))
+            d = ((D - q) ** 2).sum(1); nn = np.argpartition(d, k)[:k]; w = 1.0 / (np.sqrt(d[nn]) + 1e-3)
+            return k2 * np.exp((F[nn] * w[:, None]).sum(0) / w.sum())
+        except Exception:
+            return None
+
     def _forecast(self, t, price3, co2_3):
         H = 24
         price = np.full(H, np.nan); co2 = np.full(H, np.nan)
@@ -161,6 +186,13 @@ class BatteryAgent:
             if self.mk2:
                 price[hs] = self._pred_mkt2("price", t, hs)
                 co2[hs] = self._pred_mkt2("co2", t, hs)
+                wc = self.p.get("cbr_w", 0.0)
+                if self.cbr is not None and wc > 0 and len(price3) >= 3:
+                    pc = self._cbr_co2(t)
+                    if pc is not None:
+                        for h in hs:
+                            if 3 <= h <= 23:
+                                co2[h] = (1 - wc) * co2[h] + wc * pc[h - 3]
             else:
                 price[hs] = self._pred("price", mkt_features(self.hist, "price", t, hs), "res")
                 co2[hs] = self._pred("co2", mkt_features(self.hist, "co2", t, hs), "dir")

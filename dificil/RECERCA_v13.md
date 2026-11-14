@@ -88,3 +88,17 @@ Validació (models fit-only, setmanes enganxades): v12 20,74 → **20,98**; mitj
 ~+0,05, dins del soroll. La correcció que faria l'agent perfecte no és predictible a partir de l'estat (R² 0,03):
 ni RL ni aprenentatge orientat a la decisió poden recuperar-la amb la mateixa informació. La v12 és a prop del màxim
 assolible amb la informació de l'entorn.
+
+## CBR del CO₂ → v14 (`hard_v14_cbr.zip`)
+
+Raonament basat en casos: per a cada hora, els 15 casos més semblants de la base (forma de les últimes 24 h de CO₂ i
+preu respecte a l'últim valor conegut, hora, cap de setmana, estació i nivell), i la mitjana ponderada de la seva
+continuació (+3..+23 h) adaptada a l'últim valor conegut. Es barreja amb el CO₂ dels LightGBM abans del calibratge de la v12.
+
+- Sol (casos només de fit): MAE 0,01258, **millor que els LightGBM (0,01279)**; errors correlacionats 0,80.
+- Replay: v12 + CBR 20,76–20,79 per a tots els k (5/15/40) i pesos (0,25/0,5).
+- Llaç tancat: v12 20,74 · **pes 0,3 → 20,80** (CO₂ 19,59 %, cost 23,61 %) · pes 0,5 → 20,77.
+- Lliurament: base de casos amb totes les dades (5.442 casos), `cbr_w` = 0,3, `cbr_k` = 15. Sense CBR (`cbr_w` = 0) decideix
+  exactament com la v12.
+
+Experiment de soroll: `hard_v12_llavor1.zip` (v12 amb models d'una altra llavor) per mesurar la variació del públic.
