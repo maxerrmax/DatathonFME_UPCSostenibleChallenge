@@ -2,6 +2,7 @@
 
 | Fitxer | Score públic | Observació |
 |---|---:|---|
+| `hard_v14_v12_final_agost.zip` | pendent | v12 + buidar la bateria al final de la setmana d'agost (final del test). Fora d'aquesta setmana, idèntic a la v12 |
 | `hard_v13_v12equip_salt.zip` | **23,05** (pitjor; no fer-lo servir) | v12 + planificació a través del salt entre setmanes de test. Validació (`fit`): A 21,18 · B 19,19 (v12: 20,75 · 18,91) |
 | **`hard_v12_public_23.53.zip`** | **23,53** | **Millor versió de JAMM (14/11/2026)**; calibratge online causal del CO₂ |
 | `hard_v9_public_23.45.zip` | 23,45 | Predictor directe de demanda neta |

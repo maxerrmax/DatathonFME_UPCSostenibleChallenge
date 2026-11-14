@@ -310,7 +310,7 @@ class BatteryAgent:
         if segs is not None:
             for i, (a, b) in enumerate(segs):
                 if a <= t <= b:
-                    last = i + 1 >= len(segs)
+                    last = i + 1 >= len(segs) or self.p.get("final_all", False)
                     return int(b), (None if last else int(segs[i + 1][0])), last
             return None
         off = int(self.p.get("seg_off", 0))
@@ -321,7 +321,9 @@ class BatteryAgent:
             return None
         d_next = (m + 2).astype("datetime64[D]") - 7 - off
         J = int(d_next.astype("datetime64[h]").astype(np.int64))
-        return E, J, (J - 1 > self.h0_max)              # sense dades de train abans de J -> final de la simulació
+        # sense dades de train abans de J -> final de la simulació. Amb final_all, cada final de mes es tracta com un
+        # possible final: la bateria es buida a les últimes hores de cada setmana (es torna a carregar de matinada)
+        return E, J, (J - 1 > self.h0_max) or bool(self.p.get("final_all", False))
 
     # ------------------------------------------------------------------ pas
     def act(self, obs):
@@ -398,13 +400,27 @@ class BatteryAgent:
         # final de la simulació: si la finestra de mercat s'escurça, només queden len(pr) hores
         n_mkt = len(pr); self.max_len = max(self.max_len, n_mkt)
         fi = 0 < n_mkt < self.max_len
+        end_left = None
+        if not fi and self.p.get("end_cal", False) and self.h0_max is not None:
+            # final del test per calendari, independent del salt: les setmanes de test són els últims 7 dies de cada mes
+            # i, després de l'última (agost), no hi ha dades d'entrenament. Si la setmana actual és l'última, en les
+            # últimes hores es planifica només fins al final (l'energia que quedi a la bateria es perdria)
+            m = np.datetime64(int(t), "h").astype("datetime64[M]")
+            E = int((m + 1).astype("datetime64[D]").astype("datetime64[h]").astype(np.int64)) - 1
+            Jn = int(((m + 2).astype("datetime64[D]") - 7).astype("datetime64[h]").astype(np.int64))
+            if Jn - 1 > self.h0_max and 0 <= E - t:
+                end_left = E - t + 1
+        if not fi and n_left is not None and final and self.p.get("jump_final", True):
+            end_left = n_left                           # última setmana (calendari del salt o trams de validació)
+        # final conegut: en les últimes end_h hores es planifica només fins al final (l'energia sobrant no val res)
+        if not fi and end_left is not None and end_left <= min(len(price), self.p.get("end_h", 24)):
+            fi = True; Hh = max(1, min(Hh, end_left))
         if fi:
-            Hh = max(1, n_mkt)
+            Hh = max(1, min(Hh, n_mkt)) if 0 < n_mkt < self.max_len else Hh
         elif n_left is not None and n_left < len(price):
-            if final:                                   # última setmana: l'energia que quedi a la bateria no val res
-                if self.p.get("jump_final", True):
-                    fi = True; Hh = max(1, min(Hh, n_left))
-            elif J is not None:
+            if final:
+                pass
+            elif J is not None and self.p.get("jump_plan", True):
                 # les hores de després del salt són les primeres de la setmana de test següent: valors reals de la
                 # finestra de mercat si ja hi són, i si no els del dia anterior (que és a les dades d'entrenament)
                 for k in range(max(0, n_left), len(price)):
@@ -450,8 +466,9 @@ class BatteryAgent:
                 scen = np.asarray(st[t], float) - float(net[0])
             dmax0 = self.pmax
         net_plan = np.asarray(net, float).copy()
-        if self.p.get("k_future", 0.0):
-            net_plan[1:] = net_plan[1:] - self.p["k_future"] * sig * np.sqrt(np.arange(1, len(net_plan)))
+        kf = self.p.get("end_kf", self.p.get("k_future", 0.0)) if (fi and end_left is not None) else self.p.get("k_future", 0.0)
+        if kf:
+            net_plan[1:] = net_plan[1:] - kf * sig * np.sqrt(np.arange(1, len(net_plan)))
         P = self._lp(w, net_plan, soc, v, dmax0, scen)
         if P is None:
             a = 0.0

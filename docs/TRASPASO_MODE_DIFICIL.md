@@ -183,3 +183,19 @@ Base reproducida: `parametres.json` por defecto = v12 exacta (A 20,75 · B 18,91
 Valor de mejorar la hora actual: unos +0,05 por cada 10 % menos de error del consumo neto (MAE actual 62 kW).
 Margen que queda con información perfecta: CO₂ de +3..+7 h (+0,6) — es la única vía con recorrido, pero requiere un
 modelo nuevo de CO₂ a corto plazo, no ajustes de parámetros.
+
+## 11. v14 = v12 + vaciar la batería al final del test (31/8) — pendiente del público
+
+Diagnóstico v12 frente al óptimo (val. A): casi no tira solar (1,5 MWh) ni descarga de más (4,5 MWh); la diferencia está
+en la calidad de las previsiones y en que **acaba la simulación con 2.838 kWh en la batería** (energía pagada y no usada).
+La v12 solo ve el final cuando la ventana de mercado se acorta (2 h antes).
+
+- Tratar **cada** final de mes como final: A −0,68 · B −0,23 (no).
+- Saber el final real (11 semanas como episodios independientes, 22 finales): +0,52/+0,53; **sin la prudencia `k_future`
+  en esas horas: +0,57/+0,58**, mejora en 14 de 22 finales y lo peor es −0,04. Con prudencia, el agente descargaba de
+  madrugada y cargaba poco por la tarde (ver pseudo-test).
+- Regla de la v14 (`end_cal`, `end_kf`=0): la única semana tras la que seguro no hay más es la de agosto (no hay datos
+  de train después). En sus últimas 24 h se planifica hasta el 31/8 23:00 con valor final 0 y sin prudencia.
+  Fuera de esa semana el agente es **idéntico a la v12** (val. A 20,75). Pseudo-test con calendario real: 20,21 → 20,30.
+- En el público solo cambia algo si incluye la semana de agosto (si sale 23,53 exacto, no la incluye).
+Zip: `dificil/lliuraments/hard_v14_v12_final_agost.zip` (mismo `.pkl` que la v12).

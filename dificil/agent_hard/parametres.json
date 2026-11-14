@@ -15,5 +15,7 @@
  "scen_win": 2,
  "jump": false,
  "seg_off": 0,
- "jump_meas": false
+ "jump_meas": false,
+ "end_cal": true,
+ "end_kf": 0.0
 }
