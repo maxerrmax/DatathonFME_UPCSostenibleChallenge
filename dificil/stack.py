@@ -143,3 +143,25 @@ def make_scen(C, K=10, win=1, center=True, seed=0, scale=1.0):
         pS = v[0][None, :] + scale * rp[:, :n]; cS = np.clip(v[1][None, :] + scale * rc[:, :n], 0.001, 1.0)
         out[t] = (pS, cS)
     return out
+
+
+def cal_meas(R, key, lags=(1, 2, 3), tau=4.0, cap=None, h0=1, shrink=1.0):
+    """Calibratge online del consum i la solar amb els errors de previsions anteriors per a l hora t-1."""
+    j = {"load": 2, "pv": 3}[key]; tr = TRUTH[key]; out = {}
+    for t, v in R.items():
+        a = [x.copy() for x in v]; f = a[j]
+        e = []
+        for L in lags:
+            old = R.get(t - 1 - L)
+            if old is not None and L < len(old[j]) and (t - 1) in tr and np.isfinite(tr[t - 1]):
+                e.append(tr[t - 1] - old[j][L])
+        if e:
+            b = float(np.median(e)) * shrink
+            if cap is not None:
+                b = float(np.clip(b, -cap, cap))
+            h = np.arange(h0, len(f))
+            f[h0:] = f[h0:] + b * np.exp(-(h - h0) / tau)
+            if key == "pv":
+                f[h0:] = np.maximum(f[h0:], 0.0)
+        out[t] = tuple(a)
+    return out

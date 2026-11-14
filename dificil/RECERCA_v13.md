@@ -54,3 +54,18 @@ setmana s'acaba dins l'horitzó, la v12 planificava hores inexistents (l'1/10...
 
 Validació (models fit-only, setmanes enganxades): v12 20,74 → **20,98**; mitjana públic/privat 20,68 → **20,88**
 (sostre amb informació perfecta després del salt: 20,96). Sense els paràmetres nous decideix exactament igual que la v12.
+
+## Més proves sobre la v12 (14/11, 23:10) — totes descartades
+
+| Prova | Validació (v12 = 20,74) |
+|---|---:|
+| Calibratge online del preu (com el del CO₂) | 20,72–20,76 |
+| Calibratge online del consum / solar a +1..+23 h | 20,70–20,74 |
+| Correcció del biaix del CO₂ per horitzó (estimat en altres blocs) | 20,73–20,75 |
+| `k_future`, `q_term`, `scen`, `scen_win`, `scen_scale`, `ratio` | 20,71–20,75 |
+
+- El CO₂ previst a +12..+23 h té biaix, però canvia de signe amb l'estació (negatiu set–feb, positiu a l'estiu):
+  no es pot corregir de manera estable.
+- La v12 manté el SOC 3–7 punts per sobre de l'agent amb informació perfecta a totes les hores: és prudència davant
+  la incertesa; reduir-la no millora.
+- Pèrdua de la v12 respecte a l'agent perfecte: 1,16 punts repartits per tot el dia, sense una franja dominant.
