@@ -47,3 +47,9 @@ Etapa 2, 60 configuracions de decisió per família (`results/etapa2_decisio.md`
 - **Detecció del final de la simulació**: si la finestra de mercat s'escurça, només es planifica fins al final
   i l'energia restant val 0. Tanca la diferència en Mode Estàndard (5,92 → 6,07, `mpc_lp` 6,08).
 - Robustesa (validació): el mateix agent funciona en Estàndard, en mercat a 3 h, amb solar ×12 i en Difícil.
+
+## v4 (`hard_mpc_lgbm_v4.zip`) — validació 19,42
+
+Calendari de graus de la **FIB (Campus Nord)**: exàmens (30/10–5/11, 7/1–19/1, 7/4–13/4, 4/6–19/6) i
+**períodes sense classes** (fora de 8/9–19/12 i 9/2–29/5). Afecta setmanes de test com 25–31/1 i 24–30/6.
+MAE consum a validació 58,9 → 56,9 kW; en festius/períodes sense classes apartats, −35 % d'error.
