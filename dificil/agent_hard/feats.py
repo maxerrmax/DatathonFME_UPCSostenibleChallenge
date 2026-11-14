@@ -41,6 +41,35 @@ def calendar(hour_epoch):
 
 
 
+# ---------------------------------------------------------------- cel clar (solar màxima per dia de l'any i hora)
+_CS = None
+
+
+def set_cs(table):
+    global _CS
+    _CS = None if table is None else np.asarray(table, dtype=float)
+
+
+def cs_value(hour_epoch):
+    if _CS is None:
+        return np.nan
+    day = np.datetime64(int(hour_epoch // 24), "D")
+    doy = int((day - day.astype("datetime64[Y]")).astype(np.int64))
+    return float(_CS[min(doy, 365), int(hour_epoch % 24)])
+
+
+def cs_table(day_of_year, hour, pv, win=12, q=0.95):
+    """Taula 366x24 amb el quantil q de la solar en una finestra de ±win dies (entrenament)."""
+    T = np.zeros((366, 24))
+    for h in range(24):
+        m = hour == h; dd, vv = day_of_year[m], pv[m]
+        for k in range(366):
+            dist = np.minimum(np.abs(dd - k), 366 - np.abs(dd - k))
+            sel = vv[(dist <= win) & np.isfinite(vv)]
+            T[k, h] = np.quantile(sel, q) if len(sel) else 0.0
+    return T
+
+
 # ---------------------------------------------------------------- calendari (Barcelona / UPC 2025-26)
 def _days(*dates):
     out = set()
@@ -58,8 +87,12 @@ def _range(a, b):
 FESTIUS = _days("2025-09-11", "2025-09-24", "2025-10-12", "2025-11-01", "2025-12-06", "2025-12-08",
                 "2025-12-25", "2025-12-26", "2026-01-01", "2026-01-06", "2026-04-03", "2026-04-06",
                 "2026-05-01", "2026-05-25", "2026-06-24", "2026-08-15", "2026-09-11", "2026-09-24")
-# períodes no lectius UPC (Nadal ampliat al 24/12 i fins al 6/1; Setmana Santa; estiu)
-VACANCES = _range("2025-12-24", "2026-01-06") | _range("2026-03-30", "2026-04-06") | _range("2026-08-03", "2026-08-31")
+# períodes no lectius UPC (Nadal; Setmana Santa; estiu)
+VACANCES = _range("2025-12-24", "2026-01-06") | _range("2026-03-30", "2026-04-06") | _range("2026-08-03", "2026-08-21")
+# edificis TANCATS i sense climatització (horaris d'edificis UPC: Nadal 25/12-6/1, agost 3-21)
+TANCAT = _range("2025-12-25", "2026-01-06") | _range("2026-08-03", "2026-08-21")
+# HORARI REDUÏT de matí (8:30-14:00): estiu 22/6-31/7, represa 24/8-4/9, vigílies de Nadal 22-24/12
+REDUIT = _range("2025-12-22", "2025-12-24") | _range("2026-06-22", "2026-07-31") | _range("2026-08-24", "2026-09-04")
 # Calendari de graus FIB (Campus Nord) 2025-26
 EXAMENS = _range("2025-10-30", "2025-11-05") | _range("2026-01-07", "2026-01-19") | \
           _range("2026-04-07", "2026-04-13") | _range("2026-06-04", "2026-06-19")
@@ -72,7 +105,8 @@ def day_flags(hour_epoch):
     fest = d in FESTIUS; vac = d in VACANCES
     off = fest or vac or dow >= 5
     sense_classes = float(d not in CLASSES and d not in EXAMENS)
-    return float(fest), float(vac), float(d in EXAMENS), sense_classes, float(off)
+    return (float(fest), float(vac), float(d in EXAMENS), sense_classes, float(d in TANCAT),
+            float(d in REDUIT), float(off))
 
 
 MKT_NAMES = ["h", "hod", "dow", "doy_s", "doy_c", "lag24", "lag48", "lag168", "last_known",
@@ -106,12 +140,14 @@ def meas_features(hist, key, t, hs):
     lm = t + KNOWN_MEAS
     last = hist.get(key, lm); last24 = hist.get(key, lm - 24); m24 = hist.mean_back(key, lm, 24)
     irr = hist.get("irr", lm); temp = hist.get("temp", lm)
+    pv_last = hist.get("pv", lm); cs_last = cs_value(lm)
+    k_last = min(1.3, max(0.0, pv_last / cs_last)) if (np.isfinite(pv_last) and np.isfinite(cs_last) and cs_last > 30) else np.nan
     for h in hs:
         tau = t + h; hod, dow, s, c = calendar(tau)
         rows.append([h, hod, dow, s, c, hist.get(key, tau - 24), hist.get(key, tau - 48),
                      hist.get(key, tau - 168), last, last - last24, m24, irr, temp,
-                     hist.get("irr", tau - 24), lm % 24, *day_flags(tau), day_flags(tau - 24)[4],
-                     day_flags(tau - 168)[4]])
+                     hist.get("irr", tau - 24), lm % 24, *day_flags(tau), day_flags(tau - 24)[6],
+                     day_flags(tau - 168)[6], cs_value(tau), k_last, k_last * cs_value(tau)])
     return np.array(rows, dtype=float)
 
 

@@ -20,7 +20,7 @@ try:
 except Exception:  # pragma: no cover
     joblib = lgb = None
 
-from feats import Hist, mkt_features, meas_features
+from feats import Hist, mkt_features, meas_features, set_cs, cs_value
 
 ETA = 0.9 ** 0.5
 HERE = Path(__file__).parent
@@ -63,6 +63,8 @@ class BatteryAgent:
             if raw is None:
                 raw = joblib.load(HERE / p["models"])
             # LightGBM es desa com a text; la resta (XGBoost, sklearn, ensembles) com a objectes amb .predict
+            raw = dict(raw)
+            set_cs(raw.pop("pv_cs", None))
             self.m = {k: (lgb.Booster(model_str=v) if isinstance(v, str) else v) for k, v in raw.items()}
         except Exception:
             self.m = {}
@@ -87,8 +89,12 @@ class BatteryAgent:
             last, last24 = X[:, 8], X[:, 8] - X[:, 9]
             ratio = np.clip(np.where(np.isfinite(last24) & (last24 > 50), last / np.maximum(last24, 1), 1.0), 0.3, 1.5)
             pers = lag * (1 + (ratio - 1) * np.exp(-X[:, 0] / 6.0))
+            csp = X[:, -1]                                   # k_last * cel_clar(tau)
+            if self.p.get("pv_cs", True):
+                wcs = np.exp(-X[:, 0] / self.p.get("cs_tau", 3.0))
+                pers = np.where(np.isfinite(csp), wcs * csp + (1 - wcs) * np.where(np.isfinite(pers), pers, csp), pers)
             a = self.p["pv_blend"]
-            out = np.where(np.isfinite(lag), a * out + (1 - a) * pers, out)
+            out = np.where(np.isfinite(pers), a * out + (1 - a) * pers, out)
             hod = X[:, 1]
             out = np.where((hod < 6) | (hod > 21), 0.0, np.maximum(out, 0.0))
         return np.where(np.isfinite(out), out, np.nan)
