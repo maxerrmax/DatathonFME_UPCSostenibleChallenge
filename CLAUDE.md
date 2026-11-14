@@ -14,3 +14,9 @@
 ## Mode Difícil
 - Agent: `submission_hard/` (es genera amb `scripts/build_agent.py`; no editar `agent.py` a mà, editar `agent_core.py` i `src/forecast.py`).
 - Validació: `scripts/tune_hard.py <dir_models> '<json params>' ...` · Lliurament: `scripts/package_hard.py`.
+
+## Versió base del Mode Difícil (decisió de l'equip)
+- **Base = versió que va fer 22,95 al rànquing públic** (`submissions_hard_diag/mpc_lgbm_submission.zip`,
+  params `{"load_bias": -50, "pv_bias": 1.2, "pv_mix": 0.5}`, validació local 17,00 / equip 20,05).
+- Tot canvi nou s'ha de fer partint d'aquesta base. La v2 amb règims d'obertura (tancat/reduït) va empitjorar
+  al test i es va revertir (commit "Revert ... règims reals d'obertura").
