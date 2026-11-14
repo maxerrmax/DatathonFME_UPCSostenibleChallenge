@@ -60,3 +60,15 @@ Règims d'ocupació dels edificis segons els horaris publicats per la UPC (no n'
 s'usa el patró dels edificis UPC): **tancat** (25/12–6/1, 3–21/8) i **horari reduït de matí** (22–24/12,
 22/6–31/7, 24/8–4/9). La setmana de test 25–31/8 queda com a horari reduït (no tancada).
 Holdout de festius/vacances: MAE consum 109,9 (v4) → 109,1 kW; validació igual (19,42).
+
+## v6 (`hard_mpc_lgbm_v6.zip`) — validació 19,80
+
+Revisió (diagnòstic a validació, `models_fit`): 0 excepcions i 0 fallades del solver en 1.848 passos;
+descàrrega perduda 2,2 %; excedent solar no aprofitat 13,5 %; l'error de demanda neta de l'hora actual
+pujava a 200–250 kW entre les 10 i les 15 h (solar).
+
+- **Cel clar**: taula 366×24 (quantil 95 % de la solar per dia de l'any i hora, finestra ±12 dies) desada dins
+  del zip. Features noves: cel clar a tau, índex de claredat de l'última hora i la seva persistència.
+  MAE solar a l'hora actual 148 → 76 kW. Validació 19,42 → 19,71.
+- Sensibilitat: `pv_blend` 0,15 (més pes a la persistència de cel clar), `k_dis` 1,0, `k_future` 0,4;
+  el valor terminal no influeix (19,74–19,75). Validació **19,80**.

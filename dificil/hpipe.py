@@ -80,6 +80,9 @@ def forecast_mae(table, truth):
 
 def stage1(names):
     df = load_hard(); fit, val = split_val(df)
+    from train_forecast import make_cs
+    from feats import set_cs
+    CS = make_cs(fit); set_cs(CS)
     D = build(fit); truth = truth_tables(val)
     rows = []
     for name in names:
@@ -88,7 +91,7 @@ def stage1(names):
         if name == "perfecte":
             prm = {"_models": {}, "_cheat": (truth, KEYS), "_record": rec}
         else:
-            prm = {"_models": fit_family(name, D), "_record": rec}
+            prm = {"_models": {**fit_family(name, D), "pv_cs": CS}, "_record": rec}
         t_fit = time.time() - t0
         r = run(load_agent(prm), val)
         pickle.dump(rec, open(CACHE / f"fc_{name}.pkl", "wb"))
