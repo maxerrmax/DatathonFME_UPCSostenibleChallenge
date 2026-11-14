@@ -72,6 +72,7 @@ class BatteryAgent:
         self.pred_net0 = None
         self.hist_w = []
         self.cap, self.pmax = 6000.0, 1500.0
+        self.max_len = 0                                # llargada màxima vista de la finestra de mercat
 
     # ------------------------------------------------------------------ previsions
     def _pred(self, key, X, kind):
@@ -201,13 +202,18 @@ class BatteryAgent:
         if rec is not None:
             rec[t] = (price.copy(), co2.copy(), load.copy(), pvf.copy())
         Hh = int(max(2, min(24, self.p.get("horizon", 24))))
+        # final de la simulació: si la finestra de mercat s'escurça, només queden len(pr) hores
+        n_mkt = len(pr); self.max_len = max(self.max_len, n_mkt)
+        fi = 0 < n_mkt < self.max_len
+        if fi:
+            Hh = max(1, n_mkt)
         price, co2, load, pvf = price[:Hh], co2[:Hh], load[:Hh], pvf[:Hh]
         net = load - pvf
         self.pred_net0 = float(net[0])
         w = 0.7 * co2 + 0.3 * self.p["ratio"] * price
         self.hist_w.append(float(w[0]))
         ref = np.concatenate([w, self.hist_w[-72:]])
-        v = self.p["term_scale"] * ETA * float(np.quantile(ref, self.p["q_term"]))
+        v = 0.0 if fi else self.p["term_scale"] * ETA * float(np.quantile(ref, self.p["q_term"]))
         # prudència a la descàrrega de l'hora actual: net previst - k * error típic
         sig = float(np.mean([abs(e) for _, e in self.err])) if len(self.err) >= 12 else 80.0
         if self.p.get("sigma_mode") == "hod":

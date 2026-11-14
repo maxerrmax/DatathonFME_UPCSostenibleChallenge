@@ -38,3 +38,12 @@ Etapa 2, 60 configuracions de decisió per família (`results/etapa2_decisio.md`
 - prudència a la descàrrega `k_dis` òptima a 0,5–0,75; horitzó 16 vs 24 h: indiferent.
 
 **Configuració final** (`parametres.json`): LightGBM base, `k_dis=0.75`, `sigma_mode=hod`, `k_future=0.3` → **19,19** a validació (abans 19,04).
+
+## v3 (`hard_mpc_lgbm_v3.zip`) — validació 19,40
+
+- **Calendari** (festius Catalunya/Barcelona, vacances UPC, exàmens, i si fa 24 h / 7 dies era festiu) als models
+  de consum i solar. En dies festius apartats de l'entrenament, l'error de consum baixa un 37 % (175 → 110 kW).
+  Al preu i al CO2 no ajuda (−4,8 % / 0 %) i no s'hi fa servir.
+- **Detecció del final de la simulació**: si la finestra de mercat s'escurça, només es planifica fins al final
+  i l'energia restant val 0. Tanca la diferència en Mode Estàndard (5,92 → 6,07, `mpc_lp` 6,08).
+- Robustesa (validació): el mateix agent funciona en Estàndard, en mercat a 3 h, amb solar ×12 i en Difícil.
