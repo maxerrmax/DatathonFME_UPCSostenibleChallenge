@@ -2,7 +2,8 @@
 BatteryAgent — MPC amb programació lineal, versió blindada (Datathon UPC 2026).
 
 Mateixa política que mpc_lp (LP sobre les 24 h de preu i CO2, horitzó lliscant), més:
-  - neteja de l'observació: NaN / None / inf / claus absents -> últim valor vàlid conegut;
+  - neteja de l'observació: si falta l'hora actual s'usa preu_actual/co2_actual; la resta de forats
+    s'interpolen entre hores veïnes (ancorant a l'hora anterior); els valors extrems reals NO es toquen;
   - si el solver falla, reutilitza el pla de l'hora anterior;
   - qualsevol excepció -> 0.0 (repòs), mai peta;
   - la sortida sempre és un float finit dins dels límits físics exactes (0 infraccions).
@@ -29,13 +30,23 @@ def _num(x, default):
         return default
 
 
-def _clean_series(values, fallback):
-    """Llista de 24 h sense NaN: omple amb el valor anterior vàlid (o el fallback)."""
-    out, last = [], fallback
-    for v in list(values or []):
-        last = _num(v, last)
-        out.append(last)
-    return out
+def _clean_series(values, current, previous):
+    """Llista de 24 h sense NaN.
+    - posició 0 (hora actual): si falta, s'usa `current` (preu_actual / co2_actual) si és vàlid;
+    - la resta de forats s'interpolen linealment entre veïns vàlids, usant l'hora anterior coneguda
+      (`previous`) com a punt d'ancoratge a l'esquerra; a la dreta es repeteix l'últim vàlid.
+    Els valors extrems reals NO es toquen: són els mateixos que puntuen."""
+    raw = [_num(v, float("nan")) for v in list(values or [])]
+    if not raw:
+        return []
+    if not math.isfinite(raw[0]) and current is not None and math.isfinite(current):
+        raw[0] = current
+    y = np.asarray([previous] + raw, dtype=float)       # índex 0 = hora anterior (ancoratge)
+    ok = np.isfinite(y)
+    if not ok.all():
+        idx = np.arange(len(y))
+        y = np.interp(idx, idx[ok], y[ok]) if ok.any() else np.full(len(y), previous)
+    return [float(v) for v in y[1:]]
 
 
 def solve_lp(w, soc0, v_term, dmax):
@@ -95,10 +106,12 @@ class BatteryAgent:
         soc = min(CAP, max(0.0, _num(obs.get("soc_kwh"), self.last_soc)))
         self.last_soc = soc
 
-        p_now = _num(obs.get("preu_actual"), self.last_price)
-        c_now = _num(obs.get("co2_actual"), self.last_co2)
-        price = _clean_series(obs.get("preus_properes_24h"), p_now) or [p_now]
-        co2 = _clean_series(obs.get("co2_properes_24h"), c_now) or [c_now]
+        p_now = _num(obs.get("preu_actual"), float("nan"))
+        c_now = _num(obs.get("co2_actual"), float("nan"))
+        price = _clean_series(obs.get("preus_properes_24h"), p_now, self.last_price) \
+            or [p_now if math.isfinite(p_now) else self.last_price]
+        co2 = _clean_series(obs.get("co2_properes_24h"), c_now, self.last_co2) \
+            or [c_now if math.isfinite(c_now) else self.last_co2]
         self.last_price, self.last_co2 = price[0], co2[0]
         H = min(len(price), len(co2))
 
