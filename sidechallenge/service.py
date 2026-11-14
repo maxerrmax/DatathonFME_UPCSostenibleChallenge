@@ -850,6 +850,12 @@ async def _llm_plan(query: str, fields: list[str], has_time: bool) -> tuple[dict
         return None, "Error de connexió o resposta no vàlida de Helmcode."
 
 
+def _fmt(v: float) -> str:
+    """Catalan formatting with precision adapted to the magnitude."""
+    a=abs(v)
+    return eda.ca(v, 3 if a < 1 else 2 if a < 10 else 1 if a < 100 else 0)
+
+
 def _grounded_insights(df:pd.DataFrame, metrics:list[str], req:ChartReq) -> tuple[list[str],dict]:
     insights=[]; evidence={"rows":len(df),"aggregation":req.aggregation,"selection":req.day_type}
     for m in metrics:
@@ -861,13 +867,14 @@ def _grounded_insights(df:pd.DataFrame, metrics:list[str], req:ChartReq) -> tupl
             if len(grouped):
                 e["lowest_average_hour"]=int(grouped.idxmin())
                 e["highest_average_hour"]=int(grouped.idxmax())
-                insights.append(f"{FIELD_NAMES.get(m,m)}: mitjana {e['mean']:g} {UNITS.get(m,'')}. Mínim horari mitjà a les {e['lowest_average_hour']:02d}:00 i màxim a les {e['highest_average_hour']:02d}:00.")
+                insights.append(f"{FIELD_NAMES.get(m,m)}: mitjana {_fmt(e['mean'])} {UNITS.get(m,'')}. Mínim horari mitjà a les {e['lowest_average_hour']:02d}:00 i màxim a les {e['highest_average_hour']:02d}:00.")
         else:
-            insights.append(f"{FIELD_NAMES.get(m,m)}: mitjana {e['mean']:g}, entre {e['min']:g} i {e['max']:g} ({e['n']} registres).")
+            insights.append(f"{FIELD_NAMES.get(m,m)}: mitjana {_fmt(e['mean'])}, entre {_fmt(e['min'])} i {_fmt(e['max'])} ({e['n']} registres).")
         evidence[m]=e
     if all(m in metrics for m in ("precio_eur_per_kwh","co2_kg_per_kwh")):
         c=_num(df[metrics[:2]].corr().iloc[0,1],3)
-        if c is not None: insights.append(f"Correlació entre les dues variables seleccionades: {c:+.3f}. No implica causalitat.")
+        if c is not None: evidence["correlation"]=c
+        if c is not None: insights.append(f"Correlació entre les dues variables seleccionades: {'+' if c >= 0 else ''}{eda.ca(c,3)}. No implica causalitat.")
     if "precio_eur_per_kwh" in metrics or "co2_kg_per_kwh" in metrics:
         insights.append("Decisió: utilitza aquests patrons com a diagnòstic; per a consignes reals, compara les 24 hores futures i comprova l'energia de la bateria i el 90% de rendiment.")
     return insights,evidence
@@ -979,14 +986,32 @@ async def assistant(req: AssistantReq):
     available=_numeric_fields(ds.frame)
     plain=unicodedata.normalize("NFKD", req.message.casefold())
     plain="".join(c for c in plain if not unicodedata.combining(c))
+    history=[t for t in (req.history or []) if isinstance(t, dict)][-3:]
+    if copilot.is_greeting(req.message):
+        return {"mode":"greeting","intent":"greeting","answer":copilot.GREETING,"insights":copilot.GREETING.split("\n"),
+                "charts":[],"trace":[],"evidence":{"rows":len(ds.frame)},"verification":None,"llm_warning":None,
+                "plan":{"kind":"analysis","metrics":[],"aggregation":"tools"},
+                "note":"Presentació de capacitats; no s'ha executat cap càlcul."}
     explicit,_=_query_requirements(req.message, available)
-    followup=is_followup(plain, req.previous_plan if isinstance(req.previous_plan, dict) else None, explicit)
-    intent="simulate_day" if copilot.is_what_if(req.message) else (None if followup else copilot.classify(req.message))
+    chart_followup=is_followup(plain, req.previous_plan if isinstance(req.previous_plan, dict) else None, explicit)
+    if copilot.is_what_if(req.message):
+        intent="simulate_day"
+    else:
+        intent=copilot.analyst_followup(req.message, history)
+        if intent is None and not chart_followup:
+            intent=copilot.classify(req.message)
+            llm_ready=bool(os.getenv("HELMCODE_API_KEY") and os.getenv("HELMCODE_MODEL"))
+            if intent is None and llm_ready and not copilot.is_chart_request(req.message):
+                intent="open"  # let the model choose among the controlled tools
     if intent:
         if intent == "simulate_day" and not _energy_ready(ds.frame):
             raise HTTPException(400, "Per fer un what-if calen dades de temps i energia")
-        history=[t for t in (req.history or []) if isinstance(t, dict)][-3:]
-        return await copilot.answer(sys.modules[__name__], req.dataset_id, req.message, history, intent)
+        result=await copilot.answer(sys.modules[__name__], req.dataset_id, req.message, history, intent)
+        if not result.get("fallback_to_charts"):
+            return result
+        charts=await _chart_assistant(req)
+        charts["llm_warning"]=result.get("llm_warning") or charts.get("llm_warning")
+        return charts
     return await _chart_assistant(req)
 
 
@@ -1026,7 +1051,8 @@ async def _chart_assistant(req: "AssistantReq"):
             facts.insert(0,"Filtre aplicat: "+("caps de setmana" if day_type=="weekend" else "dies laborables")+f" ({len(filtered)} registres).")
     if intent_adjustments and mode == "helmcode":
         facts = intent_adjustments + facts
-    return {"mode":mode,"plan":safe,"charts":charts,"insights":facts,"evidence":evidence,
+    check=copilot.verify("\n".join(facts), [{"summary":evidence,"facts":[]}], req.message)
+    return {"mode":mode,"plan":safe,"charts":charts,"insights":facts,"evidence":evidence,"verification":check,
             "llm_warning":llm_warning, "day_type":day_type, "comparison":comparison,
             "intent_adjustments":intent_adjustments,
             "note":"Resultats calculats al servidor amb les dades seleccionades. L'LLM interpreta el pla, no calcula els resultats."}

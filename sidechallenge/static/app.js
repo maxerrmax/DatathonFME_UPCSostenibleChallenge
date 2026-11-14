@@ -208,7 +208,7 @@ function addChat(role,lines){
   });
   $('chat-messages').append(node);$('chat-messages').scrollTop=$('chat-messages').scrollHeight;return node;
 }
-const MODE_LABEL={helmcode:'Planificat amb Helmcode',context:'Context anterior verificat',physics:'Simulació física verificada',local:'Planificador local',
+const MODE_LABEL={greeting:'Presentació',helmcode:'Planificat amb Helmcode',context:'Context anterior verificat',physics:'Simulació física verificada',local:'Planificador local',
   'analyst-helmcode':'Analista Helmcode · eines verificades','analyst-helmcode-json':'Analista Helmcode (pla JSON) · eines verificades','analyst-local':'Analista local · eines verificades'};
 async function askAssistant(question){
   if(state.busy)return;
@@ -234,6 +234,7 @@ async function askAssistant(question){
     if(res.plan?.kind && !['analysis','what_if'].includes(res.plan.kind))state.lastAi={dataset:state.dataset,question,plan:res.plan};
     $('copilot-context').hidden=!state.lastAi;
     if(state.lastAi){$('context-label').textContent='Context de gràfic · '+state.lastAi.plan.metrics.map(m=>dataset()?.metrics.find(x=>x.key===m)?.label||m).join(' + ');}
+    if(res.mode==='greeting'){$('ai-evidence').hidden=true;return;}
     state.aiCharts=res.charts;
     plotCards('ai-canvas-charts',res.charts,'AI Copilot',()=>messages.filter(m=>!m.startsWith('Avís')).map(m=>m.replace(/\s*\[E\d+\]/g,'')).slice(0,4),
       ()=>({type:'question',question}));

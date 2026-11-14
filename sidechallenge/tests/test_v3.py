@@ -179,3 +179,71 @@ def test_provider_failure_uses_local_analyst(monkeypatch):
         r = client.post("/api/assistant", json={"message": "Quina estratègia de bateria funciona millor?"}).json()
     assert r["mode"] == "analyst-local" and "Helmcode" in r["llm_warning"]
     assert r["trace"][0]["tool"] == "backtest"
+
+
+# ---------------------------------------------------------------- v3.1 routing
+def _ask(client, message, **extra):
+    r = client.post("/api/assistant", json={"message": message, **extra})
+    assert r.status_code == 200, r.text
+    return r.json()
+
+
+def test_greeting_does_not_compute_anything():
+    with TestClient(service.app) as c:
+        r = _ask(c, "hola")
+    assert r["mode"] == "greeting" and not r["charts"] and "Copilot" in r["answer"]
+
+
+def test_local_analyst_followup_uses_history():
+    with TestClient(service.app) as c:
+        first = _ask(c, "Quines hores són les més netes i barates?")
+        r = _ask(c, "I al juliol?", history=[{"q": "Quines hores són les més netes i barates?", "a": first["answer"]}])
+    assert r["intent"] == "best_hours" and r["trace"][0]["args"] == {"month": 7}
+    assert "juliol" in r["answer"] and r["verification"]["ok"]
+
+
+def test_answers_lead_with_what_was_asked():
+    with TestClient(service.app) as c:
+        co2 = _ask(c, "Quant CO2 estalviaríem amb la millor estratègia?")
+        price = _ask(c, "Quina hora és la més cara?")
+        when = _ask(c, "Quan hauria de descarregar la bateria?")
+        alpha = _ask(c, "Val la pena prioritzar el CO2 respecte al cost?")
+    if co2["trace"][0]["facts"] and "segon pla" not in co2["trace"][0]["facts"][0]:
+        assert "t de CO₂" in co2["answer"].split("\n")[0]
+    assert price["answer"].startswith("El preu medià és més alt")
+    assert when["intent"] == "best_hours" and when["answer"].startswith("Descarrega")
+    assert alpha["intent"] == "tradeoff"
+    for r in (co2, price, when, alpha):
+        assert r["verification"]["ok"], r["verification"]
+
+
+def test_chart_path_is_catalan_and_verified():
+    with TestClient(service.app) as c:
+        r = _ask(c, "Explica'm el heatmap del CO2")
+    text = " ".join(r["insights"])
+    assert "0,0" in text and "0.0" not in text
+    assert r["verification"]["ok"]
+
+
+def test_open_question_goes_to_llm_tools_when_configured(monkeypatch):
+    seen = []
+
+    def handler(request):
+        body = json.loads(request.content); seen.append(body)
+        if len(seen) == 1:
+            assert "tools" in body
+            return httpx.Response(200, json={"choices": [{"message": {"content": "", "tool_calls": [
+                {"id": "c1", "type": "function", "function": {"name": "tradeoff", "arguments": "{}"}}]}}]})
+        return httpx.Response(200, json={"choices": [{"message": {"content": "Resposta basada en l'estudi [E1].\nDecisió: mantenir α."}}]})
+
+    _mock(monkeypatch, handler)
+    with TestClient(service.app) as c:
+        r = _ask(c, "Fes-me un resum per al rector de la situació energètica del campus")
+    assert r["mode"] == "analyst-helmcode" and r["intent"] == "open"
+    assert r["trace"][0]["tool"] == "tradeoff"
+
+
+def test_open_question_without_llm_falls_back_to_charts():
+    with TestClient(service.app) as c:
+        r = _ask(c, "Fes-me un resum per al rector de la situació energètica del campus")
+    assert r["mode"] in ("local", "helmcode") and r["charts"]

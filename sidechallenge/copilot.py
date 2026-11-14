@@ -83,15 +83,28 @@ def is_what_if(question: str) -> bool:
 
 
 INTENTS: list[tuple[str, str]] = [
-    ("data_quality", r"qualitat|fiab|congel|absen|forat|missing|anomal|calidad|errors? de (?:les )?dades"),
-    ("backtest", r"estrateg|politic|backtest|arena|agent|mpc|quina puntuacio|score|leaderboard|quin (?:metode|algoritme)|com (?:millor|guany)"),
-    ("tradeoff", r"pareto|compromis|trade.?off|alfa|alpha|70.?30|pes del co2|dimension|capacitat|mes gran|mida de la bateria|invers|potencia de la bateria"),
-    ("best_hours", r"(?:quines|millors|quan|quina) (?:hores?|hora|franja)|hores? (?:mes )?(?:netes?|barates?|brutes?|car)|quan (?:carregar|descarregar|carrego|descarrego)|netes? i barat|finestr"),
+    ("data_quality", r"qualitat|fiab|congel|absen|forat|missing|anomal|calidad|errors? de (?:les )?dades|me'?n puc refiar"),
+    ("tradeoff", r"pareto|compromis|trade.?off|alfa|alpha|70.?30|pes del co2|prioritz|co2 (?:o|respecte|vs|versus|enfront)|(?:cost|preu) (?:o|respecte|vs|versus) (?:el )?co2|"
+                 r"dimension|capacitat|mes gran|mes petita|mida de la bateria|invers|potencia de la bateria|ampliar la bateria"),
+    ("backtest", r"estrateg|politic|backtest|arena|agent|mpc|puntuacio|score|leaderboard|quin (?:metode|algoritme)|com (?:millor|guany)|"
+                 r"quant(?:s|a|es)? .*estalvi|estalviari|quant .*(?:co2|cost|diners|euros)|guanyar"),
+    ("best_hours", r"(?:quines|millors|quan|quina|a quina|a quines) (?:hores?|hora|franja|moment)|hores? (?:mes )?(?:netes?|barates?|brutes?|car)|"
+                   r"quan (?:\w+ ){0,3}(?:carregar|descarregar|carrego|descarrego|carregaria|descarregaria)|netes? i barat|finestr|millor moment"),
     ("compare_daytypes", r"(?:compar|diferenc).*(?:laborabl|cap(?:s)? de setmana|weekend)|(?:laborabl|cap(?:s)? de setmana).*(?:vs|versus|respecte)"),
     ("correlation", r"correlac|relacio\w*|depen(?:en|d) .* (?:de|del)"),
-    ("hourly_profile", r"com canvia|patro|perfil|al llarg del dia|evolucio horaria|comportament"),
+    ("hourly_profile", r"com canvia|patro|perfil|al llarg del dia|evolucio horaria|comportament|com afecta|impacte de la solar"),
 ]
 CHART_WORDS = r"heatmap|mapa de calor|grafic|histogra|boxplot|diagrama|scatter|dispersio|barres|linies|serie|visualitz|mostra|dibuixa|plot"
+GREETING_RE = r"^(?:hola|bon dia|bona tarda|bona nit|hey|hi|hello|ei|que pots fer|qui ets|ajuda|help)\b[\s!?.,]*(?:copilot)?[\s!?.,]*$"
+ANALYST_FOLLOWUP_RE = r"^(?:i|y|and|pero|i si|i que tal|i en|i per|i amb|i al|i a|i el|i els|i les|i la)\b|^(?:al|a l'|el|els|en) \w+\??$"
+
+
+def is_greeting(question: str) -> bool:
+    return bool(re.search(GREETING_RE, plain(question).strip()))
+
+
+def is_chart_request(question: str) -> bool:
+    return bool(re.search(CHART_WORDS, plain(question)))
 
 
 def classify(question: str) -> str | None:
@@ -104,6 +117,20 @@ def classify(question: str) -> str | None:
                 return None
             return name
     return None
+
+
+def analyst_followup(question: str, history: list[dict]) -> str | None:
+    """'I al juliol?' after an analyst answer → same intent with the new parameters."""
+    if not history or not re.search(ANALYST_FOLLOWUP_RE, plain(question).strip()):
+        return None
+    return classify(str(history[-1].get("q", "")))
+
+
+GREETING = ("Hola! Sóc l'Energy Copilot. No calculo res de memòria: executo eines sobre les dades i el simulador oficial, "
+            "i cada xifra que et dono porta la seva evidència.\n"
+            "Pots preguntar-me, per exemple: quines hores són les més netes i barates, quina estratègia de bateria funciona millor, "
+            "què passaria si carregues de 13 a 16 h i descarregues de 20 a 23 h, si les dades són fiables o si val la pena una bateria més gran.\n"
+            "També puc fer gràfics: «Fes-me un heatmap dels preus i les emissions per hora i dia de la setmana».")
 
 
 # --------------------------------------------------------------------------
@@ -187,9 +214,10 @@ def tool_hourly_profile(ctx: Context, metric: str = "load_kw", day_type: str = "
                "max_hour": hi_h, "max_median": float(valid.max()), "mean_iqr": spread,
                "peak_to_valley_ratio": float(valid.max() / valid.min()) if valid.min() else None}
     summary["min_median"] = float(valid.min())
-    facts = [f"{ctx.label(metric)}: mediana mínima a les {lo_h:02d} h ({ca(valid.min(), 3 if valid.min() < 10 else 0)} {ctx.unit(metric)}) "
-             f"i màxima a les {hi_h:02d} h ({ca(valid.max(), 3 if valid.max() < 10 else 0)} {ctx.unit(metric)}), sobre {days} dies"
-             + (", excloent les hores amb lectura congelada." if frozen else ".")]
+    low = ("és zero a la nit" if abs(valid.min()) < 1e-9 else
+           f"la mediana mínima és a les {lo_h:02d} h ({ca(valid.min(), 3 if valid.min() < 10 else 0)} {ctx.unit(metric)})")
+    facts = [f"{ctx.label(metric)}: {low} i la màxima a les {hi_h:02d} h ({ca(valid.max(), 3 if valid.max() < 10 else 0)} {ctx.unit(metric)}), "
+             f"sobre {days} dies" + (", excloent les hores amb lectura congelada." if frozen else ".")]
     if metric == "load_kw" and eda.frozen_hours(ctx.df):
         facts.append("Les hores ombrejades són lectures congelades del comptador: la seva forma no és informativa.")
     return ctx.add("hourly_profile", {"metric": metric, "day_type": day_type, "month": month}, summary, facts,
@@ -216,12 +244,19 @@ def tool_best_hours(ctx: Context, month: int | None = None) -> dict:
                "days": cand["days_examined"], "positive_day_pct": cand["viable_day_pct"],
                "day_spread_quartiles_10_25_50_75_90": q,
                "best_pair_by_month": {str(m["month"]): [m["charge_hour"], m["discharge_hour"]] for m in r["by_month"]}}
+    sub = ctx.df if month is None else ctx.df[ctx.df["month"] == month]
+    for key, col in (("price", "precio_eur_per_kwh"), ("co2", "co2_kg_per_kwh")):
+        med = sub.groupby("hour")[col].median()
+        summary[f"{key}_min_hour"], summary[f"{key}_max_hour"] = int(med.idxmin()), int(med.idxmax())
+        summary[f"{key}_min_median"], summary[f"{key}_max_median"] = float(med.min()), float(med.max())
     pairs = sorted({(m["charge_hour"], m["discharge_hour"]) for m in r["by_month"]})
     facts = [f"Hores amb el senyal 70/30 més baix: {', '.join(f'{h:02d} h' for h in order[:3])}; més alt: "
              f"{', '.join(f'{h:02d} h' for h in order[::-1][:3])}.",
              f"Millor parell mitjà càrrega→descàrrega: {c:02d} h → {d:02d} h, marge {ca(cand['spread_index'], 3)} després del 90% de rendiment.",
              (f"El marge del parell és positiu en el {ca(cand['viable_day_pct'])}% de {cand['days_examined']} dies complets "
               f"(mediana diària {ca(q[2], 3)}, 10% dels dies per sota de {ca(q[0], 3)})." if q else "Sense dies complets per mesurar la dispersió.")]
+    if month is not None:
+        facts.insert(0, f"Anàlisi del mes {_de(eda._month_name(month))}.")
     if month is None and len(pairs) > 1:
         facts.append("El parell òptim canvia segons el mes: " + ", ".join(f"{a:02d}→{b:02d} h" for a, b in pairs) + ".")
     return ctx.add("best_hours", {"month": month}, summary, facts, [_fig(ctx, fig, "Senyal combinat 70% CO₂ + 30% preu per hora")])
@@ -327,6 +362,8 @@ def tool_backtest(ctx: Context) -> dict:
     fig.update_xaxes(title="Score agregat (11 setmanes pseudo-test)"); fig.update_layout(margin=dict(l=260, r=60), showlegend=False)
     summary = {p["key"]: {"score": p["pooled"]["score"], "co2_saved_pct": p["pooled"]["co2_saved_pct"],
                           "cost_saved_pct": p["pooled"]["cost_saved_pct"], "infractions": p["pooled"]["infractions"]} for p in pols}
+    for p in pols:
+        summary[p["key"]].update({"co2_saved_t": p["pooled"]["co2_saved_t"], "cost_saved_eur": p["pooled"]["cost_saved_eur"]})
     summary["regret"] = {r["step"]: r["points"] for r in res["regret"]}
     summary["weeks"] = len(res["weeks"])
     best = max(pols, key=lambda p: p["pooled"]["score"])
@@ -372,6 +409,8 @@ def tool_tradeoff(ctx: Context) -> dict:
     big = siz[(siz.capacity_kwh == 4000) & (siz.power_kw == 500)].iloc[0]
     fast = siz[(siz.capacity_kwh == 2000) & (siz.power_kw == 1000)].iloc[0]
     summary = {"alpha_0.7": a07.to_dict(), "alpha_1.0": a10.to_dict(), "alpha_0.0": a00.to_dict(),
+               "co2_gain_pp_alpha1_vs_07": float(a10.co2_saved_pct - a07.co2_saved_pct),
+               "cost_loss_pp_alpha1_vs_07": float(a07.cost_saved_pct - a10.cost_saved_pct),
                "score_2000kwh_500kw": base["score"], "score_4000kwh_500kw": big["score"], "score_2000kwh_1000kw": fast["score"]}
     facts = [f"Amb α = 0,7 (l'objectiu oficial) l'òptim redueix el CO₂ un {ca(a07.co2_saved_pct, 2)}% i el cost un {ca(a07.cost_saved_pct, 2)}%.",
              f"Maximitzar només CO₂ (α = 1) arriba al {ca(a10.co2_saved_pct, 2)}% de CO₂ però baixa l'estalvi de cost al {ca(a10.cost_saved_pct, 2)}%.",
@@ -554,7 +593,9 @@ Normes:
 3. Respon en català, en 3–6 frases, i acaba amb una línia que comenci per "Decisió:" amb una recomanació accionable i les seves limitacions.
 4. Distingeix patrons històrics (descriptius) de simulacions (físiques) i de l'òptim amb informació perfecta (cota superior).
 5. Si les dades tenen problemes de qualitat rellevants per a la pregunta, esmenta'ls.
-6. Fes servir com a màxim 3 eines; no repeteixis una eina amb els mateixos arguments."""
+6. Fes servir com a màxim 3 eines; no repeteixis una eina amb els mateixos arguments.
+7. Respon primer exactament el que es pregunta (la xifra o l'hora concreta) i després el context.
+8. Si cap eina permet respondre, digues-ho i proposa la pregunta més propera que sí pots respondre."""
 
 
 def _llm_settings() -> tuple[str | None, str | None, str]:
@@ -657,7 +698,8 @@ async def llm_json_plan(ctx: Context, question: str, history: list[dict]) -> str
 # --------------------------------------------------------------------------
 # Deterministic local analyst
 # --------------------------------------------------------------------------
-METRIC_WORDS = [("co2_kg_per_kwh", r"co2|carboni|emissi|emision|net(?:es|s)?\b|brut"), ("precio_eur_per_kwh", r"preu|precio|price|barat|car(?:es|a)?\b"),
+METRIC_WORDS = [("net_kw", r"consum net|demanda neta|net_kw|xarxa"),
+                ("co2_kg_per_kwh", r"co2|carboni|emissi|emision|\bnetes\b|\bnets\b|mes net\b|brut"), ("precio_eur_per_kwh", r"preu|precio|price|barat|car(?:es|a)?\b"),
                 ("pv_kw", r"solar|fotovolta|\bpv\b"), ("load_kw", r"consum|demanda|load"), ("temp_c", r"temperatura")]
 
 
@@ -665,9 +707,9 @@ def _metrics_in(q: str, fields: list[str]) -> list[str]:
     return [m for m, p in METRIC_WORDS if m in fields and re.search(p, q)]
 
 
-def local_plan(intent: str, question: str, fields: list[str]) -> list[tuple[str, dict]]:
+def local_plan(intent: str, question: str, fields: list[str], previous: str = "") -> list[tuple[str, dict]]:
     q = plain(question)
-    ms = _metrics_in(q, fields)
+    ms = _metrics_in(q, fields) or _metrics_in(plain(previous), fields)
     month = None
     names = ["gener", "febrer", "marc", "abril", "maig", "juny", "juliol", "agost", "setembre", "octubre", "novembre", "desembre"]
     for i, n in enumerate(names):
@@ -682,6 +724,8 @@ def local_plan(intent: str, question: str, fields: list[str]) -> list[tuple[str,
         pair = list(dict.fromkeys(pair))[:2]
         return [("correlation", {"x": pair[0], "y": pair[1]})]
     if intent == "hourly_profile":
+        if re.search(r"solar|fotovolta", q) and re.search(r"consum|demanda|net", q):
+            ms = [m for m in ("pv_kw", "net_kw") if m in fields]
         return [("hourly_profile", {"metric": m, "month": month}) for m in (ms or ["load_kw"])[:2]]
     if intent == "backtest":
         return [("backtest", {})]
@@ -704,8 +748,60 @@ DECISIONS = {
 }
 
 
-def local_answer(intent: str, ctx: Context) -> str:
+def _de(word: str) -> str:
+    """Catalan elision: 'd'agost', 'de juliol'."""
+    return ("d'" if word[:1].lower() in "aeiouàèéíòóú" else "de ") + word
+
+
+def lead_line(intent: str, question: str, ctx: Context) -> str | None:
+    """One sentence that answers exactly what was asked, from evidence already computed."""
+    q = plain(question)
+    ev = next((e for e in ctx.evidence if e.get("tool") == intent and "summary" in e), None)
+    if not ev:
+        return None
+    sm, eid = ev["summary"], ev["id"]
+    if intent == "backtest" and "mpc_naive" in sm:
+        best_key = max((k for k in sm if isinstance(sm[k], dict) and "score" in sm[k] and k != "regret"), key=lambda k: sm[k]["score"])
+        b = sm[best_key]
+        if re.search(r"co2|emissi|carboni", q):
+            return (f"Amb la millor política es reduirien les emissions un {ca(b['co2_saved_pct'], 2)}% "
+                    f"({ca(b['co2_saved_t'], 1)} t de CO₂ en {sm['weeks']} setmanes) [{eid}].")
+        if re.search(r"cost|diners|euro|€|factura|estalvi", q):
+            return (f"Amb la millor política la factura baixaria un {ca(b['cost_saved_pct'], 2)}% "
+                    f"({ca(b['cost_saved_eur'], 0)} € en {sm['weeks']} setmanes) [{eid}].")
+        if "team" in sm and re.search(r"agent|nostr|per que|poca|baixa", q):
+            gap = sm["mpc_naive"]["score"] - sm["team"]["score"]
+            return (f"El BatteryAgent actual queda {ca(gap, 2)} punts per sota d'un MPC de 24 h que optimitza amb les previsions de preu i CO₂ "
+                    f"({ca(sm['team']['score'], 2)} vs {ca(sm['mpc_naive']['score'], 2)}) i comet {sm['team']['infractions']} infraccions [{eid}].")
+    if intent == "best_hours" and "charge_hour" in sm:
+        when = f"Al mes {_de(eda._month_name(sm['month']))}: " if sm.get("month") else ""
+        price_q, co2_q = re.search(r"\bcar[ae]?s?\b|barat\w*|preu", q), re.search(r"\bnet[ae]s?\b|brut\w*|co2|contamin|emissi", q)
+        if price_q and not co2_q:
+            return (f"{when}el preu medià és més alt a les {sm['price_max_hour']:02d} h ({ca(sm['price_max_median'], 3)} €/kWh) "
+                    f"i més baix a les {sm['price_min_hour']:02d} h ({ca(sm['price_min_median'], 3)} €/kWh) [{eid}].")
+        if co2_q and not price_q:
+            return (f"{when}la intensitat de CO₂ mediana és més alta a les {sm['co2_max_hour']:02d} h ({ca(sm['co2_max_median'], 3)} kg/kWh) "
+                    f"i més baixa a les {sm['co2_min_hour']:02d} h ({ca(sm['co2_min_median'], 3)} kg/kWh) [{eid}].")
+        if re.search(r"descarreg|descarg|discharg", q) and not re.search(r"(?<!des)carreg", q):
+            return (f"{when}descarrega a les hores de senyal 70/30 més alt: {', '.join(f'{h:02d} h' for h in sm['dirtiest_hours'])}; "
+                    f"el millor punt mitjà de descàrrega és a les {sm['discharge_hour']:02d} h [{eid}].")
+        return (f"{when}carrega a les hores de senyal 70/30 més baix ({', '.join(f'{h:02d} h' for h in sm['cleanest_hours'])}) "
+                f"i descarrega a les més altes ({', '.join(f'{h:02d} h' for h in sm['dirtiest_hours'])}) [{eid}].")
+    if intent == "tradeoff" and "alpha_0.7" in sm and re.search(r"prioritz|co2|alpha|alfa|pes", q) and not re.search(r"capacitat|mida|gran|potencia|invers", q):
+        a7, a1 = sm["alpha_0.7"], sm["alpha_1.0"]
+        return (f"Passar de α = 0,7 a prioritzar només el CO₂ (α = 1) guanya {ca(a1['co2_saved_pct'] - a7['co2_saved_pct'], 2)} punts percentuals de CO₂ "
+                f"però en perd {ca(a7['cost_saved_pct'] - a1['cost_saved_pct'], 2)} de cost; amb l'score oficial, α = 0,7 és el màxim [{eid}].")
+    if intent == "tradeoff" and "score_4000kwh_500kw" in sm:
+        return (f"Sí: el score òptim passa de {ca(sm['score_2000kwh_500kw'], 2)} a {ca(sm['score_4000kwh_500kw'], 2)} doblant la capacitat, "
+                f"més que doblant la potència ({ca(sm['score_2000kwh_1000kw'], 2)}) [{eid}].")
+    return None
+
+
+def local_answer(intent: str, ctx: Context, question: str = "") -> str:
     lines = []
+    lead = lead_line(intent, question, ctx)
+    if lead:
+        lines.append(lead[0].upper() + lead[1:])
     for e in ctx.evidence:
         if "facts" in e:
             lines += [f"{f} [{e['id']}]" for f in e["facts"]]
@@ -723,7 +819,7 @@ async def answer(svc, dataset_id: str, question: str, history: list[dict], inten
                                        "discharge_start": w["discharge"][0], "discharge_end": w["discharge"][1], "power": w["power"]})
         if w["assumptions"] and ctx.evidence:
             ctx.evidence[-1]["facts"] = w["assumptions"] + ctx.evidence[-1]["facts"]
-        text = local_answer(intent, ctx); mode = "physics"
+        text = local_answer(intent, ctx, question); mode = "physics"
     elif key and model:
         try:
             try:
@@ -739,9 +835,13 @@ async def answer(svc, dataset_id: str, question: str, history: list[dict], inten
             warning = f"Helmcode no disponible ({type(exc).__name__}); s'ha usat l'analista local amb les mateixes eines."
             ctx.evidence.clear(); ctx.charts.clear(); text = ""
     if not text:
-        for name, args in local_plan(intent, question, ctx.fields):
+        previous = str(history[-1].get("q", "")) if history else ""
+        for name, args in local_plan(intent, question, ctx.fields, previous):
             run_tool(ctx, name, args)
-        text = local_answer(intent, ctx)
+        if not ctx.evidence:
+            # Open question and no provider answer: let the verified chart planner respond.
+            return {"fallback_to_charts": True, "llm_warning": warning}
+        text = local_answer(intent, ctx, question)
         if mode != "physics":
             mode = "analyst-local"
     check = verify(text, ctx.evidence, question)
