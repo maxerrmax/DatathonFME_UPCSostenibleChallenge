@@ -39,6 +39,19 @@ L'objectiu dels participants és programar una política de control (`BatteryAge
 
 ---
 
+### Explorador de dades (dashboard)
+
+Visualitzador interactiu estil Power BI per entendre les dades i comparar agents amb l'òptim teòric:
+
+```bash
+pip install -r requirements.txt
+streamlit run dashboard/app.py
+```
+
+Més detalls a [`dashboard/README.md`](dashboard/README.md).
+
+---
+
 ### Execució de la Plataforma Web Localment
 
 Per iniciar el servei d'avaluació i classificació en temps real:
