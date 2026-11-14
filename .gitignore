@@ -3,3 +3,14 @@ opencode.json
 data/processed/
 __pycache__/
 notes/
+
+# Pipeline
+estandard/submissions/
+estandard/results_tune_*.log
+estandard/results/run_all.log
+
+# Mode Difícil: models i zips es regeneren amb dificil/train_forecast.py
+dificil/agent_hard/*.pkl
+dificil/agent_hard/*.bak
+dificil/submissions/
+dificil/cache/

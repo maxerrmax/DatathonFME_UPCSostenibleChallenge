@@ -1,0 +1,21 @@
+{"familia": "perfecte", "score": 21.79, "co2_%": 20.47, "cost_%": 24.88, "infr": 0, "ms_pas": 3.63, "entrenament_s": 0.0, "MAE_price": 0.0, "MAE_co2": 0.0, "MAE_load": 0.0, "MAE_pv": 0.0}
+{"familia": "naive", "score": 16.5, "co2_%": 15.52, "cost_%": 18.8, "infr": 0, "ms_pas": 2.96, "entrenament_s": 0.0, "MAE_price": 0.0288, "MAE_co2": 0.0167, "MAE_load": 186.1585, "MAE_pv": 96.5178}
+{"familia": "lgbm_base", "score": 19.04, "co2_%": 17.91, "cost_%": 21.67, "infr": 0, "ms_pas": 6.48, "entrenament_s": 18.7, "MAE_price": 0.0171, "MAE_co2": 0.0146, "MAE_load": 62.4323, "MAE_pv": 75.6409}
+{"familia": "lgbm_petit", "score": 18.94, "co2_%": 17.77, "cost_%": 21.66, "infr": 0, "ms_pas": 4.21, "entrenament_s": 5.9, "MAE_price": 0.0177, "MAE_co2": 0.0152, "MAE_load": 64.3215, "MAE_pv": 78.3654}
+{"familia": "lgbm_gran", "score": 18.88, "co2_%": 17.77, "cost_%": 21.48, "infr": 0, "ms_pas": 42.95, "entrenament_s": 77.5, "MAE_price": 0.0176, "MAE_co2": 0.0147, "MAE_load": 64.1392, "MAE_pv": 75.9875}
+{"familia": "xgb", "score": 19.03, "co2_%": 18.02, "cost_%": 21.4, "infr": 0, "ms_pas": 10.61, "entrenament_s": 19.4, "MAE_price": 0.0174, "MAE_co2": 0.0163, "MAE_load": 77.4915, "MAE_pv": 77.5109}
+{"familia": "hgb", "score": 18.95, "co2_%": 17.86, "cost_%": 21.48, "infr": 0, "ms_pas": 41.37, "entrenament_s": 27.6, "MAE_price": 0.0177, "MAE_co2": 0.015, "MAE_load": 70.09, "MAE_pv": 77.1143}
+/usr/local/lib/python3.13/site-packages/numpy/_core/fromnumeric.py:3862: RuntimeWarning: Mean of empty slice
+  return _methods._mean(a, axis=axis, dtype=dtype,
+/usr/local/lib/python3.13/site-packages/numpy/_core/_methods.py:142: RuntimeWarning: invalid value encountered in scalar divide
+  ret = ret.dtype.type(ret / rcount)
+{"familia": "ensemble", "score": 0.0, "co2_%": 0.0, "cost_%": 0.0, "infr": 0, "ms_pas": 0.39, "entrenament_s": 69.2, "MAE_price": NaN, "MAE_co2": NaN, "MAE_load": NaN, "MAE_pv": NaN}
+   familia  score  co2_%  cost_%  infr  ms_pas  entrenament_s  MAE_price  MAE_co2  MAE_load  MAE_pv
+  perfecte  21.79  20.47   24.88     0    3.63            0.0     0.0000   0.0000    0.0000  0.0000
+ lgbm_base  19.04  17.91   21.67     0    6.48           18.7     0.0171   0.0146   62.4323 75.6409
+       xgb  19.03  18.02   21.40     0   10.61           19.4     0.0174   0.0163   77.4915 77.5109
+       hgb  18.95  17.86   21.48     0   41.37           27.6     0.0177   0.0150   70.0900 77.1143
+lgbm_petit  18.94  17.77   21.66     0    4.21            5.9     0.0177   0.0152   64.3215 78.3654
+ lgbm_gran  18.88  17.77   21.48     0   42.95           77.5     0.0176   0.0147   64.1392 75.9875
+     naive  16.50  15.52   18.80     0    2.96            0.0     0.0288   0.0167  186.1585 96.5178
+  ensemble   0.00   0.00    0.00     0    0.39           69.2        NaN      NaN       NaN     NaN

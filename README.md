@@ -60,3 +60,13 @@ Per iniciar el servei d'avaluació i classificació en temps real:
 pip install -r requirements.txt
 streamlit run app.py
 ```
+
+## Estructura del nostre treball
+
+| Carpeta | Contingut |
+|---|---|
+| `estandard/` | **Mode Estàndard** (2.000 kWh, ±500 kW, mercat a 24 h): pipeline de comparació de 10 agents (regles, MPC-LP, DP, imitació, RL) amb el simulador oficial. Vegeu `estandard/README.md`. |
+| `estandard/lliuraments/` | Zips enviats al leaderboard (MPC-LP, 6,43) i versió blindada. |
+| `dificil/` | **Mode Difícil** (6.000 kWh, ±1.500 kW, solar ×12, mercat a 3 h): simulador, òptim teòric, previsions (LightGBM/XGBoost/HGB) i agent MPC. Vegeu `dificil/README.md`. |
+| `docs/recerca/` | Informe de recerca sobre estratègies de control de bateries. |
+| `dashboard/` | Explorador de dades i simulador (Streamlit). |

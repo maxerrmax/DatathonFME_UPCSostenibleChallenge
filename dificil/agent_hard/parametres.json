@@ -1,0 +1,8 @@
+{
+ "ratio": 0.6213,
+ "q_term": 0.6,
+ "term_scale": 1.0,
+ "k_dis": 0.5,
+ "pv_blend": 0.3,
+ "models": "models_all.pkl"
+}
