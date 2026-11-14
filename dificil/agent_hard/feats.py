@@ -58,8 +58,12 @@ def _range(a, b):
 FESTIUS = _days("2025-09-11", "2025-09-24", "2025-10-12", "2025-11-01", "2025-12-06", "2025-12-08",
                 "2025-12-25", "2025-12-26", "2026-01-01", "2026-01-06", "2026-04-03", "2026-04-06",
                 "2026-05-01", "2026-05-25", "2026-06-24", "2026-08-15", "2026-09-11", "2026-09-24")
-# períodes no lectius UPC (Nadal ampliat al 24/12 i fins al 6/1; Setmana Santa; estiu)
-VACANCES = _range("2025-12-24", "2026-01-06") | _range("2026-03-30", "2026-04-06") | _range("2026-08-03", "2026-08-31")
+# períodes no lectius UPC (Nadal; Setmana Santa; estiu)
+VACANCES = _range("2025-12-24", "2026-01-06") | _range("2026-03-30", "2026-04-06") | _range("2026-08-03", "2026-08-21")
+# edificis TANCATS i sense climatització (horaris d'edificis UPC: Nadal 25/12-6/1, agost 3-21)
+TANCAT = _range("2025-12-25", "2026-01-06") | _range("2026-08-03", "2026-08-21")
+# HORARI REDUÏT de matí (8:30-14:00): estiu 22/6-31/7, represa 24/8-4/9, vigílies de Nadal 22-24/12
+REDUIT = _range("2025-12-22", "2025-12-24") | _range("2026-06-22", "2026-07-31") | _range("2026-08-24", "2026-09-04")
 # Calendari de graus FIB (Campus Nord) 2025-26
 EXAMENS = _range("2025-10-30", "2025-11-05") | _range("2026-01-07", "2026-01-19") | \
           _range("2026-04-07", "2026-04-13") | _range("2026-06-04", "2026-06-19")
@@ -72,7 +76,8 @@ def day_flags(hour_epoch):
     fest = d in FESTIUS; vac = d in VACANCES
     off = fest or vac or dow >= 5
     sense_classes = float(d not in CLASSES and d not in EXAMENS)
-    return float(fest), float(vac), float(d in EXAMENS), sense_classes, float(off)
+    return (float(fest), float(vac), float(d in EXAMENS), sense_classes, float(d in TANCAT),
+            float(d in REDUIT), float(off))
 
 
 MKT_NAMES = ["h", "hod", "dow", "doy_s", "doy_c", "lag24", "lag48", "lag168", "last_known",
@@ -110,8 +115,8 @@ def meas_features(hist, key, t, hs):
         tau = t + h; hod, dow, s, c = calendar(tau)
         rows.append([h, hod, dow, s, c, hist.get(key, tau - 24), hist.get(key, tau - 48),
                      hist.get(key, tau - 168), last, last - last24, m24, irr, temp,
-                     hist.get("irr", tau - 24), lm % 24, *day_flags(tau), day_flags(tau - 24)[4],
-                     day_flags(tau - 168)[4]])
+                     hist.get("irr", tau - 24), lm % 24, *day_flags(tau), day_flags(tau - 24)[6],
+                     day_flags(tau - 168)[6]])
     return np.array(rows, dtype=float)
 
 
