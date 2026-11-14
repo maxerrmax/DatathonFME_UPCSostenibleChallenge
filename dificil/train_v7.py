@@ -74,6 +74,14 @@ if __name__ == "__main__":
     for kind, b in (("lag24", fb("lag24", "last", "m24")), ("xs", fb("x_shift", "lag24", "last", "m24"))):
         m = lgb.LGBMRegressor(**P).fit(X[ok][:, cols], (y - b)[ok])
         dump["load2"].append((m.booster_.model_to_string(), cols, kind))
+    # model directe del consum net de l'hora actual (features de consum + solar a h=0)
+    Xn, yn = [], []
+    for t in eh:
+        Xn.append(np.concatenate([feats.load_features2(hist, t, [0])[0], feats.meas_features(hist, "pv", t, [0])[0]]))
+        yn.append(hist.get("load", t) - hist.get("pv", t))
+    Xn = np.array(Xn); yn = np.array(yn); okn = np.isfinite(yn)
+    dump["net0"] = lgb.LGBMRegressor(n_estimators=400, learning_rate=0.04, num_leaves=31, min_child_samples=30, subsample=0.8,
+                                     subsample_freq=1, colsample_bytree=0.8, verbose=-1).fit(Xn[okn], yn[okn]).booster_.model_to_string()
     D = build(tr)
     for k in ("pv",):
         X, y = D[k]; X = X.copy(); X[:, 7] = np.nan; lag = X[:, 5]; ok = np.isfinite(lag)

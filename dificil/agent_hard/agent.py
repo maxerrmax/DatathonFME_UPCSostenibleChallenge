@@ -60,6 +60,7 @@ class BatteryAgent:
         self.m = {}
         self.mk2 = {}
         self.ld2 = []
+        self.n0 = None
         try:
             raw = p.get("_models")
             if raw is None:
@@ -71,6 +72,8 @@ class BatteryAgent:
             mk2 = raw.pop("mkt2", None) or {}
             self.mk2 = {k: [(lgb.Booster(model_str=ms), list(cols), base) for ms, cols, base in v] for k, v in mk2.items()}
             self.ld2 = [(lgb.Booster(model_str=ms), list(cols), base) for ms, cols, base in (raw.pop("load2", None) or [])]
+            n0 = raw.pop("net0", None)
+            self.n0 = lgb.Booster(model_str=n0) if n0 else None
             self.m = {k: (lgb.Booster(model_str=v) if isinstance(v, str) else v) for k, v in raw.items()}
         except Exception:
             self.m = {}
@@ -100,8 +103,8 @@ class BatteryAgent:
         if not self.m:
             out = lag.copy()
         else:
-            d = self.m[key + "_dir"].predict(X)
-            r = lag + self.m[key + "_res"].predict(X)
+            d = self.m[key + "_dir"].predict(X, num_threads=1)
+            r = lag + self.m[key + "_res"].predict(X, num_threads=1)
             out = np.where(np.isfinite(lag), r, d) if kind == "res" else d
         if key == "pv":
             last, last24 = X[:, 8], X[:, 8] - X[:, 9]
@@ -124,7 +127,7 @@ class BatteryAgent:
         out = []
         xsl = np.where(np.isfinite(X[:, 13]) & (X[:, 13] > 0.3 * k2), X[:, 13], k2)
         for b, cols, base in self.mk2[key]:
-            pr = b.predict(X[:, cols])
+            pr = b.predict(X[:, cols], num_threads=1)
             if base == "logk2":                          # model del quocient (escala lliure)
                 out.append(np.where(k2 > 0, k2 * np.exp(pr), k2))
             elif base == "logxs":
@@ -142,7 +145,7 @@ class BatteryAgent:
                 b = np.where(np.isfinite(b), b, X[:, i])
             return np.where(np.isfinite(b), b, 1000.0)
         bases = {"lag24": fb(9, 5, 15), "xs": fb(13, 9, 5, 15)}
-        pr = {base: bases[base] + b.predict(X[:, cols]) for b, cols, base in self.ld2}
+        pr = {base: bases[base] + b.predict(X[:, cols], num_threads=1) for b, cols, base in self.ld2}
         w = np.exp(-X[:, 0] / self.p.get("load_tau", 4.0))
         return w * pr["xs"] + (1 - w) * pr["lag24"]
 
@@ -164,7 +167,16 @@ class BatteryAgent:
         else:
             load = self._pred("load", meas_features(self.hist, "load", t, hs_all), "res")
         pv = self._pred("pv", meas_features(self.hist, "pv", t, hs_all), "dir")
-        # farciment de forats: últim valor conegut / mitjana
+        # hora actual: model directe del consum net (consum - solar), barrejat amb la previsió per separat
+        mix = self.p.get("net0_mix", 0.5)
+        if self.n0 is not None and mix > 0:
+            try:
+                x0 = np.concatenate([load_features2(self.hist, t, [0])[0], meas_features(self.hist, "pv", t, [0])[0]])
+                nd = float(self.n0.predict(x0.reshape(1, -1), num_threads=1)[0])
+                if np.isfinite(nd) and np.isfinite(load[0]) and np.isfinite(pv[0]):
+                    load[0] = mix * nd + (1 - mix) * (load[0] - pv[0]) + pv[0]
+            except Exception:
+                pass
         def fill(a, default):
             a = np.asarray(a, float)
             if not np.isfinite(a).any():
@@ -306,6 +318,9 @@ class BatteryAgent:
             else:
                 from statistics import NormalDist
                 scen = np.array([NormalDist().inv_cdf(q) for q in qs]) * self.p.get("scen_s0", 100.0)
+            st = self.p.get("_scen_table")
+            if st is not None and t in st:
+                scen = np.asarray(st[t], float) - float(net[0])
             dmax0 = self.pmax
         net_plan = np.asarray(net, float).copy()
         if self.p.get("k_future", 0.0):
