@@ -100,6 +100,8 @@ class BatteryAgent:
         self.hist_w = []
         self.cap, self.pmax = 6000.0, 1500.0
         self.max_len = 0                                # llargada màxima vista de la finestra de mercat
+        self._co2_raw_forecasts = {}                     # prediccions CAUSALS de mercat anteriors
+
 
     # ------------------------------------------------------------------ previsions
     def _pred(self, key, X, kind):
@@ -217,6 +219,27 @@ class BatteryAgent:
                         v = tbl[k].get(t + h)
                         if v is not None:
                             arr[h] = v
+        # Correcció causal en línia de CO2. A t, ja coneixem exactament t,t+1,t+2;
+        # comparem aquests tres valors amb la previsió crua feta a t-3 (h=3..5).
+        # Només es fan servir dades conegudes en l'instant t, mai dades del futur.
+        try:
+            old = self._co2_raw_forecasts.get(t - 3)
+            raw_co2 = co2.copy()
+            # Al final de la simulació la finestra coneguda pot tenir només 1 o 2 hores.
+            n_exact = min(3, len(co2_3))
+            if self.p.get("co2_cal", True) and old is not None and n_exact > 0 and len(old) >= 3 + n_exact:
+                e = np.asarray(co2[:n_exact] - old[3:3+n_exact], dtype=float)
+                if np.isfinite(e).all():
+                    bias = float(np.clip(np.median(e), -0.06, 0.06))
+                    h = np.arange(3, len(co2))
+                    co2[3:] = np.clip(co2[3:] + bias * np.exp(-(h - 3) / 8.0), 0.0, 1.0)
+            self._co2_raw_forecasts[t] = raw_co2
+            # memòria acotada i segura si el timestamp salta entre blocs
+            for key in list(self._co2_raw_forecasts):
+                if key < t - 6:
+                    del self._co2_raw_forecasts[key]
+        except Exception:
+            pass
         return price, co2, load, pv
 
     # ------------------------------------------------------------------ optimització
