@@ -240,7 +240,9 @@ DEFAULTS = {
     "dis_margin_kw": 0.0,        # marge de seguretat en descarregar respecte al consum net previst
     "load_bias": 0.0,
     "pv_bias": 1.0,
-    "outage_kw": 100.0,          # consum mesurat per sota d'això = avaria / campus aturat
+    "outage_kw": 100.0,
+    "pc_contrast": 1.0,          # amplifica el contrast entre hores previstes de preu/CO2
+    "res_w": 0.0,                # pes del model residual de preu/CO2 (0 = només directe)          # consum mesurat per sota d'això = avaria / campus aturat
 }
 
 
@@ -266,7 +268,7 @@ class BatteryAgent:
             self.p.update(params)
         self.models = {}
         if lgb is not None:
-            for tg in ("p", "c", "load", "pv"):
+            for tg in ("p", "c", "load", "pv", "p_res", "c_res"):
                 f = d / f"model_{tg}.txt"
                 if f.exists():
                     try:
@@ -333,7 +335,20 @@ class BatteryAgent:
                 ks = [k for k in unk if arr[k] != arr[k]]
                 if m is not None and ks:
                     X = np.array([price_features(get, t0, k, tg) for k in ks], float)
-                    arr[ks] = m.predict(X)
+                    pred = m.predict(X)
+                    mr = self.models.get(tg + "_res")
+                    rw = float(self.p["res_w"])
+                    if mr is not None and rw > 0:
+                        # model residual: diferència respecte a l'últim valor conegut (t0+2)
+                        base = X[:, PRICE_FEATS.index("x_cur")]
+                        known = next((v for v in (get(tg, t0 + i) for i in (2, 1, 0)) if v == v), float("nan"))
+                        pr = np.where(np.isnan(base), known, base) + mr.predict(X)
+                        pred = np.where(np.isnan(pr), pred, (1 - rw) * pred + rw * pr)
+                    g = float(self.p["pc_contrast"])
+                    if g != 1.0 and len(ks) > 1:
+                        mu = float(np.mean(pred))
+                        pred = mu + g * (pred - mu)
+                    arr[ks] = pred
         # forats que quedin: últim conegut
         lp = next((v for v in (get("p", t0 + i) for i in (2, 1, 0)) if v == v), self.last_price)
         lc = next((v for v in (get("c", t0 + i) for i in (2, 1, 0)) if v == v), self.last_co2)

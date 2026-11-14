@@ -86,9 +86,32 @@ TARGET_PARAMS = {
 ROUNDS = {"p": 800, "c": 800, "load": 600, "pv": 800}
 
 
-def train(samples):
+# Preu i CO2: el model aprèn la diferència respecte a l'últim valor conegut (t0+2)
+RESID = {"p": "x_cur", "c": "x_cur"}
+
+
+def resid_base(tg, X):
+    return X[:, FEATS[tg].index(RESID[tg])] if tg in RESID else 0.0
+
+
+def predict(models, tg, X, resid=True):
+    return (resid_base(tg, X) if resid else 0.0) + models[tg].predict(X)
+
+
+def train_all(samples):
+    """Models directes per a tot + models residuals de preu i CO2 (sufix _res)."""
+    models = train(samples, resid=False)
+    res = train({tg: samples[tg] for tg in RESID}, resid=True)
+    models.update({f"{tg}_res": m for tg, m in res.items()})
+    return models
+
+
+def train(samples, resid=True):
     models = {}
     for tg, (X, y) in samples.items():
+        if tg in RESID and resid:
+            ok = ~np.isnan(resid_base(tg, X))
+            X, y = X[ok], y[ok] - resid_base(tg, X[ok])
         ds = lgb.Dataset(X, y, feature_name=FEATS[tg], free_raw_data=False)
         prm = dict(TARGET_PARAMS[tg])
         if prm.get("objective") == "huber":
@@ -102,7 +125,7 @@ def main(final=False):
     store, hours = build_store(raw)
     all_blocks = {block_of(t) for t in raw.index}
     if final:
-        models = train(make_samples(raw, store, hours, all_blocks))
+        models = train_all(make_samples(raw, store, hours, all_blocks))
         OUT.mkdir(exist_ok=True)
         for tg, m in models.items():
             m.save_model(str(OUT / f"model_{tg}.txt"))
@@ -111,10 +134,10 @@ def main(final=False):
     val_blocks = {b for b in all_blocks if b[2] == 2}
     tr = make_samples(raw, store, hours, all_blocks - val_blocks)
     va = make_samples(raw, store, hours, val_blocks)
-    models = train(tr)
-    for tg in models:
+    models = train_all(tr)
+    for tg in ("p", "c", "load", "pv"):
         X, y = va[tg]
-        pred = models[tg].predict(X)
+        pred = predict(models, tg, X, resid=False)
         k = X[:, FEATS[tg].index("k")]
         l24 = {"p": "x_l24", "c": "x_l24", "load": "load_l24", "pv": "pv_l24"}[tg]
         naive = X[:, FEATS[tg].index(l24)]
