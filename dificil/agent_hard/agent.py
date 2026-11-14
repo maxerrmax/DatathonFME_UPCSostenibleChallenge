@@ -46,6 +46,7 @@ def _epoch_hour(ts, fallback):
 class BatteryAgent:
     def __init__(self, params=None):
         p = {"ratio": 0.6213, "q_term": 0.6, "term_scale": 1.0, "k_dis": 0.5, "pv_blend": 0.3,
+             "horizon": 24, "k_future": 0.0, "sigma_mode": "global",
              "models": "models_all.pkl"}
         try:
             f = HERE / "parametres.json"
@@ -58,8 +59,11 @@ class BatteryAgent:
         self.p = p
         self.m = {}
         try:
-            raw = joblib.load(HERE / p["models"])
-            self.m = {k: lgb.Booster(model_str=s) for k, s in raw.items()}
+            raw = p.get("_models")
+            if raw is None:
+                raw = joblib.load(HERE / p["models"])
+            # LightGBM es desa com a text; la resta (XGBoost, sklearn, ensembles) com a objectes amb .predict
+            self.m = {k: (lgb.Booster(model_str=v) if isinstance(v, str) else v) for k, v in raw.items()}
         except Exception:
             self.m = {}
         self.hist = Hist()
@@ -176,7 +180,7 @@ class BatteryAgent:
         self.hist.put("irr", t - 1, _num(nd.get("irradiancia_wm2"))); self.hist.put("temp", t - 1, _num(nd.get("temp_ambient_c")))
         self.hist.put("vent", t - 1, _num(nd.get("vent_ms")))
         if self.pred_net0 is not None and math.isfinite(ld) and math.isfinite(pv):
-            self.err.append((ld - pv) - self.pred_net0); self.err = self.err[-168:]
+            self.err.append(((t - 1) % 24, (ld - pv) - self.pred_net0)); self.err = self.err[-336:]
 
         # tots els valors de mercat coneguts consecutius (3 h al Mode Difícil, 24 h a l'Estàndard)
         def known(v, d):
@@ -186,7 +190,18 @@ class BatteryAgent:
                     break
                 out.append(x)
             return out or [d]
-        price, co2, load, pvf = self._forecast(t, known(pr, 0.12), known(cr, 0.10))
+        tbl = self.p.get("_fc_table")
+        if tbl is not None and t in tbl:
+            price, co2, load, pvf = [np.array(x, float) for x in tbl[t]]
+            kp, kc = known(pr, 0.12), known(cr, 0.10)          # els valors coneguts són exactes
+            price[:len(kp)] = kp; co2[:len(kc)] = kc
+        else:
+            price, co2, load, pvf = self._forecast(t, known(pr, 0.12), known(cr, 0.10))
+        rec = self.p.get("_record")
+        if rec is not None:
+            rec[t] = (price.copy(), co2.copy(), load.copy(), pvf.copy())
+        Hh = int(max(2, min(24, self.p.get("horizon", 24))))
+        price, co2, load, pvf = price[:Hh], co2[:Hh], load[:Hh], pvf[:Hh]
         net = load - pvf
         self.pred_net0 = float(net[0])
         w = 0.7 * co2 + 0.3 * self.p["ratio"] * price
@@ -194,9 +209,16 @@ class BatteryAgent:
         ref = np.concatenate([w, self.hist_w[-72:]])
         v = self.p["term_scale"] * ETA * float(np.quantile(ref, self.p["q_term"]))
         # prudència a la descàrrega de l'hora actual: net previst - k * error típic
-        sig = float(np.mean(np.abs(self.err))) if len(self.err) >= 12 else 80.0
+        sig = float(np.mean([abs(e) for _, e in self.err])) if len(self.err) >= 12 else 80.0
+        if self.p.get("sigma_mode") == "hod":
+            same = [abs(e) for h_, e in self.err if h_ == t % 24]
+            if len(same) >= 3:
+                sig = float(np.mean(same))
         dmax0 = max(0.0, float(net[0]) - self.p["k_dis"] * sig)
-        P = self._lp(w, np.asarray(net, float), soc, v, dmax0)
+        net_plan = np.asarray(net, float).copy()
+        if self.p.get("k_future", 0.0):
+            net_plan[1:] = net_plan[1:] - self.p["k_future"] * sig * np.sqrt(np.arange(1, len(net_plan)))
+        P = self._lp(w, net_plan, soc, v, dmax0)
         if P is None:
             a = 0.0
         else:

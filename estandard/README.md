@@ -4,11 +4,11 @@ Compara enfocaments de control de la bateria amb el **simulador oficial** (`star
 en una sola simulació contínua com al servidor, i contra la cota superior (LP amb previsió perfecta).
 
 ```bash
-python pipeline/run_all.py                 # tots els agents -> pipeline/results/resultats.{csv,md}
-python pipeline/run_all.py mpc_lp rl_dqn   # només alguns
-python pipeline/tune.py mpc_lp_tuned       # cerca de paràmetres (evolució diferencial) sobre 'fit'
-python pipeline/agents/<nom>/train.py      # entrena els agents apresos
-python pipeline/package.py <nom>           # submissions/<nom>.zip + check_submission
+python estandard/run_all.py                 # tots els agents -> estandard/results/resultats.{csv,md}
+python estandard/run_all.py mpc_lp rl_dqn   # només alguns
+python estandard/tune.py mpc_lp_tuned       # cerca de paràmetres (evolució diferencial) sobre 'fit'
+python estandard/agents/<nom>/train.py      # entrena els agents apresos
+python estandard/package.py <nom>           # submissions/<nom>.zip + check_submission
 ```
 
 ## Dades i particions (`data.py`)
@@ -19,7 +19,7 @@ python pipeline/package.py <nom>           # submissions/<nom>.zip + check_submi
 - `score_web` aplica la penalització de la web (−1 per infracció; l'environment local resta 0,2).
 
 ## Afegir un agent
-Crea `pipeline/agents/<nom>/agent.py` amb `class BatteryAgent` (+ fitxers auxiliars). Ha de ser
+Crea `estandard/agents/<nom>/agent.py` amb `class BatteryAgent` (+ fitxers auxiliars). Ha de ser
 autocontingut (és el que s'envia). Els scripts `train*.py` no s'empaqueten i poden usar qualsevol llibreria.
 
 ## Agents actuals

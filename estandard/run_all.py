@@ -1,8 +1,8 @@
 """
-Executa tots els agents de pipeline/agents/ sobre train complet i sobre la partició de validació
+Executa tots els agents de estandard/agents/ sobre train complet i sobre la partició de validació
 (darrers 7 dies de cada bloc, com el test). Escriu results/resultats.csv i results/resultats.md.
 
-Ús:  python pipeline/run_all.py [nom_agent ...]
+Ús:  python estandard/run_all.py [nom_agent ...]
 """
 import sys, json, time
 from pathlib import Path

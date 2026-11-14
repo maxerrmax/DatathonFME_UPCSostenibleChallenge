@@ -15,7 +15,7 @@ METEO = {"irradiancia_wm2": "Atersa - IRRADIANCIA (W/m2)",
 def load_hard(force=False):
     if CACHE.exists() and not force:
         return pd.read_csv(CACHE, parse_dates=["Fecha"], index_col="Fecha")
-    import sys; sys.path.insert(0, str(ROOT / "pipeline"))
+    import sys; sys.path.insert(0, str(ROOT / "estandard"))
     from data import build_hourly
     df = build_hourly()
     me = pd.read_csv(TRAIN / "meteo.csv", parse_dates=["Fecha"]).set_index("Fecha")

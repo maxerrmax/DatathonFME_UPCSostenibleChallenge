@@ -1,10 +1,10 @@
 """Entrena 4 LightGBM (preu, CO2, consum, solar) amb features idèntiques a les de l'agent.
-Ús: python hard/train_forecast.py [fit|all]   (fit = sense la validació; all = tot train per al lliurament)"""
+Ús: python dificil/train_forecast.py [fit|all]   (fit = sense la validació; all = tot train per al lliurament)"""
 import sys, time
 from pathlib import Path
 import numpy as np, pandas as pd, joblib, lightgbm as lgb
 HERE = Path(__file__).parent
-sys.path.insert(0, str(HERE)); sys.path.insert(0, str(HERE / "agent_hard")); sys.path.insert(0, str(HERE.parent / "pipeline"))
+sys.path.insert(0, str(HERE)); sys.path.insert(0, str(HERE / "agent_hard")); sys.path.insert(0, str(HERE.parent / "estandard"))
 from hdata import load_hard
 from data import split_val
 from feats import Hist, mkt_features, meas_features, MKT_NAMES, MEAS_NAMES

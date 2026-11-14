@@ -3,7 +3,7 @@ Cerca de polítiques: optimitza paràmetres d'un agent amb scipy.differential_ev
 sobre la partició 'fit' i en guarda el resultat a agents/<nom>/parametres.json.
 La validació es fa després amb run_all.py (dades no vistes).
 
-Ús: python pipeline/tune.py rbc_tuned
+Ús: python estandard/tune.py rbc_tuned
 """
 import json, sys
 from pathlib import Path

@@ -77,3 +77,12 @@ def meas_features(hist, key, t, hs):
                      hist.get(key, tau - 168), last, last - last24, m24, irr, temp,
                      hist.get("irr", tau - 24), lm % 24])
     return np.array(rows, dtype=float)
+
+
+class AvgModel:
+    """Ensemble: mitjana de les prediccions de diversos models (picklable)."""
+    def __init__(self, models):
+        self.models = list(models)
+
+    def predict(self, X):
+        return np.mean([m.predict(X) for m in self.models], axis=0)

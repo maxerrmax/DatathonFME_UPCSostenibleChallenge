@@ -12,10 +12,10 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "starter_kit"))
 from environment import CampusBatteryEnv  # noqa: E402
 sys.path.pop(0)
-sys.path.insert(0, str(ROOT / "pipeline"))
+sys.path.insert(0, str(ROOT / "estandard"))
 from oracle import oracle_actions, score_from_actions  # noqa: E402
 
-AGENTS = ROOT / "pipeline" / "agents"
+AGENTS = ROOT / "estandard" / "agents"
 
 # mateixa llista que check_submission.py
 FORBIDDEN = {"os", "sys", "shutil", "subprocess", "socket", "urllib", "requests", "http", "ftplib",

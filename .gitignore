@@ -4,11 +4,12 @@ data/processed/
 __pycache__/
 
 # Pipeline
-pipeline/submissions/
-pipeline/results_tune_*.log
-pipeline/results/run_all.log
+estandard/submissions/
+estandard/results_tune_*.log
+estandard/results/run_all.log
 
-# Mode Difícil: models i zips es regeneren amb hard/train_forecast.py
-hard/agent_hard/*.pkl
-hard/agent_hard/*.bak
-hard/submissions/
+# Mode Difícil: models i zips es regeneren amb dificil/train_forecast.py
+dificil/agent_hard/*.pkl
+dificil/agent_hard/*.bak
+dificil/submissions/
+dificil/cache/

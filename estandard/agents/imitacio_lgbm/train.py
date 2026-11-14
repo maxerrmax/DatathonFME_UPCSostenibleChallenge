@@ -1,5 +1,5 @@
 """Behavior cloning: LightGBM imita les accions de l'oracle LP (previsió perfecta)
-sobre la partició 'fit'. Ús: python pipeline/agents/imitacio_lgbm/train.py"""
+sobre la partició 'fit'. Ús: python estandard/agents/imitacio_lgbm/train.py"""
 import sys
 from pathlib import Path
 import numpy as np, joblib, lightgbm as lgb

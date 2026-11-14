@@ -3,7 +3,7 @@ import sys, json, importlib.util
 from pathlib import Path
 import numpy as np
 HERE = Path(__file__).parent
-sys.path.insert(0, str(HERE)); sys.path.insert(0, str(HERE.parent / "pipeline"))
+sys.path.insert(0, str(HERE)); sys.path.insert(0, str(HERE.parent / "estandard"))
 from hdata import load_hard; from data import split_val
 from henv import run
 from horacle import oracle

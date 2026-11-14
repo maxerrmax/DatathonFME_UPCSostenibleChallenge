@@ -1,6 +1,6 @@
-"""Empaqueta qualsevol agent de pipeline/agents/<nom>/ en submissions/<nom>.zip
+"""Empaqueta qualsevol agent de estandard/agents/<nom>/ en submissions/<nom>.zip
 (sense scripts train*.py) i el valida amb starter_kit/check_submission.py.
-Ús: python pipeline/package.py mpc_lp"""
+Ús: python estandard/package.py mpc_lp"""
 import subprocess, sys, zipfile
 from pathlib import Path
 HERE = Path(__file__).parent

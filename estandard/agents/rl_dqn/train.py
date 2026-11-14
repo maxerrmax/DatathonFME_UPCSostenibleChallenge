@@ -1,7 +1,7 @@
 """Deep RL: DQN (stable-baselines3) sobre un entorn gymnasium que reprodueix la física oficial.
 Entrenament offline amb torch; la xarxa Q s'exporta a numpy (qnet.npz) perquè el servidor no té torch.
 Episodis = finestres aleatòries de 7 dies de 'fit' amb SOC inicial aleatori.
-Ús: python pipeline/agents/rl_dqn/train.py [timesteps]"""
+Ús: python estandard/agents/rl_dqn/train.py [timesteps]"""
 import sys
 from pathlib import Path
 import numpy as np, gymnasium as gym

@@ -1,6 +1,6 @@
 """Fitted Q-Iteration (RL offline per lots) amb LightGBM.
 Transicions sintètiques: per a cada hora de 'fit', SOCs aleatoris × 5 accions discretes.
-Recompensa = -w_t * P_t / 50 (estalvi ponderat CO2+cost). Ús: python pipeline/agents/rl_fqi/train.py"""
+Recompensa = -w_t * P_t / 50 (estalvi ponderat CO2+cost). Ús: python estandard/agents/rl_fqi/train.py"""
 import sys
 from pathlib import Path
 import numpy as np, joblib, lightgbm as lgb
