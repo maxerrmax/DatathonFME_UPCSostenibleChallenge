@@ -130,7 +130,7 @@ Más cosas probadas hoy sin efecto (ref. 20,52): `net0_mix` 0/0,25/0,75/1 → 20
 20,52/20,49 · tramos más finos (+3, +4, +5, 6–8, 9–11) → igual que los de la v10 (A 21,23 / B 19,20).
 Con información perfecta (sobre v9): consumo neto de la hora actual +0,47; CO₂ de +3..+7 h +0,63; precio 24 h +0,19.
 
-## 9. v13 = v12 del equipo (calibración online del CO₂, 23,53) + salto entre semanas — pendiente del público
+## 9. v13 = v12 del equipo (calibración online del CO₂, 23,53) + salto entre semanas — **23,05 en el público: descartada**
 
 Zip: `dificil/lliuraments/hard_v13_v12equip_salt.zip` (mismo `.pkl` que v9/v12, historial completo; validado con
 `check_submission.py`; pseudo-test con el calendario real: 29,6 s para las 2.016 h, 0 infracciones).
@@ -145,3 +145,19 @@ Interruptores: `{"jump": false, "jump_meas": false}` → v12 del equipo exacta; 
 
 La calibración del CO₂ y los modelos por tramos corrigen lo mismo (CO₂ de las próximas horas): juntos no suman, y los
 tramos bajaron en el público con la v10 → la v13 no los lleva.
+
+**Resultado público v13: 23,05** (v12: 23,53) → descartada; la base sigue siendo la v12 del equipo (23,53).
+El ranking público usa **1.008 h = 6 semanas**, no las 12. Se intentó reproducir la caída en validación (v12 → v13):
+
+| Escenario simulado (el agente cree que vienen las 11 semanas) | v12 | v13 | dif. |
+|---|---|---|---|
+| 11 semanas seguidas | 20,75 | 21,18 | +0,43 |
+| 6 primeras seguidas | 15,75 | 15,91 | +0,16 |
+| 6 alternas (1.ª, 3.ª, ...) | 21,24 | 21,72 | +0,48 |
+| 5 alternas (2.ª, 4.ª, ...) | 20,17 | 20,00 | −0,17 |
+| 6 últimas | 26,69 | 27,35 | +0,66 |
+| Cada semana como episodio independiente (SOC 50 %) | 21,58 | 21,52 | −0,06 |
+
+Ninguno da −0,48 → la causa no está identificada. Patrón preocupante: v10 (+0,33 val. → −0,50 público) y v13 (+0,43 →
+−0,48) suben en validación y bajan en el público; la v12 del equipo (+0,22/+0,46 → +0,08) apenas se traslada.
+No volver a probar el salto sin saber antes cómo simula el servidor las semanas (p. ej. con un envío de diagnóstico).
