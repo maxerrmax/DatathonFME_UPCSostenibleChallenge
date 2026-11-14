@@ -158,3 +158,85 @@ class AvgModel:
 
     def predict(self, X):
         return np.mean([m.predict(X) for m in self.models], axis=0)
+
+
+# ---------------------------------------------------------------- v7: features de mercat ampliades
+MKT2_NAMES = ["h", "hod", "dow", "doy_s", "doy_c", "k0", "k1", "k2", "lag24", "lag48", "lag168", "wk7",
+              "shift", "x_shift", "m24", "mn24", "mx24", "sd24", "rel24", "o_k2", "o_lag24", "o_shift", "o_m24",
+              "off", "fest", "cs_tau", "kt_d1", "irr_last", "vent_last", "temp_last", "vent_m24", "irr_lag24",
+              "hod_t", "d2_24", "wk7_o", "km1", "km2", "km3", "slope", "l23", "l25", "o_k0", "wk3", "o_l23", "o_l25"]
+
+
+def _nanmean(v):
+    v = [x for x in v if np.isfinite(x)]
+    return float(np.mean(v)) if v else np.nan
+
+
+def mkt_features2(hist, key, t, hs):
+    other = "co2" if key == "price" else "price"
+    lk = t + KNOWN_MKT; lm = t + KNOWN_MEAS
+    g = hist.d[key].get; go = hist.d[other].get; nan = np.nan
+    k0, k1, k2 = g(t, nan), g(t + 1, nan), g(lk, nan)
+    if not np.isfinite(k2):
+        k2 = k1 if np.isfinite(k1) else k0
+    w = np.array([g(lk - i, nan) for i in range(24)], float); ok = np.isfinite(w)
+    m24 = w[ok].mean() if ok.any() else nan; mn = w[ok].min() if ok.any() else nan
+    mx = w[ok].max() if ok.any() else nan; sd = w[ok].std() if ok.any() else nan
+    shift = k2 - g(lk - 24, nan)
+    ok2 = go(lk, nan); oshift = ok2 - go(lk - 24, nan)
+    om24 = _nanmean([go(lk - i, nan) for i in range(24)])
+    num = den = 0.0
+    for i in range(24):
+        c = cs_value(lm - i); v = hist.d["pv"].get(lm - i, nan)
+        if np.isfinite(c) and c > 30 and np.isfinite(v):
+            num += v; den += c
+    kt = num / den if den > 0 else nan
+    irr, vent, temp = hist.get("irr", lm), hist.get("vent", lm), hist.get("temp", lm)
+    vm24 = hist.mean_back("vent", lm, 24)
+    rows = []
+    for h in hs:
+        tau = t + h; hod, dow, s, c = calendar(tau); fl = day_flags(tau)
+        l24 = g(tau - 24, nan)
+        wk = _nanmean([g(tau - 24 * d, nan) for d in range(1, 8)])
+        wko = _nanmean([go(tau - 24 * d, nan) for d in range(1, 8)])
+        rows.append([h, hod, dow, s, c, k0, k1, k2, l24, g(tau - 48, nan), g(tau - 168, nan), wk,
+                     shift, l24 + shift, m24, mn, mx, sd, l24 - m24, ok2, go(tau - 24, nan), oshift, om24,
+                     fl[6], fl[0], cs_value(tau), kt, irr, vent, temp, vm24, hist.get("irr", tau - 24),
+                     t % 24, l24 - g(tau - 48, nan), wko, g(t - 1, nan), g(t - 2, nan), g(t - 3, nan), k2 - k0,
+                     g(tau - 23, nan), g(tau - 25, nan), go(t, nan),
+                     _nanmean([g(tau - 24 * d, nan) for d in range(1, 4)]), go(tau - 23, nan), go(tau - 25, nan)])
+    return np.array(rows, dtype=float)
+
+
+# ---------------------------------------------------------------- v7: features de consum ampliades
+LOAD2_NAMES = ["h", "hod", "dow", "doy_s", "doy_c", "last", "last2", "last3", "d1", "lag24", "lag48", "lm24",
+               "shift", "x_shift", "x_ratio", "m24", "mn24", "mx24", "temp_last", "temp_m24", "irr_last",
+               "fest", "vac", "exam", "nocls", "tancat", "reduit", "off", "off_l24", "off_lm", "same", "same_m",
+               "same_shift", "hod_lm", "wk7"]
+
+
+def load_features2(hist, t, hs):
+    g = hist.d["load"].get; nan = np.nan; lm = t + KNOWN_MEAS
+    last, last2, last3 = g(lm, nan), g(lm - 1, nan), g(lm - 2, nan)
+    lm24 = g(lm - 24, nan); shift = last - lm24
+    w = np.array([g(lm - i, nan) for i in range(24)], float); ok = np.isfinite(w)
+    m24 = w[ok].mean() if ok.any() else nan; mn = w[ok].min() if ok.any() else nan; mx = w[ok].max() if ok.any() else nan
+    temp = hist.get("temp", lm); tm24 = hist.mean_back("temp", lm, 24); irr = hist.get("irr", lm)
+    off_lm = day_flags(lm)[6]
+    # com va l'última hora respecte al mateix tipus de dia (laborable/no) més recent
+    same_lm = nan
+    for d in range(1, 8):
+        if day_flags(lm - 24 * d)[6] == off_lm and np.isfinite(g(lm - 24 * d, nan)):
+            same_lm = g(lm - 24 * d, nan); break
+    rows = []
+    for h in hs:
+        tau = t + h; hod, dow, s, c = calendar(tau); fl = day_flags(tau)
+        l24 = g(tau - 24, nan)
+        vals = [(g(tau - 24 * d, nan), day_flags(tau - 24 * d)[6]) for d in range(1, 8)]
+        st = [v for v, o in vals if o == fl[6] and np.isfinite(v)]
+        same = st[0] if st else nan; same_m = float(np.mean(st)) if st else nan
+        rows.append([h, hod, dow, s, c, last, last2, last3, last - last2, l24, g(tau - 48, nan), lm24,
+                     shift, l24 + shift, l24 * last / lm24 if (np.isfinite(lm24) and lm24 > 50) else nan,
+                     m24, mn, mx, temp, tm24, irr, *fl, day_flags(tau - 24)[6], off_lm, same, same_m,
+                     same + (last - same_lm), lm % 24, _nanmean([v for v, _ in vals])])
+    return np.array(rows, dtype=float)
