@@ -242,6 +242,8 @@ DEFAULTS = {
     "pv_bias": 1.0,
     "outage_kw": 100.0,
     "pc_contrast": 1.0,          # amplifica el contrast entre hores previstes de preu/CO2
+    "solar_file": "solar.json",
+    "pv_mix": 0.0,               # pes del model físic de solar (cel clar × claredat); 0 = només LightGBM
     "res_w": 0.0,                # pes del model residual de preu/CO2 (0 = només directe)          # consum mesurat per sota d'això = avaria / campus aturat
 }
 
@@ -275,6 +277,14 @@ class BatteryAgent:
                         self.models[tg] = lgb.Booster(model_file=str(f))
                     except Exception:
                         pass
+        self.solar = None
+        try:
+            sf = d / self.p["solar_file"]
+            if sf.exists():
+                js = json.loads(sf.read_text())
+                self.solar = {k: np.asarray(v, float) for k, v in js.items()}
+        except Exception:
+            self.solar = None
         self.store = {k: {} for k in ("p", "c", "load", "pv", "irr", "temp")}
         self.last_load = 900.0
         self.last_price, self.last_co2 = 0.13, 0.08
@@ -321,6 +331,38 @@ class BatteryAgent:
                 self.store[col] = {h: v for h, v in self.store[col].items() if h >= t0 - 72}
 
     # ------------------------------------------------------------------ previsions
+    def _cs(self, h):
+        d = hour_to_dt(h)
+        return float(self.solar["cs"][d.timetuple().tm_yday - 1, d.hour])
+
+    def _pv_physical(self, t0, H):
+        """Solar (kW reals) = cel clar × claredat prevista (mescla de l'última hora, les darreres 24 h i la mitjana)."""
+        sol = self.solar
+        cs1 = self._cs(t0 - 1)
+        p1 = self._get("pv", t0 - 1)
+        kn = min(max(p1 / cs1, 0.0), 1.3) if (cs1 > 8.0 and p1 == p1) else float("nan")
+        num = den = 0.0
+        for i in range(1, 25):
+            c = self._cs(t0 - i)
+            v = self._get("pv", t0 - i)
+            if c > 8.0 and v == v:
+                num += v; den += c
+        kd = num / den if den > 0 else float("nan")
+        out = np.zeros(H)
+        for k in range(H):
+            T = t0 + k
+            dt = hour_to_dt(T)
+            c = self._cs(T)
+            if c <= 0.5:
+                continue
+            kc = float(sol["ktc"][dt.month - 1, dt.hour])
+            kk = min(k, 23)
+            wn, wd = float(sol["w_now"][kk]), float(sol["w_d1"][kk])
+            kd_ = kd if kd == kd else kc
+            kn_ = kn if kn == kn else kd_
+            out[k] = c * (wn * kn_ + wd * kd_ + (1 - wn - wd) * kc)
+        return out
+
     def _forecast(self, t0, H, pv_scale):
         get = self._get
         price = np.full(H, np.nan)
@@ -368,6 +410,12 @@ class BatteryAgent:
             pv = m.predict(np.array([pv_features(get, t0, k) for k in ks], float))
         else:
             pv = np.zeros(H)
+        mix = float(self.p["pv_mix"])
+        if self.solar is not None and mix > 0:
+            try:
+                pv = mix * self._pv_physical(t0, H) + (1 - mix) * np.clip(pv, 0, None)
+            except Exception:
+                pass
         pv = np.clip(pv, 0, None) * pv_scale * self.p["pv_bias"]
         load = np.clip(load, 0, None) + self.p["load_bias"]
         # Blindatge: si el comptador marca ~0 (avaria del sensor o campus aturat), suposem que continua

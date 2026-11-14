@@ -1,4 +1,9 @@
 """Cerca de paràmetres de l'agent (en paral·lel) sobre les setmanes de validació."""
+import os
+# Paral·lelisme per processos: 1 fil per procés (si no, LightGBM/BLAS de cada procés ocupen tots els nuclis
+# i es trepitgen; una prova de 20 s va arribar a trigar 16 min)
+for _v in ("OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS", "MKL_NUM_THREADS"):
+    os.environ[_v] = "1"
 import sys, json
 from multiprocessing import Pool
 from pathlib import Path
@@ -17,6 +22,6 @@ def one(params):
 
 if __name__ == "__main__":
     grid = [json.loads(g) for g in sys.argv[2:]]
-    with Pool(4) as p:
+    with Pool(os.cpu_count() or 1) as p:
         for params, s, c, k, i in sorted(p.map(one, grid), key=lambda x: -x[1]):
             print(f"{s:6.2f}  CO2={c:6.2f}  cost={k:6.2f}  infr={i}  {json.dumps(params)}")

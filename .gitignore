@@ -17,3 +17,5 @@ dificil/cache/
 
 # Models de validació (es regeneren amb scripts/train_forecast.py)
 submission_hard/val_model_*.txt
+
+submission_hard/val_solar*.json

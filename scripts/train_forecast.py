@@ -7,6 +7,7 @@ Imita el que veu l'agent al test: blocs de 7 dies sense historial previ.
 
 Ús:  python scripts/train_forecast.py [--final]
 """
+import os
 import sys
 from pathlib import Path
 
@@ -74,7 +75,8 @@ def make_samples(raw, store, hours, blocks_keep):
 
 FEATS = {"p": PRICE_FEATS, "c": PRICE_FEATS, "load": LOAD_FEATS, "pv": PV_FEATS}
 PARAMS = dict(objective="l2", learning_rate=0.05, num_leaves=31, min_data_in_leaf=40,
-              feature_fraction=0.9, bagging_fraction=0.8, bagging_freq=1, lambda_l2=1.0, verbose=-1)
+              feature_fraction=0.9, bagging_fraction=0.8, bagging_freq=1, lambda_l2=1.0, verbose=-1,
+              num_threads=os.cpu_count() or 1)  # procés únic: tots els nuclis (no llançar-ne dos alhora)
 REG = dict(PARAMS, num_leaves=15, min_data_in_leaf=150, learning_rate=0.03, lambda_l2=10, feature_fraction=0.7)
 # Configuració triada per validació (MAE): veure historial a la memòria del projecte
 TARGET_PARAMS = {
