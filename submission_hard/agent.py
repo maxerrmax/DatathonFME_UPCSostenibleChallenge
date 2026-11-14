@@ -241,6 +241,9 @@ DEFAULTS = {
     "load_bias": 0.0,
     "pv_bias": 1.0,
     "outage_kw": 100.0,
+    "co2_mult": 1.0,             # pes relatiu del CO2 respecte al preu dins del LP
+    "load_bias_far": None,       # biaix de consum a k=H-1 (None = igual que load_bias)
+    "pv_bias_far": None,         # factor solar a k=H-1 (None = igual que pv_bias)
     "pc_contrast": 1.0,          # amplifica el contrast entre hores previstes de preu/CO2
     "solar_file": "solar.json",
     "pv_mix": 0.0,               # pes del model físic de solar (cel clar × claredat); 0 = només LightGBM
@@ -416,8 +419,12 @@ class BatteryAgent:
                 pv = mix * self._pv_physical(t0, H) + (1 - mix) * np.clip(pv, 0, None)
             except Exception:
                 pass
-        pv = np.clip(pv, 0, None) * pv_scale * self.p["pv_bias"]
-        load = np.clip(load, 0, None) + self.p["load_bias"]
+        # pessimisme per horitzó: interpolació lineal entre k=0 i k=H-1
+        frac = np.arange(H) / max(H - 1, 1)
+        pvb_far = self.p["pv_bias_far"] if self.p["pv_bias_far"] is not None else self.p["pv_bias"]
+        lb_far = self.p["load_bias_far"] if self.p["load_bias_far"] is not None else self.p["load_bias"]
+        pv = np.clip(pv, 0, None) * pv_scale * (self.p["pv_bias"] + (pvb_far - self.p["pv_bias"]) * frac)
+        load = np.clip(load, 0, None) + self.p["load_bias"] + (lb_far - self.p["load_bias"]) * frac
         # Blindatge: si el comptador marca ~0 (avaria del sensor o campus aturat), suposem que continua
         ll = get("load", t0 - 1)
         if ll == ll and ll < self.p["outage_kw"]:
@@ -459,7 +466,7 @@ class BatteryAgent:
         H = int(self.p["horizon"])
         price, co2, load, pv = self._forecast(t0, H, pv_scale)
         net = load - pv
-        w = self.p["alpha"] * co2 / self.p["KC"] + self.p["beta"] * price / self.p["KP"]
+        w = self.p["alpha"] * self.p["co2_mult"] * co2 / self.p["KC"] + self.p["beta"] * price / self.p["KP"]
         v_term = 0.0
         if self.p["v_term_f"]:
             v_term = self.p["v_term_f"] * float(np.quantile(w, self.p["v_term_q"]))
