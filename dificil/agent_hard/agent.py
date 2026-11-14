@@ -378,8 +378,8 @@ class BatteryAgent:
             self.hist.put("irr", t - 1, _num(nd.get("irradiancia_wm2"))); self.hist.put("temp", t - 1, _num(nd.get("temp_ambient_c")))
             self.hist.put("vent", t - 1, _num(nd.get("vent_ms")))
         if self.pred_net0 is not None and math.isfinite(ld) and math.isfinite(pv):
-            self.err.append(((t - 1) % 24, (ld - pv) - self.pred_net0)); self.err = self.err[-336:]
-            self.err_v.append(self.vol_pred); self.err_v = self.err_v[-336:]
+            self.err.append(((t - 1) % 24, (ld - pv) - self.pred_net0)); self.err = self.err[-int(self.p.get("err_mem", 336)):]
+            self.err_v.append(self.vol_pred); self.err_v = self.err_v[-int(self.p.get("err_mem", 336)):]
 
         # tots els valors de mercat coneguts consecutius (3 h al Mode Difícil, 24 h a l'Estàndard)
         def known(v, d):

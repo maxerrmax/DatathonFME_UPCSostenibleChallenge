@@ -199,3 +199,13 @@ La v12 solo ve el final cuando la ventana de mercado se acorta (2 h antes).
   Fuera de esa semana el agente es **idéntico a la v12** (val. A 20,75). Pseudo-test con calendario real: 20,21 → 20,30.
 - En el público solo cambia algo si incluye la semana de agosto (si sale 23,53 exacto, no la incluye).
 Zip: `dificil/lliuraments/hard_v14_v12_final_agost.zip` (mismo `.pkl` que la v12).
+
+## 12. Más pruebas sobre la v12 (sin mejora; ref. A 20,75 · B 18,91)
+
+| Prueba | A | B |
+|---|---|---|
+| Escenarios de la hora actual solo de horas con variabilidad parecida (`scen_vol` 0,5 / 0,33; 0,5 + `scen_win` 4) | 20,72 / 20,73 / 20,70 | 18,91 / 18,90 / 18,90 |
+| Memoria de errores (`err_mem`) 3 / 7 / 28 / 56 días (ahora 14) | 20,70 / 20,73 / 20,74 / 20,73 | 18,89 / 18,91 / 18,93 / 18,93 |
+| Horizonte 12 / 16 / 20 h (ahora 24) | 20,77 / 20,78 / 20,75 | 18,89 / 18,92 / 18,90 |
+| Calendario: error por tipo de día (festivos, cerrado, reducido…) algo mayor, pero acotado: +0,03/+0,05 como mucho | — | — |
+| Consumo/solar perfectos: hora actual +0,45/+0,49 (patrón de coste, como el líder); horas 1–23 solo +0,06/+0,17 | — | — |
