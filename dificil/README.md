@@ -18,3 +18,23 @@ cd dificil/agent_hard && zip ../submissions/hard_mpc_lgbm.zip agent.py feats.py 
 | MPC + previsió ingènua (lag 24 h) | 16,02 |
 
 Pèrdua per variable (donant-la real a l'agent): mercat +1,4, solar +0,7, consum +0,5.
+
+## Pipeline (dues etapes) — `python dificil/hpipe.py stage1 | stage2 <families>`
+
+Etapa 1, famílies de previsió (validació, decisió per defecte; òptim 22,34):
+
+| Família | Score | MAE consum | MAE solar | ms/pas |
+|---|---|---|---|---|
+| Previsió perfecta | 21,79 | 0 | 0 | 4 |
+| LightGBM base | 19,04 | 62 | 76 | 6 |
+| XGBoost | 19,03 | 77 | 78 | 11 |
+| Ensemble (LGBM+XGB+HGB) | 19,03 | 67 | 76 | 91 (massa lent) |
+| HistGradientBoosting | 18,95 | 70 | 77 | 41 |
+| Ingènua (lag 24 h) | 16,50 | 186 | 97 | 3 |
+
+Etapa 2, 60 configuracions de decisió per família (`results/etapa2_decisio.md`):
+- error per hora del dia (`sigma_mode=hod`) > error global;
+- prudència a la planificació futura `k_future` òptima a 0,3–0,5 (0,8 ja empitjora);
+- prudència a la descàrrega `k_dis` òptima a 0,5–0,75; horitzó 16 vs 24 h: indiferent.
+
+**Configuració final** (`parametres.json`): LightGBM base, `k_dis=0.75`, `sigma_mode=hod`, `k_future=0.3` → **19,19** a validació (abans 19,04).

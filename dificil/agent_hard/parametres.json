@@ -2,7 +2,10 @@
  "ratio": 0.6213,
  "q_term": 0.6,
  "term_scale": 1.0,
- "k_dis": 0.5,
+ "k_dis": 0.75,
+ "sigma_mode": "hod",
+ "k_future": 0.3,
+ "horizon": 24,
  "pv_blend": 0.3,
  "models": "models_all.pkl"
 }
