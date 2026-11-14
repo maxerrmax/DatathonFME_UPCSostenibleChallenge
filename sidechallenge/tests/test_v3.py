@@ -247,3 +247,53 @@ def test_open_question_without_llm_falls_back_to_charts():
     with TestClient(service.app) as c:
         r = _ask(c, "Fes-me un resum per al rector de la situació energètica del campus")
     assert r["mode"] in ("local", "helmcode") and r["charts"]
+
+
+def test_model_without_tool_calls_still_answers_from_seeded_evidence(monkeypatch):
+    """Real qwen3.6 sometimes answers directly (reusing history): seeded tools keep it grounded."""
+    seen = []
+
+    def handler(request):
+        body = json.loads(request.content); seen.append(body)
+        user = body["messages"][-1]["content"]
+        assert "Evidències ja calculades" in user and body["tool_choice"] == "auto"
+        return httpx.Response(200, json={"choices": [{"message": {"content":
+            "La millor política obté **6,45** punts [E1].\nDecisió: optimitzar cada dia amb MPC."}}]})
+
+    _mock(monkeypatch, handler)
+    history = [{"q": "I al juliol?", "a": "Al juliol el marge és 1,043 [E1]."}]
+    with TestClient(service.app) as c:
+        r = _ask(c, "Quina estratègia de bateria funciona millor?", history=history)
+    assert r["mode"] == "analyst-helmcode" and r["llm_warning"] is None
+    assert r["trace"][0]["tool"] == "backtest" and len(seen) == 1
+    if "segon pla" not in " ".join(r["trace"][0]["facts"]):
+        assert r["verification"]["ok"], r["verification"]
+
+
+def test_open_question_requires_a_tool_first(monkeypatch):
+    seen = []
+
+    def handler(request):
+        body = json.loads(request.content); seen.append(body)
+        if len(seen) == 1:
+            if body.get("tool_choice") == "required":
+                return httpx.Response(400, json={"error": "tool_choice 'required' not supported"})
+        if len(seen) == 2:
+            assert body["tool_choice"] == "auto"
+            return httpx.Response(200, json={"choices": [{"message": {"content": "", "tool_calls": [
+                {"id": "c1", "type": "function", "function": {"name": "data_quality", "arguments": "{}"}}]}}]})
+        return httpx.Response(200, json={"choices": [{"message": {"content": "Resum [E1].\nDecisió: revisar les dades."}}]})
+
+    _mock(monkeypatch, handler)
+    with TestClient(service.app) as c:
+        r = _ask(c, "Fes-me un resum per al rector de la situació energètica del campus")
+    assert seen[0]["tool_choice"] == "required"
+    assert r["mode"] == "analyst-helmcode" and r["trace"][0]["tool"] == "data_quality"
+
+
+def test_repeated_tool_calls_are_deduplicated():
+    from sidechallenge import copilot as cp
+    ctx = cp.Context(service, "campus")
+    a = cp.run_tool(ctx, "data_quality", {})
+    b = cp.run_tool(ctx, "data_quality", {})
+    assert a is b and len(ctx.evidence) == 1

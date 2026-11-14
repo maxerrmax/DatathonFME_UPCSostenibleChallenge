@@ -255,6 +255,8 @@ def tool_best_hours(ctx: Context, month: int | None = None) -> dict:
              f"Millor parell mitjà càrrega→descàrrega: {c:02d} h → {d:02d} h, marge {ca(cand['spread_index'], 3)} després del 90% de rendiment.",
              (f"El marge del parell és positiu en el {ca(cand['viable_day_pct'])}% de {cand['days_examined']} dies complets "
               f"(mediana diària {ca(q[2], 3)}, 10% dels dies per sota de {ca(q[0], 3)})." if q else "Sense dies complets per mesurar la dispersió.")]
+    facts.append("Un parell d'una sola hora mou com a màxim 500 kWh dels 2.000 kWh de capacitat; "
+                 "per aprofitar la bateria cal planificar diverses hores cada dia (vegeu el Decision Lab).")
     if month is not None:
         facts.insert(0, f"Anàlisi del mes {_de(eda._month_name(month))}.")
     if month is None and len(pairs) > 1:
@@ -494,8 +496,13 @@ def run_tool(ctx: Context, name: str, raw_args: Any) -> dict:
     if name not in TOOLS:
         return {"error": f"Eina desconeguda: {str(name)[:40]}"}
     args = clean_args(name, raw_args, ctx.fields)
+    for e in ctx.evidence:
+        if e.get("tool") == name and e.get("_args") == args and "error" not in e:
+            return e
     try:
-        return TOOLS[name]["fn"](ctx, **args)
+        item = TOOLS[name]["fn"](ctx, **args)
+        item["_args"] = args
+        return item
     except (ValueError, KeyError) as exc:
         return {"error": str(exc)[:200], "tool": name}
     except Exception as exc:  # a failing tool must never crash the conversation
@@ -597,7 +604,9 @@ Normes:
 7. Respon primer exactament el que es pregunta (la xifra o l'hora concreta) i després el context.
 8. Si cap eina permet respondre, digues-ho i proposa la pregunta més propera que sí pots respondre.
 9. No afegeixis afirmacions, matisos ni advertiments que no surtin de les evidències (per exemple, sobre la previsió de consum, si no l'has consultada amb una eina).
-10. Text pla: sense taules ni encapçalaments; només pots usar **negreta** per a la xifra clau."""
+10. Text pla: sense taules ni encapçalaments; només pots usar **negreta** per a la xifra clau.
+11. Les respostes anteriors de la conversa poden ser d'una altra pregunta o d'un altre mes: no en reutilitzis xifres; usa només les evidències d'aquest torn.
+12. Interpretació: un marge del senyal > 0 vol dir que el cicle compensa malgrat el 90% de rendiment; només és desfavorable si és ≤ 0. Un parell mitjà d'una hora és una hipòtesi; la política recomanada és optimitzar cada dia amb les previsions de 24 h."""
 
 
 def _llm_settings() -> tuple[str | None, str | None, str]:
@@ -622,7 +631,7 @@ class ToolsUnsupported(Exception):
     pass
 
 
-async def llm_analyst(ctx: Context, question: str, history: list[dict]) -> tuple[str, list[dict]]:
+async def llm_analyst(ctx: Context, question: str, history: list[dict], seeded: bool = False) -> tuple[str, list[dict]]:
     key, model, endpoint = _llm_settings()
     if not key or not model:
         raise RuntimeError("Helmcode no configurat")
@@ -631,15 +640,27 @@ async def llm_analyst(ctx: Context, question: str, history: list[dict]) -> tuple
     for turn in history[-3:]:
         messages += [{"role": "user", "content": str(turn.get("q", ""))[:600]},
                      {"role": "assistant", "content": str(turn.get("a", ""))[:900]}]
-    messages.append({"role": "user", "content": question})
+    if seeded and ctx.evidence:
+        # The server already ran the tools this question needs: the model writes from
+        # these results and may request extra tools, but never answers without evidence.
+        messages.append({"role": "user", "content": question + "\n\nEvidències ja calculades pel servidor en aquest torn "
+                         "(pots demanar més eines si cal):\n" + "\n".join(_evidence_for_model(e) for e in ctx.evidence)})
+    else:
+        messages.append({"role": "user", "content": question})
     headers = {"Authorization": "Bearer " + key, "Content-Type": "application/json"}
     calls = 0
+    choice = "auto" if (seeded and ctx.evidence) else "required"
     async with httpx.AsyncClient(timeout=45.0) as client:
-        for _ in range(MAX_ROUNDS):
+        for round_ in range(MAX_ROUNDS):
             res = await client.post(endpoint, headers=headers,
-                                    json=_body(model, messages, tools=tool_schemas(ctx.fields), tool_choice="auto"))
+                                    json=_body(model, messages, tools=tool_schemas(ctx.fields), tool_choice=choice))
+            if res.status_code in (400, 422) and "tool_choice" in res.text.lower() and choice != "auto":
+                choice = "auto"  # backend without 'required': retry once with 'auto'
+                res = await client.post(endpoint, headers=headers,
+                                        json=_body(model, messages, tools=tool_schemas(ctx.fields), tool_choice=choice))
             if res.status_code in (400, 422) and "tool" in res.text.lower():
                 raise ToolsUnsupported()
+            choice = "auto"
             res.raise_for_status()
             msg = res.json()["choices"][0]["message"]
             tool_calls = msg.get("tool_calls") or []
@@ -824,8 +845,12 @@ async def answer(svc, dataset_id: str, question: str, history: list[dict], inten
         text = local_answer(intent, ctx, question); mode = "physics"
     elif key and model:
         try:
+            previous = str(history[-1].get("q", "")) if history else ""
+            seeds = local_plan(intent, question, ctx.fields, previous) if intent != "open" else []
+            for name, args in seeds:
+                run_tool(ctx, name, args)
             try:
-                text, _ = await llm_analyst(ctx, question, history)
+                text, _ = await llm_analyst(ctx, question, history, seeded=bool(seeds))
                 mode = "analyst-helmcode"
             except ToolsUnsupported:
                 text = await llm_json_plan(ctx, question, history)
