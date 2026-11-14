@@ -2,3 +2,8 @@ opencode.json
 # Caché generada por el dashboard
 data/processed/
 __pycache__/
+
+# Pipeline
+pipeline/submissions/
+pipeline/results_tune_*.log
+pipeline/results/run_all.log
