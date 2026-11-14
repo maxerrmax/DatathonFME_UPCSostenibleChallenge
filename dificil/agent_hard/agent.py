@@ -294,6 +294,58 @@ class BatteryAgent:
         return 0.0 if (not math.isfinite(a) or abs(a) < 1e-6) else float(a)
 
     # ------------------------------------------------------------------ pas
+    def _segment(self, t, obs):
+        """(hores que queden de la setmana de test, primera hora de la setmana següent) o None.
+        El simulador enganxa les setmanes de test (últims 7 dies de cada mes) en ordre cronològic."""
+        try:
+            st = self.p.get("_seg")
+            if st is not None:
+                return st.get(t)
+            if not self.p.get("jump", False):
+                return None
+            ts = pd.Timestamp(obs.get("timestamp"))
+            end = (ts + pd.offsets.MonthEnd(0)).normalize() + pd.Timedelta(hours=23)
+            if ts < end - pd.Timedelta(days=6, hours=23):
+                return None
+            rem = int(round((end - ts) / pd.Timedelta(hours=1))) + 1
+            nxt = (end.normalize() + pd.Timedelta(days=1) + pd.offsets.MonthEnd(0)).normalize() - pd.Timedelta(days=6)
+            tn = _epoch_hour(nxt, None)
+            if tn is None or not math.isfinite(self.hist.get("price", tn - 1)):
+                return None                              # no hi ha setmana següent coneguda
+            return rem, tn
+        except Exception:
+            return None
+
+    def _jump_fill(self, t, seg, price, co2, load, pvf, nk):
+        """Si la setmana s'acaba dins l'horitzó, les hores de després són l'inici de la setmana següent:
+        es preveuen des de l'hora anterior a aquella setmana (dades d'entrenament), no amb hores inexistents."""
+        if seg is None:
+            return price, co2, load, pvf
+        rem, tn = seg
+        if rem >= len(price):
+            return price, co2, load, pvf
+        try:
+            tv = tn - 1
+            kp, kc = [], []
+            for i in range(3):
+                a, b = self.hist.get("price", tv + i), self.hist.get("co2", tv + i)
+                if not (math.isfinite(a) and math.isfinite(b)):
+                    break
+                kp.append(a); kc.append(b)
+            if not kp:
+                return price, co2, load, pvf
+            saved = dict(self._co2_raw_forecasts) if hasattr(self, "_co2_raw_forecasts") else None
+            vp, vc, vl, vv = self._forecast(tv, kp, kc)
+            if saved is not None:
+                self._co2_raw_forecasts = saved
+            for h in range(max(rem, nk), len(price)):
+                j = h - rem + 1
+                if j < len(vp):
+                    price[h], co2[h], load[h], pvf[h] = vp[j], vc[j], vl[j], vv[j]
+        except Exception:
+            pass
+        return price, co2, load, pvf
+
     def act(self, obs):
         try:
             a = self._act(obs)
@@ -316,7 +368,10 @@ class BatteryAgent:
         self.cap = _num(obs.get("cap_max_kwh"), 2000.0); self.pmax = _num(obs.get("power_max_kw"), 500.0)
         soc = min(self.cap, max(0.0, _num(obs.get("soc_kwh"), self.cap / 2)))
         t = _epoch_hour(obs.get("timestamp"), (self.t_prev + 1) if self.t_prev is not None else 0)
+        tp = self.t_prev
         self.t_prev = t
+        # després d'un salt entre setmanes, "l'última hora" de l'observació és l'última hora de la setmana anterior
+        last = t - 1 if (tp is None or tp == t - 1 or not self.p.get("jump_fix", False)) else tp
         # historial
         pr = [_num(x) for x in (obs.get("preus_properes_24h") or [])]
         cr = [_num(x) for x in (obs.get("co2_properes_24h") or [])]
@@ -330,11 +385,18 @@ class BatteryAgent:
             self.hist.put("co2", t + i, v)
         nd = obs.get("noves_dades_5min") or {}
         ld, pv = _num(nd.get("ultim_consum_kw")), _num(nd.get("ultima_solar_kw"))
-        self.hist.put("load", t - 1, ld); self.hist.put("pv", t - 1, pv)
-        self.hist.put("irr", t - 1, _num(nd.get("irradiancia_wm2"))); self.hist.put("temp", t - 1, _num(nd.get("temp_ambient_c")))
-        self.hist.put("vent", t - 1, _num(nd.get("vent_ms")))
+        self.hist.put("load", last, ld); self.hist.put("pv", last, pv)
+        self.hist.put("irr", last, _num(nd.get("irradiancia_wm2"))); self.hist.put("temp", last, _num(nd.get("temp_ambient_c")))
+        self.hist.put("vent", last, _num(nd.get("vent_ms")))
         if self.pred_net0 is not None and math.isfinite(ld) and math.isfinite(pv):
-            self.err.append(((t - 1) % 24, (ld - pv) - self.pred_net0)); self.err = self.err[-336:]
+            self.err.append((last % 24, (ld - pv) - self.pred_net0)); self.err = self.err[-336:]
+        seg = self._segment(t, obs)
+        if seg is not None:                             # valors de mercat de la setmana següent: a la seva hora real
+            rem, tn = seg
+            for i in range(rem, len(pr)):
+                self.hist.put("price", tn + i - rem, pr[i])
+            for i in range(rem, len(cr)):
+                self.hist.put("co2", tn + i - rem, cr[i])
 
         # tots els valors de mercat coneguts consecutius (3 h al Mode Difícil, 24 h a l'Estàndard)
         def known(v, d):
@@ -351,6 +413,8 @@ class BatteryAgent:
             price[:len(kp)] = kp; co2[:len(kc)] = kc
         else:
             price, co2, load, pvf = self._forecast(t, known(pr, 0.12), known(cr, 0.10))
+        if tbl is None or t not in tbl:
+            price, co2, load, pvf = self._jump_fill(t, seg, price, co2, load, pvf, len(known(pr, 0.12)))
         rec = self.p.get("_record")
         if rec is not None:
             rec[t] = (price.copy(), co2.copy(), load.copy(), pvf.copy())
@@ -382,6 +446,11 @@ class BatteryAgent:
         pvf = pvf * self.p.get("pv_bias", 1.0)
         net = load - pvf
         w = 0.7 * co2 + 0.3 * self.p["ratio"] * price
+        hw = self.p.get("_half_w")                       # pes per hora segons la meitat (públic/privat) on cau
+        if hw is not None:
+            mc = np.array([hw.get(t + h, (1.0, 1.0))[0] for h in range(len(w))])
+            mp = np.array([hw.get(t + h, (1.0, 1.0))[1] for h in range(len(w))])
+            w = 0.7 * co2 * mc + 0.3 * self.p["ratio"] * price * mp
         self.hist_w.append(float(w[0]))
         ref = np.concatenate([w, self.hist_w[-72:]])
         v = 0.0 if fi else self.p["term_scale"] * ETA * float(np.quantile(ref, self.p["q_term"]))

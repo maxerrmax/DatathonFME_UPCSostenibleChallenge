@@ -40,3 +40,17 @@ Conseqüència: la v12 porta l'energia del final de cada setmana a l'inici de la
 final de setmana transfereix punts del públic al privat (simulat: públic 21,74 → 16,71, privat 19,62 → 23,72), però
 la **mitjana** baixa (20,68 → 20,21) i també amb versions suaus (últimes 3–24 h: 19,97–20,21). Com que el resultat
 final pondera públic i privat al 50 %, **la v12 (sense regla de final) és la correcta**.
+
+## v13: planificar a través dels salts entre setmanes (`hard_v13_salts.zip`)
+
+El simulador enganxa les setmanes de test en ordre cronològic: després del 30/9 23:00 ve el 25/10 00:00. Quan la
+setmana s'acaba dins l'horitzó, la v12 planificava hores inexistents (l'1/10...). La v13 (paràmetres `jump`,
+`jump_fix`):
+- calcula pel calendari (setmanes de test = últims 7 dies de cada mes) quantes hores queden i on comença la següent;
+- preveu les hores de després del salt des de l'hora anterior a la setmana següent (dades d'entrenament: el dia abans
+  de cada setmana de test és al train) i les posa a la cua de l'horitzó;
+- desa els valors de mercat de la setmana següent a la seva hora real, i l'última hora observada després d'un salt a
+  l'hora correcta (la v12 la desava a t−1 i trepitjava una dada d'entrenament).
+
+Validació (models fit-only, setmanes enganxades): v12 20,74 → **20,98**; mitjana públic/privat 20,68 → **20,88**
+(sostre amb informació perfecta després del salt: 20,96). Sense els paràmetres nous decideix exactament igual que la v12.
