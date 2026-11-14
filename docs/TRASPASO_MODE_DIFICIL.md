@@ -209,3 +209,21 @@ Zip: `dificil/lliuraments/hard_v14_v12_final_agost.zip` (mismo `.pkl` que la v12
 | Horizonte 12 / 16 / 20 h (ahora 24) | 20,77 / 20,78 / 20,75 | 18,89 / 18,92 / 18,90 |
 | Calendario: error por tipo de día (festivos, cerrado, reducido…) algo mayor, pero acotado: +0,03/+0,05 como mucho | — | — |
 | Consumo/solar perfectos: hora actual +0,45/+0,49 (patrón de coste, como el líder); horas 1–23 solo +0,06/+0,17 | — | — |
+
+## 13. v15 = v14 + escenarios de CO₂ en el optimizador — pendiente del público
+
+Idea: el LP trataba la previsión de CO₂ como exacta. Ahora (`co2_sto`=3) el agente guarda sus previsiones de CO₂,
+mide cómo se equivocaron trayectorias completas (h+3..h+23, últimos 14 días) y forma 3 escenarios (errores agrupados
+por el error medio de las primeras 8 h, centrados). LP en dos etapas: la acción de esta hora es común y las horas
+siguientes se deciden por escenario. Sin modelos nuevos (mismo `.pkl` que v12/v14). Equivalencia comprobada: con un
+escenario sin error da la misma acción que el LP anterior (200/200).
+
+| Sobre la v12 (modelos `fit`) | A | B | Prob. salir peor con 6 sem. (A/B) | ms/paso (pseudo-test 2.016 h) |
+|---|---|---|---|---|
+| CO₂ 3 escenarios (**v15**) | +0,03 | +0,12 | 34 % / 0 % | 34,7 s (v14: 35–37 s) |
+| CO₂ 5 escenarios | +0,04 | +0,16 | 25 % / 0 % | ~47 s (demasiado justo) |
+| + cuantiles de la hora actual (11 modelos) | +0,06 | +0,21 | — | 57 s (no) |
+| CO₂ 3 + cuantiles (11 / 7 / 5 modelos) | +0,05 / +0,03 / +0,02 | +0,18 / +0,15 / +0,14 | — | 50 / 45 / 37 s |
+| Solo cuantiles de la hora actual (`scen_q` 0,5 abs) | +0,03 | +0,07 | — | — |
+
+Zip: `dificil/lliuraments/hard_v15_v14_co2escenaris.zip` (v14 + `co2_sto` 3). Cuantiles (`scen_q`) desactivados.

@@ -105,6 +105,8 @@ class BatteryAgent:
         self.t_prev = None
         self.err = []                                   # errors recents de previsió de net (t-1)
         self.err_v = []                                 # variabilitat recent del consum net quan es va fer cada previsió
+        self._co2_fc = {}                               # v15: previsions de CO2 passades (per mesurar trajectòries d'error)
+        self._co2_err = []                              # vectors d'error log(real/previst) per a h = 3..23
         self.vol_pred = float("nan")
         self.pred_net0 = None
         self.hist_w = []
@@ -313,6 +315,53 @@ class BatteryAgent:
             return None
         return r.x[:H] - r.x[H:2 * H]
 
+    def _lp_sto(self, Wk, net, soc0, v_term, dmax0, scen=None, pk=None):
+        """LP en dues etapes amb K escenaris del pes w (CO2): l'acció de l'hora actual és comuna i les hores 1..H-1
+        es decideixen per escenari (quan arribi la informació). Cost esperat = mitjana ponderada dels escenaris."""
+        import scipy.sparse as sp
+        K, H = Wk.shape; cap, pm = self.cap, self.pmax; G = H - 1
+        pk = np.full(K, 1.0 / K) if pk is None else np.asarray(pk, float) / np.sum(pk)
+        sc0 = np.zeros(1) if scen is None else np.asarray(scen, float); J = len(sc0)
+        n = 2 + J + K * 3 * G
+        key = (K, H, J)
+        cache = getattr(self, "_sto_cache", {})
+        if key not in cache:                                # l'estructura de la matriu només depèn de (K, H, J)
+            R, C, V = [], [], []
+            R += [0, 0, 1, 1]; C += [0, 1, 0, 1]; V += [ETA, -1 / ETA, -ETA, 1 / ETA]
+            j = np.arange(J); r0 = 2
+            R += np.repeat(r0 + j, 3).tolist(); C += np.column_stack([np.zeros(J, int), np.ones(J, int), 2 + j]).ravel().tolist()
+            V += [1.0, -1.0, -1.0] * J
+            r = r0 + J
+            ii, jj = np.tril_indices(G)                      # SOC: suma acumulada de c_k i d_k
+            for k in range(K):
+                o = 2 + J + k * 3 * G
+                for sign in (1.0, -1.0):
+                    rows = r + np.arange(G)
+                    R += np.concatenate([rows, rows, r + ii, r + ii]).tolist()
+                    C += np.concatenate([np.zeros(G, int), np.ones(G, int), o + jj, o + G + jj]).tolist()
+                    V += np.concatenate([np.full(G, sign * ETA), np.full(G, -sign / ETA),
+                                         np.full(len(ii), sign * ETA), np.full(len(ii), -sign / ETA)]).tolist()
+                    r += G
+                rows = r + np.arange(G); h = np.arange(G)
+                R += np.repeat(rows, 3).tolist(); C += np.column_stack([o + h, o + G + h, o + 2 * G + h]).ravel().tolist()
+                V += [1.0, -1.0, -1.0] * G
+                r += G
+            cache[key] = sp.csr_matrix((V, (R, C)), shape=(r, n)); self._sto_cache = cache
+        Aub = cache[key]
+        bk = np.concatenate([np.full(G, cap - 1e-3 - soc0), np.full(G, soc0 - 1e-3), -np.asarray(net[1:], float)])
+        b = np.concatenate([[cap - 1e-3 - soc0, soc0 - 1e-3], -(net[0] + sc0), np.tile(bk, K)])
+        cost = np.zeros(n); cost[2:2 + J] = Wk[0, 0] / J
+        cost[0] = -v_term * ETA; cost[1] = v_term / ETA         # valor terminal (comú a tots els escenaris)
+        blk = np.concatenate([np.full(G, -v_term * ETA), np.full(G, v_term / ETA), np.zeros(G)])
+        cst = (pk[:, None] * (blk[None, :] + np.hstack([np.zeros((K, 2 * G)), Wk[:, 1:]]))).ravel()
+        cost[2 + J:] = cst
+        lo = np.zeros(n); hi = np.concatenate([[pm, max(0.0, min(pm, dmax0))], np.full(J, np.inf),
+                                               np.tile(np.concatenate([np.full(2 * G, pm), np.full(G, np.inf)]), K)])
+        res = linprog(cost, A_ub=Aub, b_ub=b, bounds=np.column_stack([lo, hi]), method="highs")
+        if res.status != 0 or res.x is None:
+            return None
+        return np.array([res.x[0] - res.x[1]])
+
     def _clamp(self, soc, a):
         mc = max(0.0, min(self.pmax, (self.cap - soc) / ETA - 1e-3))
         md = max(0.0, min(self.pmax, soc * ETA - 1e-3))
@@ -417,6 +466,16 @@ class BatteryAgent:
         rec = self.p.get("_record")
         if rec is not None:
             rec[t] = (price.copy(), co2.copy(), load.copy(), pvf.copy())
+        if int(self.p.get("co2_sto", 0)) > 0 and len(co2) == 24:
+            t0 = t - 21                                     # previsió feta a t0: ara coneixem el CO2 fins a t0+23
+            f0 = self._co2_fc.pop(t0, None)
+            if f0 is not None:
+                a = np.array([self.hist.get("co2", t0 + h) for h in range(3, 24)])
+                if np.isfinite(a).all() and (a > 0).all() and (f0[3:] > 0).all():
+                    self._co2_err.append(np.log(a / f0[3:])); self._co2_err = self._co2_err[-int(self.p.get("co2_mem", 336)):]
+            self._co2_fc[t] = co2.copy()
+            for k_ in [k_ for k_ in self._co2_fc if k_ < t - 22]:
+                del self._co2_fc[k_]
         Hh = int(max(2, min(24, self.p.get("horizon", 24))))
         # final de la simulació: si la finestra de mercat s'escurça, només queden len(pr) hores
         n_mkt = len(pr); self.max_len = max(self.max_len, n_mkt)
@@ -506,7 +565,25 @@ class BatteryAgent:
         kf = self.p.get("end_kf", self.p.get("k_future", 0.0)) if (fi and end_left is not None) else self.p.get("k_future", 0.0)
         if kf:
             net_plan[1:] = net_plan[1:] - kf * sig * np.sqrt(np.arange(1, len(net_plan)))
-        P = self._lp(w, net_plan, soc, v, dmax0, scen)
+        P = None
+        Ks = int(self.p.get("co2_sto", 0))
+        if Ks > 0 and len(self._co2_err) >= int(self.p.get("co2_sto_min", 24)) and len(w) >= 6:
+            try:
+                E = np.array(self._co2_err)
+                L_ = min(len(w), 24) - 3
+                key = E[:, :int(self.p.get("co2_sto_key", 8))].mean(axis=1)
+                grp = np.array_split(np.argsort(key), Ks)
+                Ek = np.array([E[g_, :L_].mean(axis=0) for g_ in grp]); pk = np.array([len(g_) for g_ in grp], float)
+                if self.p.get("co2_sto_center", True):
+                    Ek = Ek - (pk[:, None] * Ek).sum(axis=0) / pk.sum()
+                Ek = Ek * self.p.get("co2_sto_scale", 1.0)
+                Wk = np.tile(w, (Ks, 1))
+                Wk[:, 3:3 + L_] = 0.7 * co2[None, 3:3 + L_] * np.exp(Ek) + 0.3 * self.p["ratio"] * price[None, 3:3 + L_]
+                P = self._lp_sto(Wk, net_plan, soc, v, dmax0, scen, pk)
+            except Exception:
+                P = None
+        if P is None:
+            P = self._lp(w, net_plan, soc, v, dmax0, scen)
         if P is None:
             a = 0.0
         else:

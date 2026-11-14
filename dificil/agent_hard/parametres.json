@@ -17,5 +17,6 @@
  "seg_off": 0,
  "jump_meas": false,
  "end_cal": true,
- "end_kf": 0.0
+ "end_kf": 0.0,
+ "co2_sto": 3
 }
