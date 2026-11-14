@@ -7,7 +7,7 @@ HERE = Path(__file__).parent
 sys.path.insert(0, str(HERE)); sys.path.insert(0, str(HERE / "agent_hard")); sys.path.insert(0, str(HERE.parent / "estandard"))
 from hdata import load_hard
 from data import split_val
-from feats import Hist, mkt_features, meas_features, MKT_NAMES, MEAS_NAMES
+from feats import Hist, mkt_features, meas_features, MKT_NAMES, MEAS_NAMES, cs_table, set_cs
 
 COLS = {"price": "precio_eur_per_kwh", "co2": "co2_kg_per_kwh", "load": "load_kw", "pv": "pv_kw",
         "irr": "irradiancia_wm2", "temp": "temp_ambient_c", "vent": "vent_ms"}
@@ -23,6 +23,10 @@ def full_hist(df):
         for e, v in zip(eh, df[c].values):
             h.put(k, e, v)
     return h, eh
+
+
+def make_cs(df):
+    return cs_table(df.index.dayofyear.values - 1, df.index.hour.values, df["pv_kw"].values)
 
 
 def build(df, step=1):
@@ -45,6 +49,7 @@ if __name__ == "__main__":
     which = sys.argv[1] if len(sys.argv) > 1 else "fit"
     df = load_hard(); fit, val = split_val(df)
     tr = fit if which == "fit" else df
+    CS = make_cs(tr); set_cs(CS)
     t0 = time.time(); D = build(tr); print("features", {k: v[0].shape for k, v in D.items()}, f"{time.time()-t0:.0f}s")
     models = {}
     P = dict(n_estimators=500, learning_rate=0.04, num_leaves=63, min_child_samples=20,
@@ -54,6 +59,7 @@ if __name__ == "__main__":
         models[k + "_dir"] = lgb.LGBMRegressor(**P).fit(X, y).booster_            # model directe
         models[k + "_res"] = lgb.LGBMRegressor(**P).fit(X[ok], (y - lag)[ok]).booster_  # y - lag24
     out = HERE / "agent_hard" / f"models_{which}.pkl"
-    joblib.dump({k: b.model_to_string() for k, b in models.items()}, out)
+    dump = {k: b.model_to_string() for k, b in models.items()}; dump["pv_cs"] = CS
+    joblib.dump(dump, out)
     print("desat", out)
 

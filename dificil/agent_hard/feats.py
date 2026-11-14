@@ -41,6 +41,35 @@ def calendar(hour_epoch):
 
 
 
+# ---------------------------------------------------------------- cel clar (solar màxima per dia de l'any i hora)
+_CS = None
+
+
+def set_cs(table):
+    global _CS
+    _CS = None if table is None else np.asarray(table, dtype=float)
+
+
+def cs_value(hour_epoch):
+    if _CS is None:
+        return np.nan
+    day = np.datetime64(int(hour_epoch // 24), "D")
+    doy = int((day - day.astype("datetime64[Y]")).astype(np.int64))
+    return float(_CS[min(doy, 365), int(hour_epoch % 24)])
+
+
+def cs_table(day_of_year, hour, pv, win=12, q=0.95):
+    """Taula 366x24 amb el quantil q de la solar en una finestra de ±win dies (entrenament)."""
+    T = np.zeros((366, 24))
+    for h in range(24):
+        m = hour == h; dd, vv = day_of_year[m], pv[m]
+        for k in range(366):
+            dist = np.minimum(np.abs(dd - k), 366 - np.abs(dd - k))
+            sel = vv[(dist <= win) & np.isfinite(vv)]
+            T[k, h] = np.quantile(sel, q) if len(sel) else 0.0
+    return T
+
+
 # ---------------------------------------------------------------- calendari (Barcelona / UPC 2025-26)
 def _days(*dates):
     out = set()
@@ -111,12 +140,14 @@ def meas_features(hist, key, t, hs):
     lm = t + KNOWN_MEAS
     last = hist.get(key, lm); last24 = hist.get(key, lm - 24); m24 = hist.mean_back(key, lm, 24)
     irr = hist.get("irr", lm); temp = hist.get("temp", lm)
+    pv_last = hist.get("pv", lm); cs_last = cs_value(lm)
+    k_last = min(1.3, max(0.0, pv_last / cs_last)) if (np.isfinite(pv_last) and np.isfinite(cs_last) and cs_last > 30) else np.nan
     for h in hs:
         tau = t + h; hod, dow, s, c = calendar(tau)
         rows.append([h, hod, dow, s, c, hist.get(key, tau - 24), hist.get(key, tau - 48),
                      hist.get(key, tau - 168), last, last - last24, m24, irr, temp,
                      hist.get("irr", tau - 24), lm % 24, *day_flags(tau), day_flags(tau - 24)[6],
-                     day_flags(tau - 168)[6]])
+                     day_flags(tau - 168)[6], cs_value(tau), k_last, k_last * cs_value(tau)])
     return np.array(rows, dtype=float)
 
 
