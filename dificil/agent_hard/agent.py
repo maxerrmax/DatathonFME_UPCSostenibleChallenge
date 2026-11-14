@@ -13,6 +13,7 @@ Blindat: qualsevol error -> regla simple / repòs, sortida sempre dins dels lím
 import json, math
 from pathlib import Path
 import numpy as np
+import pandas as pd
 from scipy.optimize import linprog
 
 try:
@@ -205,7 +206,7 @@ class BatteryAgent:
             raw_co2 = co2.copy()
             # Al final de la simulació la finestra coneguda pot tenir només 1 o 2 hores.
             n_exact = min(3, len(co2_3))
-            if old is not None and n_exact > 0 and len(old) >= 3 + n_exact:
+            if old is not None and n_exact > 0 and len(old) >= 3 + n_exact and self.p.get("co2_cal", True):
                 e = np.asarray(co2[:n_exact] - old[3:3+n_exact], dtype=float)
                 if np.isfinite(e).all():
                     bias = float(np.clip(np.median(e), -0.06, 0.06))
@@ -245,6 +246,46 @@ class BatteryAgent:
         if r.status != 0 or r.x is None:
             return None
         return r.x[:H] - r.x[H:2 * H]
+
+    def _lp_saa(self, W, net, soc0, v_term, w0, scen0):
+        """MPC estocàstic de dues etapes: acció de l'hora 0 comuna; hores 1..H-1 adaptades a cada escenari de mercat.
+        W: K x H (pesos per escenari; la columna 0 no s'usa). scen0: escenaris d'error del consum net a l'hora 0."""
+        from scipy.sparse import lil_matrix
+        K, H = W.shape; cap, pm = self.cap, self.pmax; n1 = H - 1
+        J = 1 if scen0 is None else len(scen0)
+        e0 = np.zeros(1) if scen0 is None else np.asarray(scen0, float)
+        nv = 2 + J + K * 3 * n1
+        def ix(k, part, h):                                    # part 0=c 1=d 2=imp, h=1..H-1
+            return 2 + J + k * 3 * n1 + part * n1 + (h - 1)
+        rows = 2 * J + 2 + K * n1 * 3
+        A = lil_matrix((rows, nv)); b = np.zeros(rows); r = 0
+        for j in range(J):                                     # c0 - d0 - imp0_j <= -(net0 + e_j)
+            A[r, 0] = 1; A[r, 1] = -1; A[r, 2 + j] = -1; b[r] = -(net[0] + e0[j]); r += 1
+        A[r, 0] = ETA; A[r, 1] = -1 / ETA; b[r] = cap - 1e-3 - soc0; r += 1
+        A[r, 0] = -ETA; A[r, 1] = 1 / ETA; b[r] = soc0 - 1e-3; r += 1
+        cost = np.zeros(nv); cost[2:2 + J] = w0 / J
+        for k in range(K):
+            for h in range(1, H):
+                # SOC_k(h) <= cap  i  >= 0
+                A[r, 0] = ETA; A[r, 1] = -1 / ETA
+                for i in range(1, h + 1):
+                    A[r, ix(k, 0, i)] = ETA; A[r, ix(k, 1, i)] = -1 / ETA
+                b[r] = cap - 1e-3 - soc0; r += 1
+                A[r, 0] = -ETA; A[r, 1] = 1 / ETA
+                for i in range(1, h + 1):
+                    A[r, ix(k, 0, i)] = -ETA; A[r, ix(k, 1, i)] = 1 / ETA
+                b[r] = soc0 - 1e-3; r += 1
+                A[r, ix(k, 0, h)] = 1; A[r, ix(k, 1, h)] = -1; A[r, ix(k, 2, h)] = -1; b[r] = -net[h]; r += 1
+                cost[ix(k, 2, h)] = W[k, h] / K
+            # valor terminal de l'energia final de cada escenari
+            cost[0] -= v_term * ETA / K; cost[1] += v_term / ETA / K
+            for i in range(1, H):
+                cost[ix(k, 0, i)] -= v_term * ETA / K; cost[ix(k, 1, i)] += v_term / ETA / K
+        bounds = [(0, pm), (0, pm)] + [(0, None)] * J + ([(0, pm)] * n1 + [(0, pm)] * n1 + [(0, None)] * n1) * K
+        res = linprog(cost, A_ub=A.tocsr(), b_ub=b, bounds=bounds, method="highs")
+        if res.status != 0 or res.x is None:
+            return None
+        return np.array([res.x[0] - res.x[1]])
 
     def _clamp(self, soc, a):
         mc = max(0.0, min(self.pmax, (self.cap - soc) / ETA - 1e-3))
@@ -311,6 +352,21 @@ class BatteryAgent:
         fi = 0 < n_mkt < self.max_len
         if fi:
             Hh = max(1, n_mkt)
+        # final d'episodi conegut pel calendari (setmanes de test = darrers dies del mes, fins a les 23:00 de l'últim dia)
+        rem = None
+        rt = self.p.get("_rem")
+        if rt is not None:
+            rem = rt.get(t)
+        elif self.p.get("ep_month_end", False):
+            try:
+                ts = pd.Timestamp(obs.get("timestamp"))
+                if ts.day >= self.p.get("ep_day0", 20):
+                    end = (ts + pd.offsets.MonthEnd(0)).normalize() + pd.Timedelta(hours=23)
+                    rem = int(round((end - ts) / pd.Timedelta(hours=1))) + 1
+            except Exception:
+                rem = None
+        if rem is not None and 0 < rem < Hh:
+            Hh = rem; fi = True
         price, co2, load, pvf = price[:Hh], co2[:Hh], load[:Hh], pvf[:Hh]
         self.pred_net0 = float(load[0] - pvf[0])        # error de previsió mesurat sense biaix
         # biaix deliberat: descarregar de més es perd del tot, descarregar de menys només ajorna
@@ -348,7 +404,17 @@ class BatteryAgent:
         net_plan = np.asarray(net, float).copy()
         if self.p.get("k_future", 0.0):
             net_plan[1:] = net_plan[1:] - self.p["k_future"] * sig * np.sqrt(np.arange(1, len(net_plan)))
-        P = self._lp(w, net_plan, soc, v, dmax0, scen)
+        P = None
+        ms = self.p.get("_mkt_scen")
+        if ms is not None and t in ms and len(w) > 3:
+            pS, cS = ms[t]
+            n = len(w)
+            pS = np.asarray(pS, float)[:, :n].copy(); cS = np.asarray(cS, float)[:, :n].copy()
+            pS[:, :3] = price[:3]; cS[:, :3] = co2[:3]
+            W = 0.7 * cS + 0.3 * self.p["ratio"] * pS
+            P = self._lp_saa(W, net_plan, soc, v, float(w[0]), scen)
+        if P is None:
+            P = self._lp(w, net_plan, soc, v, dmax0, scen)
         if P is None:
             a = 0.0
         else:
