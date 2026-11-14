@@ -14,3 +14,6 @@ dificil/agent_hard/*.pkl
 dificil/agent_hard/*.bak
 dificil/submissions/
 dificil/cache/
+
+# Models de validació (es regeneren amb scripts/train_forecast.py)
+submission_hard/val_model_*.txt
