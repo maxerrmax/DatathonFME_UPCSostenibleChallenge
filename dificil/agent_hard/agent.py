@@ -62,6 +62,9 @@ class BatteryAgent:
         self.ld2 = []
         self.n0 = None
         self.n0x = False
+        self.n0q = []
+        self.n0q_x = True
+        self._q0 = None
         self.mkg = {}
         self.h0_max = None
         try:
@@ -78,6 +81,9 @@ class BatteryAgent:
             self.mkg = {k: [(a, b_, lgb.Booster(model_str=ms), list(cols), kind) for a, b_, ms, cols, kind in v]
                         for k, v in (raw.pop("mktg", None) or {}).items()}
             self.n0x = bool(raw.pop("net0x", False))     # v14: el model net0 porta senyals de curt termini
+            # v15: models de quantils del consum net de l'hora actual (incertesa condicionada a l'hora concreta)
+            self.n0q = [(float(a), lgb.Booster(model_str=ms)) for a, ms in (raw.pop("net0q", None) or [])]
+            self.n0q_x = bool(raw.pop("net0q_x", True))
             n0 = raw.pop("net0", None)
             self.n0 = lgb.Booster(model_str=n0) if n0 else None
             self.m = {k: (lgb.Booster(model_str=v) if isinstance(v, str) else v) for k, v in raw.items()}
@@ -208,6 +214,18 @@ class BatteryAgent:
                     load[0] = mix * nd + (1 - mix) * (load[0] - pv[0]) + pv[0]
             except Exception:
                 pass
+        self._q0 = None
+        if self.n0q and self.p.get("scen_q", 0.0) > 0:
+            try:
+                xq = [load_features2(self.hist, t, [0])[0], meas_features(self.hist, "pv", t, [0])[0]]
+                if self.n0q_x:
+                    xq.append(net0_extra(self.hist, t))
+                xq = np.concatenate(xq).reshape(1, -1)
+                al = np.array([a for a, _ in self.n0q]); qv = np.sort([float(b.predict(xq, num_threads=1)[0]) for _, b in self.n0q])
+                if np.isfinite(qv).all():
+                    self._q0 = (al, qv)
+            except Exception:
+                self._q0 = None
         def fill(a, default):
             a = np.asarray(a, float)
             if not np.isfinite(a).any():
@@ -474,6 +492,12 @@ class BatteryAgent:
             else:
                 from statistics import NormalDist
                 scen = np.array([NormalDist().inv_cdf(q) for q in qs]) * self.p.get("scen_s0", 100.0)
+            if self._q0 is not None:
+                al, qv = self._q0
+                ctr = self.pred_net0 if self.p.get("scen_q_abs", False) else np.interp(0.5, al, qv)
+                off = (np.interp(qs, al, qv) - ctr) * self.p.get("scen_q_scale", 1.0)
+                a_ = self.p.get("scen_q", 0.0)
+                scen = a_ * off + (1 - a_) * np.asarray(scen, float)
             st = self.p.get("_scen_table")
             if st is not None and t in st:
                 scen = np.asarray(st[t], float) - float(net[0])
