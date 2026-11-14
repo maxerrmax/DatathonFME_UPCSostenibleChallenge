@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="theme-color" content="#202B2F" />
+<title>UPC Energy Intelligence · Decision Workspace</title>
+<link rel="stylesheet" href="/static/style.css" />
+<script src="/static/plotly.min.js"></script>
+</head>
+<body>
+<svg class="sprite" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+  <symbol id="i-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></symbol>
+  <symbol id="i-spark" viewBox="0 0 24 24"><path d="m12 3 1.8 6.2L20 11l-6.2 1.8L12 19l-1.8-6.2L4 11l6.2-1.8L12 3Z"/><path d="m19 17 .7 2.3L22 20l-2.3.7L19 23l-.7-2.3L16 20l2.3-.7L19 17Z"/></symbol>
+  <symbol id="i-layers" viewBox="0 0 24 24"><path d="m12 3 9 5-9 5-9-5 9-5ZM3 12l9 5 9-5M3 16l9 5 9-5"/></symbol>
+  <symbol id="i-battery" viewBox="0 0 24 24"><rect x="2" y="6" width="18" height="12" rx="2"/><path d="M22 10v4M8 9v6M12 9v6M16 9v6"/></symbol>
+  <symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 17V3m-5 5 5-5 5 5M4 16v4h16v-4"/></symbol>
+  <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M4 12h16m-7-7 7 7-7 7"/></symbol>
+  <symbol id="i-chevron" viewBox="0 0 24 24"><path d="m7 10 5 5 5-5"/></symbol>
+  <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 3v12m-5-5 5 5 5-5M4 16v5h16v-5"/></symbol>
+  <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.5"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 6v6l4 2"/></symbol>
+  <symbol id="i-filter" viewBox="0 0 24 24"><path d="M4 6h16M7 12h10M10 18h4"/></symbol>
+  <symbol id="i-send" viewBox="0 0 24 24"><path d="m3 11 18-8-8 18-2-8-8-2ZM11 13 21 3"/></symbol>
+  <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 11a8 8 0 0 0-14.5-4.5L3 9m0-6v6h6M4 13a8 8 0 0 0 14.5 4.5L21 15m0 6v-6h-6"/></symbol>
+  <symbol id="i-file" viewBox="0 0 24 24"><path d="M6 2h8l5 5v15H6V2ZM14 2v6h5M9 12h7M9 16h7"/></symbol>
+  <symbol id="i-pin" viewBox="0 0 24 24"><path d="m16 3 5 5-3 2-1 5-3 1-4-4-5 7-1 1 1-1 7-7-4-4 1-3 5-1z"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M9 4h6M6 7l1 14h10l1-14M10 11v7M14 11v7"/></symbol>
+  <symbol id="i-move" viewBox="0 0 24 24"><path d="M12 2v20M2 12h20m-13-7 3-3 3 3m-6 14 3 3 3-3M5 9l-3 3 3 3m14-6 3 3-3 3"/></symbol>
+</svg>
+<div class="app-shell">
+  <aside class="sidebar">
+    <div class="brand" title="UPC Energy Intelligence"><div class="brand-glyph">E<span>.</span></div><div class="brand-text"><strong>ENERGY<br>INTELLIGENCE</strong><small>UPC / 2026</small></div></div>
+    <div class="sidebar-rule"></div>
+    <div class="aside-label">WORKSPACE <span>01 — 05</span></div>
+    <nav class="nav-list" aria-label="Seccions">
+      <button data-view="overview" class="nav-item active"><svg><use href="#i-grid"/></svg><span>Vista general</span><span class="nav-number">01</span></button>
+      <button data-view="explore" class="nav-item"><svg><use href="#i-layers"/></svg><span>Data explorer</span><span class="nav-number">02</span></button>
+      <button data-view="copilot" class="nav-item"><svg><use href="#i-spark"/></svg><span>AI Copilot</span><span class="nav-number">03</span></button>
+      <button data-view="lab" class="nav-item"><svg><use href="#i-battery"/></svg><span>Decision lab</span><span class="nav-number">04</span></button>
+      <button data-view="board" class="nav-item nav-board"><svg><use href="#i-pin"/></svg><span>Decision board</span><span class="nav-number" id="nav-board-count">05</span></button>
+    </nav>
+    <div class="aside-grow"></div>
+    <div class="sidebar-bottom">
+      <div class="signal-card"><span class="signal-tiny">SYSTEM / STATUS</span><div class="signal-main"><span class="status-dot"></span><strong id="mode-label">MODE LOCAL</strong></div><p id="mode-sub">Motor estadístic disponible</p></div>
+      <div class="challenge-foot"><span>FME DATATHON</span><strong>TUKEY<br>CHALLENGE <em>’26</em></strong></div>
+    </div>
+  </aside>
+  <div class="mobile-backdrop" id="mobile-backdrop"></div>
+  <main class="main">
+    <header class="topbar">
+      <div class="breadcrumb"><button id="mobile-menu" class="mobile-menu" aria-label="Obrir menú">☰</button><span class="crumb-root">ENERGY STUDIO</span><span class="crumb-separator">/</span><span id="breadcrumb-current">Vista general</span></div>
+      <div class="top-actions"><div class="dataset-switch"><span class="dataset-dot"></span><select id="dataset-select" aria-label="Dataset actiu"><option>Carregant dades...</option></select><svg><use href="#i-chevron"/></svg></div><button class="btn-upload" id="trigger-upload"><svg><use href="#i-upload"/></svg><span>Importar dades</span></button><input id="upload-input" type="file" accept=".csv,.zip" hidden /></div>
+    </header>
+    <div class="page-content">
+      <!-- OVERVIEW -->
+      <section id="view-overview" class="view active">
+        <div class="hero">
+          <div><div class="eyebrow"><span class="slash">/</span> CAMPUS NORD · INTELLIGENCE LAYER</div><h1>Entendre l'energia.<br><span>Decidir millor.</span></h1><p>Un espai de treball per transformar telemetries en decisions energètiques mesurables.</p></div>
+          <div class="hero-aside"><div class="hero-counter"><span>OBJECTIU</span><strong>70<span>/</span>30</strong><small>CO₂ / EFICIÈNCIA ECONÒMICA</small></div><div class="hero-stamp">UNIVERSITAT POLITÈCNICA<br>DE CATALUNYA <span>↗</span></div></div>
+        </div>
+        <div class="section-toolbar"><div class="section-heading"><span class="section-idx">01</span><h2>Lectura del sistema</h2><span class="mini-label" id="period-label">Dades de train</span></div><div class="filter-group"><label>Període<select id="filter-month"><option value="">Tots els mesos</option></select></label><label>Tipus de dia<select id="filter-daytype"><option value="all">Tots els dies</option><option value="weekday">Laborables</option><option value="weekend">Cap de setmana</option></select></label></div></div>
+        <div class="kpi-grid">
+          <div class="kpi-card"><span class="kpi-title">DEMANDA TOTAL <span>↗</span></span><div><strong id="kpi-load">—</strong><small>MWh</small></div><p>Energia consumida en el període</p><span class="corner-bar bar-orange"></span></div>
+          <div class="kpi-card"><span class="kpi-title">GENERACIÓ SOLAR <span>☀</span></span><div><strong id="kpi-solar">—</strong><small>MWh</small></div><p>Producció fotovoltaica</p><span class="corner-bar bar-green"></span></div>
+          <div class="kpi-card"><span class="kpi-title">EMISSIONS BASE <span>↗</span></span><div><strong id="kpi-co2">—</strong><small>t CO₂</small></div><p>Sense sistema d'emmagatzematge</p><span class="corner-bar bar-blue"></span></div>
+          <div class="kpi-card"><span class="kpi-title">COST BASE <span>€</span></span><div><strong id="kpi-cost">—</strong><small>€</small></div><p>Facturació estimada sense bateria</p><span class="corner-bar bar-ink"></span></div>
+        </div>
+        <div class="dashboard-grid">
+          <section class="panel panel-large"><div class="panel-top"><div><div class="small-kicker">SENYALS / 01</div><h3>Comportament horari del campus</h3><p>Demanda i producció solar · perfils mitjans</p></div><div class="legend"><span><i class="lg-orange"></i>Consum</span><span><i class="lg-green"></i>Solar</span></div></div><div class="graph" id="chart-overview-load"></div></section>
+          <section class="panel panel-side"><div class="panel-top"><div><div class="small-kicker">INSIGHTS / 02</div><h3>Lectures accionables</h3><p>Fets derivats de les dades</p></div><div class="insight-icon">✳</div></div><div id="overview-insights" class="insight-list"><div class="skeleton"></div></div><button class="text-link" data-jump="copilot">Investigar amb IA <svg><use href="#i-arrow"/></svg></button></section>
+          <section class="panel panel-wide"><div class="panel-top"><div><div class="small-kicker">MERCAT / 03</div><h3>Preu i intensitat de carboni</h3><p>Comparació de perfils horaris · escales independents</p></div><div class="header-chip" id="correlation-chip">r = —</div></div><div class="graph" id="chart-overview-market"></div></section>
+        </div>
+      </section>
+      <!-- EXPLORER -->
+      <section id="view-explore" class="view">
+        <div class="page-heading"><div class="eyebrow"><span class="slash">/</span> EXPLORACIÓ REPRODUÏBLE</div><h1>Data <span>explorer.</span></h1><p>Tria les variables, construeix una visualització i comprova què diuen les dades.</p></div>
+        <div class="split-layout"><div class="builder-column"><div class="panel build-panel"><div class="panel-top"><div><div class="small-kicker">FIGURE BUILDER</div><h3>Configura el gràfic</h3></div></div>
+          <label class="form-label">REPRESENTACIÓ<select id="explore-kind"><option value="heatmap">Mapa de calor · Hora × Dia</option><option value="line">Sèrie / Perfil</option><option value="bar">Barres comparatives</option><option value="scatter">Dispersió (scatter)</option><option value="histogram">Histograma</option><option value="box">Boxplot</option></select></label>
+          <label class="form-label">VARIABLE PRINCIPAL<select id="explore-metric"></select></label>
+          <label class="form-label">SEGONA VARIABLE<select id="explore-second"><option value="">Cap</option></select></label>
+          <label class="form-label">AGRUPACIÓ<select id="explore-group"><option value="hour">Hora del dia</option><option value="weekday">Dia de la setmana</option><option value="month">Mes</option><option value="date">Data</option></select></label>
+          <label class="form-label">ESTADÍSTIC<select id="explore-agg"><option value="mean">Mitjana</option><option value="median">Mediana</option><option value="sum">Suma</option><option value="min">Mínim</option><option value="max">Màxim</option></select></label>
+          <button class="action-primary" id="explore-run">Generar visualització <svg><use href="#i-arrow"/></svg></button>
+          <div class="feature-note">Càlculs sobre dades reals; sense dades simulades ni gràfics inventats.</div></div>
+          <div class="panel dataset-panel"><div class="small-kicker">DATA PROVENANCE</div><h3 id="data-name">Dataset de campus</h3><div class="dataset-stats"><div><strong id="data-rows">—</strong><small>REGISTRES</small></div><div><strong id="data-cols">—</strong><small>COLUMNES</small></div><div><strong id="data-missing">—</strong><small>ABSÈNCIES</small></div></div><p id="data-source">Carregant origen...</p><button class="text-link" id="explore-upload">Carregar un CSV o ZIP <svg><use href="#i-upload"/></svg></button></div></div>
+        <div class="panel viz-panel"><div class="panel-top"><div><div class="small-kicker">RESULTAT EN DIRECTE</div><h3 id="explore-title">Preu i CO₂ per hora i dia</h3><p>Fes zoom, explora els valors i exporta el gràfic.</p></div><button class="icon-button" id="explore-export" title="Exportar gràfic PNG"><svg><use href="#i-download"/></svg></button></div><div id="explore-charts" class="charts-stack"><div class="empty-state">Selecciona les variables per començar.</div></div></div></div>
+      </section>
+      <!-- AI -->
+      <section id="view-copilot" class="view">
+        <div class="page-heading compact"><div class="eyebrow"><span class="slash">/</span> ASSISTENT ANALÍTIC</div><h1>Ask. <span>Explore. Decide.</span></h1><p>Pregunta amb llenguatge natural. El motor calcula; la IA proposa visualitzacions.</p></div>
+        <div class="copilot-grid"><div class="chat-panel"><div class="chat-heading"><span class="ai-mark">✳</span><div><h3>Energy Copilot</h3><span id="ai-mode-state">Analista connectat a les dades</span></div><button class="chat-reset" id="chat-reset" title="Començar una conversa nova">+ Nova conversa</button></div><div class="chat-messages" id="chat-messages"><div class="message assistant"><div class="message-label">ENERGY COPILOT</div><p>Hola! Puc explorar les dades del campus i construir gràfics verificables. Què t'agradaria investigar?</p></div><div class="prompt-chips"><button data-prompt="Fes-me un heatmap dels preus i les emissions per hora i dia de la setmana">Heatmap de preus i CO₂</button><button data-prompt="Mostra la correlació entre preus i emissions">Correlació preu–CO₂</button><button data-prompt="Com canvia el consum segons l'hora del dia?">Patró del consum</button><button data-prompt="Compara el consum i la generació solar per hora">Consum vs solar</button><button data-prompt="Què passaria si carrego a les 14 i descarrego a les 20?">What-if de bateria</button></div></div><form id="chat-form" class="chat-composer"><textarea id="chat-input" rows="2" maxlength="900" placeholder="Ex. Quines hores són les més netes i barates?" aria-label="Pregunta a l'analista"></textarea><div class="compose-bottom"><span>INTRO ↵ · MAJ + INTRO per continuar</span><button id="chat-send" type="submit" aria-label="Enviar"><svg><use href="#i-send"/></svg></button></div></form></div>
+          <div class="answer-panel"><div class="panel-top"><div><div class="small-kicker">ANALYSIS CANVAS</div><h3 id="ai-canvas-title">La teva anàlisi, en viu</h3><p id="ai-canvas-subtitle">Les respostes s'executen sobre el dataset actiu</p></div><button class="icon-button" id="ai-export" title="Exportar visualització"><svg><use href="#i-download"/></svg></button></div><div id="ai-canvas-charts" class="charts-stack"><div class="canvas-placeholder"><div class="canvas-symbol">↗</div><h3>Una pregunta.<br>Una perspectiva nova.</h3><p>Demana un gràfic a l'assistent per veure'l aquí, amb els càlculs i conclusions corresponents.</p></div></div><div class="copilot-context" id="copilot-context" hidden><span class="context-dot"></span><span id="context-label">Context de consulta</span><button id="context-clear" title="Esborrar context">×</button></div><div class="evidence-box" id="ai-evidence" hidden><div class="evidence-header"><span class="evidence-dot"></span> EVIDÈNCIA VERIFICABLE</div><div id="ai-evidence-text"></div></div></div></div>
+      </section>
+      <!-- DECISION LAB -->
+      <section id="view-lab" class="view">
+        <div class="page-heading"><div class="eyebrow"><span class="slash">/</span> SIMULACIÓ RETROSPECTIVA</div><h1>Decision <span>lab.</span></h1><p>Explora escenaris de càrrega i descàrrega amb física real, no amb estimacions del LLM.</p></div>
+        <div class="lab-layout"><div class="panel controls-panel"><div class="panel-top"><div><div class="small-kicker">CONTROL ROOM / 01</div><h3>Defineix l'escenari</h3><p>Un cicle de càrrega i descàrrega</p></div></div>
+          <label class="form-label">DIA AMB 24 HORES COMPLETES<select id="lab-date"></select></label>
+          <div class="slider-wrap"><div class="slider-heading"><label for="lab-charge">HORA DE CÀRREGA</label><strong id="lab-charge-value">14:00</strong></div><input type="range" min="0" max="23" value="14" id="lab-charge"/><div class="slider-end"><span>00h</span><span>23h</span></div></div>
+          <div class="slider-wrap"><div class="slider-heading"><label for="lab-discharge">HORA DE DESCÀRREGA</label><strong id="lab-discharge-value">20:00</strong></div><input type="range" min="0" max="23" value="20" id="lab-discharge"/><div class="slider-end"><span>00h</span><span>23h</span></div></div>
+          <label class="form-label">POTÈNCIA DESITJADA <span id="lab-power-value">500 kW</span><input class="power-slider" type="range" min="0" max="500" step="25" value="500" id="lab-power"/></label>
+          <button class="action-primary" id="lab-run">Executar simulació <svg><use href="#i-arrow"/></svg></button>
+          <div class="physics-note"><svg><use href="#i-info"/></svg><span>Capacitat 2.000 kWh · ±500 kW · eficiència 90% · SOC inicial 50%.</span></div></div>
+          <div class="lab-main"><div class="lab-comparisons"><div class="compare-card"><span>SENSE BATERIA</span><strong id="lab-base-cost">—</strong><small>Cost del dia</small></div><div class="compare-card accent-card"><span>TEVA ESTRATÈGIA</span><strong id="lab-man-score">—</strong><small>Score local · 70% / 30%</small></div><div class="compare-card"><span>ÒPTIM RETROSPECTIU</span><strong id="lab-opt-score">—</strong><small>Referència de coneixement perfecte</small></div></div>
+          <div class="panel"><div class="panel-top"><div><div class="small-kicker">BATTERY DISPATCH</div><h3>Potència i càrrega de la bateria</h3><p>Accions positives = carregar; negatives = descarregar</p></div></div><div id="lab-dispatch-chart" class="graph taller"></div></div><div class="panel"><div class="panel-top"><div><div class="small-kicker">IMPACTE MESURAT</div><h3>Resultats per escenari</h3><p>Respecte del mateix dia sense bateria</p></div></div><div id="lab-result-table" class="comparison-table"></div></div>
+          <div class="panel radar-panel"><div class="panel-top"><div><div class="small-kicker">HISTORICAL OPPORTUNITY RADAR / 02</div><h3>On val la pena investigar?</h3><p>Una hipòtesi basada en patrons del train, corregida per l'eficiència del 90%.</p></div><span class="radar-tag">EXPLORATORY</span></div>
+          <div class="radar-rail"><div><small>HORA CANDIDATA · CÀRREGA</small><strong id="radar-charge">—</strong></div><span class="radar-arrow">→</span><div><small>HORA CANDIDATA · DESCÀRREGA</small><strong id="radar-discharge">—</strong></div><div><small>DIES AMB MARGE POSITIU</small><strong id="radar-reliability">—</strong></div></div>
+          <div id="radar-chart" class="graph"></div><p class="radar-caption" id="radar-note">Patró exploratori; valida les decisions amb el simulador i les 24 hores futures.</p>
+          <button class="text-link" id="radar-apply">Provar aquest parell al simulador <svg><use href="#i-arrow"/></svg></button></div>
+          <div class="lab-disclaimer" id="lab-notice">L'òptim usa informació perfecta del dia. No és una predicció ni el score oficial de la competició.</div><button id="lab-pin" class="secondary-action"><svg><use href="#i-pin"/></svg> Guardar aquesta comparació al Decision board</button></div></div>
+      </section>
+      <!-- DECISION BOARD / HUMAN-CURATED ANALYSIS -->
+      <section id="view-board" class="view">
+        <div class="board-hero">
+          <div class="board-index"><span>05 / WORKSPACE</span><span>CURATED INTELLIGENCE</span></div>
+          <div class="board-hero-inner">
+            <div><div class="eyebrow"><span class="slash">/</span> DE L'EXPLORACIÓ A L'EVIDÈNCIA</div><h1>Decision <em>board.</em></h1><p>Una pregunta, un gràfic, una conclusió. Construeix un relat verificable sobre les decisions energètiques del campus.</p></div>
+            <div class="board-edition"><small>EXPLORATION ISSUE</small><strong>02<span>.</span></strong><span>FME / TUKEY 2026</span></div>
+          </div>
+        </div>
+        <div class="board-toolbar"><div><span class="small-kicker">SELECCIÓ EDITORIAL</span><h2><span id="board-counter">0</span> evidències fixades</h2><p>Arrossega les targetes per ordenar el relat. Canvia'n els títols i guarda l'informe.</p></div><div class="board-actions"><button id="board-print" class="board-button-outline">Imprimir / PDF</button><button id="board-export" class="board-button-primary"><svg><use href="#i-download"/></svg> Exportar board</button></div></div>
+        <div class="board-evidence-strip"><div><span>OBJECTIU</span><strong>70% CO₂ / 30% COST</strong></div><div><span>DADES</span><strong id="board-dataset-name">—</strong></div><div><span>ORIGEN DEL CÀLCUL</span><strong>PYTHON · PANDAS · SCIPY</strong></div></div>
+        <div id="board-empty" class="board-empty"><div class="board-empty-symbol">↗</div><div><small>YOUR ANALYSIS, EDITED BY YOU</small><h3>Les dades ja hi són.<br>Construïm l'argument.</h3><p>Genera un gràfic amb el Copilot o l'Explorer i fixa'l al board. També pots guardar una simulació del Decision Lab.</p><button class="board-button-primary" data-jump="copilot">Començar amb el Copilot <svg><use href="#i-arrow"/></svg></button></div></div>
+        <div id="board-grid" class="board-grid" aria-live="polite"></div>
+        <div class="board-footnote"><span>NOTA METODOLÒGICA</span><p>Els valors mostrats provenen de les dades seleccionades i de càlculs locals. Una comparació descriptiva no prova causalitat. Els escenaris retrospectius no són una previsió ni el resultat oficial del challenge.</p></div>
+      </section>
+    </div>
+    <footer class="main-footer"><span>UPC ENERGY INTELLIGENCE <b>© 2026</b></span><span>ENGINEERED FOR DECISIONS, NOT DECORATION.</span><span class="foot-badge">T / 26</span></footer>
+  </main>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<script src="/static/app.js" defer></script>
+</body>
+</html>
