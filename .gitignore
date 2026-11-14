@@ -1,1 +1,4 @@
 opencode.json
+# Caché generada por el dashboard
+data/processed/
+__pycache__/
