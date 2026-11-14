@@ -4,7 +4,7 @@ BatteryAgent — MPC amb programació lineal, versió blindada (Datathon UPC 202
 Mateixa política que mpc_lp (LP sobre les 24 h de preu i CO2, horitzó lliscant), més:
   - neteja de l'observació: si falta l'hora actual s'usa preu_actual/co2_actual; la resta de forats
     s'interpolen entre hores veïnes (ancorant a l'hora anterior); els valors extrems reals NO es toquen;
-  - si el solver falla, reutilitza el pla de l'hora anterior;
+  - si el solver falla, segueix el pla de l'hora anterior i, si no n'hi ha, una regla de rànquing;
   - qualsevol excepció -> 0.0 (repòs), mai peta;
   - la sortida sempre és un float finit dins dels límits físics exactes (0 infraccions).
 """
@@ -91,6 +91,20 @@ class BatteryAgent:
         a = max(-max(0.0, max_d), min(max(0.0, max_c), a))
         return 0.0 if abs(a) < 1e-6 or not math.isfinite(a) else float(a)
 
+    @staticmethod
+    def _rule(w, dmax0, k=4):
+        """Pla B: carrega a les k hores amb menor senyal de la finestra i descarrega a les k pitjors,
+        només si el diferencial cobreix les pèrdues del 10%."""
+        w = np.asarray(w, dtype=float)
+        if len(w) == 0:
+            return 0.0
+        s = np.sort(w); rank = int((w < w[0]).sum()); k = max(1, min(k, len(w) // 2))
+        if rank < k and w[0] < 0.9 * s[-k:].mean():
+            return PMAX
+        if rank >= len(w) - k and 0.9 * w[0] > s[:k].mean():
+            return -min(PMAX, dmax0)
+        return 0.0
+
     # ------------------------------------------------------------------ política
     def act(self, obs):
         try:
@@ -130,8 +144,11 @@ class BatteryAgent:
             dmax[0] = max(0.0, net_last)
 
         P = solve_lp(w, soc, v, dmax)
-        if P is None:                               # solver fallit: segueix el pla anterior
-            a = self.plan.pop(0) if self.plan else 0.0
+        if P is None:                               # solver fallit
+            if self.plan:                           # 1r: segueix el pla calculat l'hora anterior
+                a = self.plan.pop(0)
+            else:                                   # 2n: regla simple de rànquing sobre w
+                a = self._rule(w, dmax[0])
         else:
             a = float(P[0])
             self.plan = [float(x) for x in P[1:]]
