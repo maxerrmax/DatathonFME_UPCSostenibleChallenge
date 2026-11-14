@@ -92,3 +92,40 @@ Sobre el agente MPC antiguo (`submission_hard/`, 22,95 en el público), conclusi
   `scripts/eval_agent_dir.py` y `scripts/tune_hard.py` ya usan 1 hilo por proceso.
 - `git pull` antes de cada `push`. Las ramas del equipo: `main`, `dificil-v7`, etc.
 - Los pickles (`*.pkl`) de `dificil/agent_hard/` no se versionan; se regeneran con `train_v7.py`.
+
+## 8. Novedad 14/11 (~21:00): salto entre semanas de test (v12) — pendiente de confirmar en el público
+
+Las 12 semanas de test se simulan seguidas: tras la última hora de un mes viene la primera de la semana de test del mes
+siguiente y **el SOC se conserva**. La v9 planificaba como si después viniera el día 1 del mes siguiente. Cambios en
+`dificil/agent_hard/agent.py` (todo desactivable con `{"jump": false, "jump_meas": false}` → v9 exacta, 20,52):
+
+- **Planificar a través del salto**: en las últimas 24 h de cada semana, las horas posteriores al salto se rellenan con
+  los valores del día anterior a la semana siguiente (está en train → `hist0`) y con los valores reales de la ventana de
+  mercado cuando ya cruza el salto. Calendario: semanas = últimos 7 días de cada mes (`seg_off` = 0).
+- **Final de la simulación** conocido por calendario (tras la última semana no hay datos de train): se vacía la batería
+  con 24 h de margen en lugar de reaccionar en las 2 últimas horas.
+- **Historial tras el salto**: la "última hora" que da el servidor en la primera hora de cada semana es de un mes antes;
+  ya no pisa el valor real de train.
+- Salvaguarda: si el salto observado no coincide con el calendario, se desactiva solo (vuelve al comportamiento v9).
+
+| Variante (modelos `fit`) | Val. A (días 17–23) | Val. B (días 10–16) | ms/paso |
+|---|---|---|---|
+| v9 | 20,52 | 18,45 | 17 |
+| v9 + salto (**v12a**) | 20,90 | 18,76 | 17 |
+| v9 + modelos por tramos de la v10 | 20,85 | 18,77 | 15 |
+| v9 + salto + tramos (**v12b**) | **21,25** | **19,13** | 15 |
+
+Validar: `python scripts/eval_agent_dir.py <dir> --segs` (`--segs` le pasa al agente los tramos reales de la validación;
+sin él, el agente usa el calendario de test). Segunda partición: `VAL_SHIFT=7` al entrenar (`train_v7.py fit`) y evaluar.
+Modelos por tramos: `python dificil/train_v7.py fit|all --bands` → `models_*7b.pkl` (el agente los usa si están).
+
+Zips (historial completo, validados con `check_submission.py`): `dificil/lliuraments/hard_v12a_salt.zip` (mismo `.pkl`
+que el 23,45, solo cambia el agente) y `hard_v12b_salt_trams.zip` (además, modelos por tramos).
+
+Sobre la v10: su mejora se reproduce en las DOS particiones (+0,33 / +0,32), así que el 22,95 del público no cuadra con
+un sobreajuste; es exactamente la nota del agente MPC antiguo → revisar si se subió el zip correcto. Subir primero v12a.
+
+Más cosas probadas hoy sin efecto (ref. 20,52): `net0_mix` 0/0,25/0,75/1 → 20,45–20,51 · `scen` 7/31 → 20,50/20,52 ·
+`scen_win` 0/1/4/12 → 20,46/20,53/20,49/20,40 · `k_future` 0/0,2/0,6/0,8 → 20,49–20,53 · `scen_scale` 0,8/1,25 →
+20,52/20,49 · tramos más finos (+3, +4, +5, 6–8, 9–11) → igual que los de la v10 (A 21,23 / B 19,20).
+Con información perfecta (sobre v9): consumo neto de la hora actual +0,47; CO₂ de +3..+7 h +0,63; precio 24 h +0,19.

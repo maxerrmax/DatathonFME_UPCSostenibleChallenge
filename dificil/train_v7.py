@@ -1,6 +1,6 @@
 """v7: preu/CO2 amb features ampliades (ensemble de 4 models residuals), consum/solar sense lag setmanal,
 i historial inicial (dades d'entrenament) dins del fitxer de models.
-Ús: python dificil/train_v7.py [fit|all]"""
+Ús: python dificil/train_v7.py [fit|all] [--bands]   (--bands: afegeix models per trams d'horitzó -> models_*7b.pkl)"""
 import sys, time
 from pathlib import Path
 import numpy as np, pandas as pd, joblib, lightgbm as lgb
@@ -33,8 +33,19 @@ def mkt2_matrix(tr, key):
     return np.vstack(X), np.array(y)
 
 
+def _bands(argv):
+    """--bands -> (3-5, 6-11);  --bands=3-3,4-4,5-5,6-8,9-11 -> trams a mida."""
+    for a in argv:
+        if a == "--bands":
+            return [(3, 5), (6, 11)]
+        if a.startswith("--bands="):
+            return [tuple(int(x) for x in b.split("-")) for b in a.split("=")[1].split(",")]
+    return []
+
+
 if __name__ == "__main__":
     which = sys.argv[1] if len(sys.argv) > 1 else "fit"
+    BANDS = _bands(sys.argv)
     df = load_hard(); fit, val = split_val(df); tr = fit if which == "fit" else df
     CS = make_cs(tr); feats.set_cs(CS); t0 = time.time()
     dump = {"pv_cs": CS, "mkt2": {}}
@@ -58,6 +69,20 @@ if __name__ == "__main__":
                     m = lgb.LGBMRegressor(**P).fit(X[ok][:, cols], np.log(y[ok] / b[ok]))
                     ms.append((m.booster_.model_to_string(), cols, kind))
         dump["mkt2"][key] = ms
+        if BANDS:
+            # models per tram d'horitzó (+3..+5, +6..+11): CO2 en log-quocient, preu en residu additiu
+            cols = [N.index(n) for n in N if n not in ("lag168", "wk7", "wk7_o", "wk3")]
+            Hh = X[:, N.index("h")]; k2 = X[:, N.index("k2")]; grp = []
+            for a, b_ in BANDS:
+                sel = (Hh >= a) & (Hh <= b_) & np.isfinite(y)
+                if key == "co2":
+                    sel &= (k2 > 0) & (y > 0)
+                    m = lgb.LGBMRegressor(**P).fit(X[sel][:, cols], np.log(y[sel] / k2[sel])); kind = "log"
+                else:
+                    sel &= np.isfinite(k2)
+                    m = lgb.LGBMRegressor(**P).fit(X[sel][:, cols], (y - k2)[sel]); kind = "add"
+                grp.append((a, b_, m.booster_.model_to_string(), cols, kind))
+            dump.setdefault("mktg", {})[key] = grp
     # consum v2: residu respecte a lag24 i respecte al perfil d'ahir desplaçat
     L = feats.LOAD2_NAMES; hist, eh = full_hist(tr); present = set(eh.tolist()); X, y = [], []
     for t in eh:
@@ -89,5 +114,5 @@ if __name__ == "__main__":
         dump[k + "_res"] = lgb.LGBMRegressor(**P).fit(X[ok], (y - lag)[ok]).booster_.model_to_string()
     eh = epoch_hours(tr.index).values
     dump["hist0"] = {k: (eh.astype(np.int64), tr[c].values.astype(float)) for k, c in COLS.items()}
-    out = HERE / "agent_hard" / f"models_{which}7.pkl"; joblib.dump(dump, out, compress=3)
+    out = HERE / "agent_hard" / (f"models_{which}7b.pkl" if BANDS else f"models_{which}7.pkl"); joblib.dump(dump, out, compress=3)
     print("desat", out, f"{time.time()-t0:.0f}s", f"{out.stat().st_size/1e6:.1f} MB")

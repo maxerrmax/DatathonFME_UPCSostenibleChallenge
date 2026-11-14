@@ -61,6 +61,8 @@ class BatteryAgent:
         self.mk2 = {}
         self.ld2 = []
         self.n0 = None
+        self.mkg = {}
+        self.h0_max = None
         try:
             raw = p.get("_models")
             if raw is None:
@@ -72,6 +74,8 @@ class BatteryAgent:
             mk2 = raw.pop("mkt2", None) or {}
             self.mk2 = {k: [(lgb.Booster(model_str=ms), list(cols), base) for ms, cols, base in v] for k, v in mk2.items()}
             self.ld2 = [(lgb.Booster(model_str=ms), list(cols), base) for ms, cols, base in (raw.pop("load2", None) or [])]
+            self.mkg = {k: [(a, b_, lgb.Booster(model_str=ms), list(cols), kind) for a, b_, ms, cols, kind in v]
+                        for k, v in (raw.pop("mktg", None) or {}).items()}
             n0 = raw.pop("net0", None)
             self.n0 = lgb.Booster(model_str=n0) if n0 else None
             self.m = {k: (lgb.Booster(model_str=v) if isinstance(v, str) else v) for k, v in raw.items()}
@@ -86,8 +90,10 @@ class BatteryAgent:
                 for k, (hh, vv) in h0.items():
                     for e, v in zip(hh, vv):
                         self.hist.put(k, e, v)
+                self.h0_max = int(max(self.hist.d["price"])) if self.hist.d["price"] else None
         except Exception:
             pass
+        self.jump_off = False                           # es desactiva si el calendari de salts no es compleix
         self.t_prev = None
         self.err = []                                   # errors recents de previsió de net (t-1)
         self.pred_net0 = None
@@ -121,20 +127,36 @@ class BatteryAgent:
         return np.where(np.isfinite(out), out, np.nan)
 
     def _pred_mkt2(self, key, t, hs):
-        """Mitjana de models residuals (respecte a l'últim valor conegut o al perfil d'ahir desplaçat)."""
+        """Mitjana de models residuals (respecte a l'últim valor conegut o al perfil d'ahir desplaçat).
+        Si el fitxer de models porta models per tram d'horitzó (+3..+5, +6..+11 h), aquests substitueixen l'ensemble
+        a les seves hores (i l'ensemble només es calcula per a la resta, per no gastar temps)."""
         X = mkt_features2(self.hist, key, t, hs)
         k2 = X[:, 7]; xs = np.where(np.isfinite(X[:, 13]), X[:, 13], k2)
-        out = []
         xsl = np.where(np.isfinite(X[:, 13]) & (X[:, 13] > 0.3 * k2), X[:, 13], k2)
-        for b, cols, base in self.mk2[key]:
-            pr = b.predict(X[:, cols], num_threads=1)
-            if base == "logk2":                          # model del quocient (escala lliure)
-                out.append(np.where(k2 > 0, k2 * np.exp(pr), k2))
-            elif base == "logxs":
-                out.append(np.where(xsl > 0, xsl * np.exp(pr), xsl))
-            else:
-                out.append((xs if base == "xs" else k2) + pr)
-        return np.mean(out, axis=0)
+        res = np.full(len(hs), np.nan); grp = np.full(len(hs), np.nan)
+        gm = self.p.get("grp_mix", 1.0)
+        if gm > 0 and key in self.p.get("grp_keys", ("price", "co2")):
+            hs_a = np.asarray(hs)
+            for a, b_, bst, cols, kind in self.mkg.get(key, []):
+                sel = (hs_a >= a) & (hs_a <= b_)
+                if sel.any():
+                    pr = bst.predict(X[sel][:, cols], num_threads=1)
+                    grp[sel] = np.where(k2[sel] > 0, k2[sel] * np.exp(pr), k2[sel]) if kind == "log" else k2[sel] + pr
+        need = ~np.isfinite(grp) if gm >= 1.0 else np.ones(len(hs), bool)
+        if need.any():
+            Xn = X[need]; out = []
+            for b, cols, base in self.mk2[key]:
+                pr = b.predict(Xn[:, cols], num_threads=1)
+                if base == "logk2":                          # model del quocient (escala lliure)
+                    out.append(np.where(k2[need] > 0, k2[need] * np.exp(pr), k2[need]))
+                elif base == "logxs":
+                    out.append(np.where(xsl[need] > 0, xsl[need] * np.exp(pr), xsl[need]))
+                else:
+                    out.append((xs if base == "xs" else k2)[need] + pr)
+            res[need] = np.mean(out, axis=0)
+        ok = np.isfinite(grp)
+        res[ok] = np.where(np.isfinite(res[ok]), gm * grp[ok] + (1 - gm) * res[ok], grp[ok])
+        return res
 
     def _pred_load2(self, t, hs):
         """Consum: perfil d'ahir desplaçat al nivell actual (hores properes) barrejat amb lag24 + residu (hores llunyanes)."""
@@ -229,6 +251,30 @@ class BatteryAgent:
         a = max(-md, min(mc, a))
         return 0.0 if (not math.isfinite(a) or abs(a) < 1e-6) else float(a)
 
+    # ------------------------------------------------------------------ salts entre setmanes
+    def _segment(self, t):
+        """(E, J, final): última hora del tram actual, primera hora del tram següent i si la simulació s'acaba a E.
+        Les setmanes de test són els últims 7 dies de cada mes i el servidor les simula seguides: després de
+        l'última hora d'un mes ve la primera hora de la setmana de test del mes següent (el SOC es conserva)."""
+        if self.jump_off or not self.p.get("jump", True) or self.h0_max is None:
+            return None
+        segs = self.p.get("_segs")                      # NOMÉS validació local: trams explícits [(inici, fi), ...]
+        if segs is not None:
+            for i, (a, b) in enumerate(segs):
+                if a <= t <= b:
+                    last = i + 1 >= len(segs)
+                    return int(b), (None if last else int(segs[i + 1][0])), last
+            return None
+        off = int(self.p.get("seg_off", 0))
+        m = np.datetime64(int(t), "h").astype("datetime64[M]")
+        d_end = (m + 1).astype("datetime64[D]") - 1 - off
+        E = int(d_end.astype("datetime64[h]").astype(np.int64)) + 23
+        if t > E or t < E - 167:
+            return None
+        d_next = (m + 2).astype("datetime64[D]") - 7 - off
+        J = int(d_next.astype("datetime64[h]").astype(np.int64))
+        return E, J, (J - 1 > self.h0_max)              # sense dades de train abans de J -> final de la simulació
+
     # ------------------------------------------------------------------ pas
     def act(self, obs):
         try:
@@ -244,7 +290,21 @@ class BatteryAgent:
         self.cap = _num(obs.get("cap_max_kwh"), 2000.0); self.pmax = _num(obs.get("power_max_kw"), 500.0)
         soc = min(self.cap, max(0.0, _num(obs.get("soc_kwh"), self.cap / 2)))
         t = _epoch_hour(obs.get("timestamp"), (self.t_prev + 1) if self.t_prev is not None else 0)
+        jumped = self.t_prev is not None and t != self.t_prev + 1
+        if self.t_prev is not None and not self.jump_off:
+            sp = self._segment(self.t_prev)             # comprovació: el salt observat ha de ser el previst
+            exp = (self.t_prev + 1) if (sp is None or sp[0] != self.t_prev or sp[1] is None) else sp[1]
+            if t != exp:
+                # salt inesperat: només es manté el calendari si hem anat a parar a l'inici d'un altre tram
+                # (p. ex. falta una setmana sencera); si no, es torna al comportament sense salts
+                sn = self._segment(t)
+                segs = self.p.get("_segs")
+                starts = [a for a, _ in segs] if segs is not None else ([sn[0] - 167] if sn else [])
+                if not (jumped and t in starts):
+                    self.jump_off = True
         self.t_prev = t
+        seg = self._segment(t)
+        n_left, J, final = (seg[0] - t + 1, seg[1], seg[2]) if seg else (None, None, False)
         # historial
         pr = [_num(x) for x in (obs.get("preus_properes_24h") or [])]
         cr = [_num(x) for x in (obs.get("co2_properes_24h") or [])]
@@ -252,15 +312,19 @@ class BatteryAgent:
             pr = [_num(obs.get("preu_actual"), self.hist.get("price", t - 1))] + pr[1:]
         if not cr or not math.isfinite(cr[0]):
             cr = [_num(obs.get("co2_actual"), self.hist.get("co2", t - 1))] + cr[1:]
+        def key_of(i):                                  # la finestra de mercat pot travessar el salt de setmana
+            return t + i if (n_left is None or J is None or i < n_left) else J + (i - n_left)
         for i, v in enumerate(pr):
-            self.hist.put("price", t + i, v)
+            self.hist.put("price", key_of(i), v)
         for i, v in enumerate(cr):
-            self.hist.put("co2", t + i, v)
+            self.hist.put("co2", key_of(i), v)
         nd = obs.get("noves_dades_5min") or {}
         ld, pv = _num(nd.get("ultim_consum_kw")), _num(nd.get("ultima_solar_kw"))
-        self.hist.put("load", t - 1, ld); self.hist.put("pv", t - 1, pv)
-        self.hist.put("irr", t - 1, _num(nd.get("irradiancia_wm2"))); self.hist.put("temp", t - 1, _num(nd.get("temp_ambient_c")))
-        self.hist.put("vent", t - 1, _num(nd.get("vent_ms")))
+        # després d'un salt, les mesures de "l'última hora" són de la setmana anterior (un mes abans): no són de t-1
+        if not (jumped and self.p.get("jump_meas", True)):
+            self.hist.put("load", t - 1, ld); self.hist.put("pv", t - 1, pv)
+            self.hist.put("irr", t - 1, _num(nd.get("irradiancia_wm2"))); self.hist.put("temp", t - 1, _num(nd.get("temp_ambient_c")))
+            self.hist.put("vent", t - 1, _num(nd.get("vent_ms")))
         if self.pred_net0 is not None and math.isfinite(ld) and math.isfinite(pv):
             self.err.append(((t - 1) % 24, (ld - pv) - self.pred_net0)); self.err = self.err[-336:]
 
@@ -288,6 +352,21 @@ class BatteryAgent:
         fi = 0 < n_mkt < self.max_len
         if fi:
             Hh = max(1, n_mkt)
+        elif n_left is not None and n_left < len(price):
+            if final:                                   # última setmana: l'energia que quedi a la bateria no val res
+                if self.p.get("jump_final", True):
+                    fi = True; Hh = max(1, min(Hh, n_left))
+            elif J is not None:
+                # les hores de després del salt són les primeres de la setmana de test següent: valors reals de la
+                # finestra de mercat si ja hi són, i si no els del dia anterior (que és a les dades d'entrenament)
+                for k in range(max(0, n_left), len(price)):
+                    tau = J + (k - n_left)
+                    for name, arr in (("price", price), ("co2", co2), ("load", load), ("pv", pvf)):
+                        v = self.hist.get(name, tau) if name in ("price", "co2") else float("nan")
+                        if not math.isfinite(v):
+                            v = self.hist.get(name, tau - 24)
+                        if math.isfinite(v):
+                            arr[k] = v
         price, co2, load, pvf = price[:Hh], co2[:Hh], load[:Hh], pvf[:Hh]
         self.pred_net0 = float(load[0] - pvf[0])        # error de previsió mesurat sense biaix
         # biaix deliberat: descarregar de més es perd del tot, descarregar de menys només ajorna

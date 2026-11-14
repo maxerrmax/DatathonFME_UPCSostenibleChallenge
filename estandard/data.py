@@ -4,6 +4,7 @@ Construcció del dataset horari IDÈNTIC al del tutorial oficial (el que probabl
 el servidor) i particions temporals per a validació.
 """
 from __future__ import annotations
+import os
 from pathlib import Path
 import pandas as pd
 
@@ -52,7 +53,10 @@ def split_val(df: pd.DataFrame, val_days: int = 7) -> tuple[pd.DataFrame, pd.Dat
         if len(b) < 24 * (val_days + 3):
             fit.append(b)
             continue
-        cut = b.index[-1] - pd.Timedelta(days=val_days) + pd.Timedelta("1h")
-        fit.append(b[b.index < cut])
-        val.append(b[b.index >= cut])
+        # VAL_SHIFT (dies, variable d'entorn): desplaça la setmana de validació cap enrere (segona partició)
+        sh = int(os.environ.get("VAL_SHIFT", "0"))
+        cut = b.index[-1] - pd.Timedelta(days=val_days + sh) + pd.Timedelta("1h")
+        end = cut + pd.Timedelta(days=val_days)
+        fit.append(b[(b.index < cut) | (b.index >= end)])
+        val.append(b[(b.index >= cut) & (b.index < end)])
     return pd.concat(fit), pd.concat(val)
