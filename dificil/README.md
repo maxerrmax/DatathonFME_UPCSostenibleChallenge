@@ -53,3 +53,10 @@ Etapa 2, 60 configuracions de decisió per família (`results/etapa2_decisio.md`
 Calendari de graus de la **FIB (Campus Nord)**: exàmens (30/10–5/11, 7/1–19/1, 7/4–13/4, 4/6–19/6) i
 **períodes sense classes** (fora de 8/9–19/12 i 9/2–29/5). Afecta setmanes de test com 25–31/1 i 24–30/6.
 MAE consum a validació 58,9 → 56,9 kW; en festius/períodes sense classes apartats, −35 % d'error.
+
+## v5 (`hard_mpc_lgbm_v5.zip`) — validació 19,42
+
+Règims d'ocupació dels edificis segons els horaris publicats per la UPC (no n'hi ha un del Campus Nord;
+s'usa el patró dels edificis UPC): **tancat** (25/12–6/1, 3–21/8) i **horari reduït de matí** (22–24/12,
+22/6–31/7, 24/8–4/9). La setmana de test 25–31/8 queda com a horari reduït (no tancada).
+Holdout de festius/vacances: MAE consum 109,9 (v4) → 109,1 kW; validació igual (19,42).
