@@ -60,9 +60,10 @@ FESTIUS = _days("2025-09-11", "2025-09-24", "2025-10-12", "2025-11-01", "2025-12
                 "2026-05-01", "2026-05-25", "2026-06-24", "2026-08-15", "2026-09-11", "2026-09-24")
 # períodes no lectius UPC (Nadal ampliat al 24/12 i fins al 6/1; Setmana Santa; estiu)
 VACANCES = _range("2025-12-24", "2026-01-06") | _range("2026-03-30", "2026-04-06") | _range("2026-08-03", "2026-08-31")
-# exàmens (aprox. calendari UPC): parcials tardor, finals gener, parcials primavera, finals juny
-EXAMENS = _range("2025-10-30", "2025-11-05") | _range("2026-01-08", "2026-01-24") | \
-          _range("2026-04-07", "2026-04-17") | _range("2026-06-08", "2026-06-27")
+# Calendari de graus FIB (Campus Nord) 2025-26
+EXAMENS = _range("2025-10-30", "2025-11-05") | _range("2026-01-07", "2026-01-19") | \
+          _range("2026-04-07", "2026-04-13") | _range("2026-06-04", "2026-06-19")
+CLASSES = _range("2025-09-08", "2025-12-19") | _range("2026-02-09", "2026-05-29")
 
 
 def day_flags(hour_epoch):
@@ -70,7 +71,8 @@ def day_flags(hour_epoch):
     dow = (d + 3) % 7
     fest = d in FESTIUS; vac = d in VACANCES
     off = fest or vac or dow >= 5
-    return float(fest), float(vac), float(d in EXAMENS), float(off)
+    sense_classes = float(d not in CLASSES and d not in EXAMENS)
+    return float(fest), float(vac), float(d in EXAMENS), sense_classes, float(off)
 
 
 MKT_NAMES = ["h", "hod", "dow", "doy_s", "doy_c", "lag24", "lag48", "lag168", "last_known",
@@ -108,8 +110,8 @@ def meas_features(hist, key, t, hs):
         tau = t + h; hod, dow, s, c = calendar(tau)
         rows.append([h, hod, dow, s, c, hist.get(key, tau - 24), hist.get(key, tau - 48),
                      hist.get(key, tau - 168), last, last - last24, m24, irr, temp,
-                     hist.get("irr", tau - 24), lm % 24, *day_flags(tau), day_flags(tau - 24)[3],
-                     day_flags(tau - 168)[3]])
+                     hist.get("irr", tau - 24), lm % 24, *day_flags(tau), day_flags(tau - 24)[4],
+                     day_flags(tau - 168)[4]])
     return np.array(rows, dtype=float)
 
 
