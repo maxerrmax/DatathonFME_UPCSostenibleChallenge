@@ -296,7 +296,15 @@ class BatteryAgent:
     # ------------------------------------------------------------------ pas
     def act(self, obs):
         try:
-            return self._act(obs)
+            a = self._act(obs)
+            im = self.p.get("idle_months")              # NOMÉS diagnòstic: no actuar en aquests mesos
+            if im:
+                try:
+                    if pd.Timestamp(obs.get("timestamp")).month in im:
+                        return 0.0
+                except Exception:
+                    pass
+            return a
         except Exception:
             try:
                 return self._clamp(_num((obs or {}).get("soc_kwh"), 0.0), 0.0)

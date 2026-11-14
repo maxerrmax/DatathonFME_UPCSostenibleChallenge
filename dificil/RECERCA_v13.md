@@ -24,3 +24,19 @@ Conclusions:
 contra 23,53 de la v12. La caiguda (−3,9) és molt més gran que la pitjor estimació local (−0,68): el servidor no
 executa cada setmana com un episodi separat que acaba l'últim dia del mes, i l'energia que queda a la bateria sí que
 es fa servir després. **No tocar el final d'episodi.** La v12 continua sent la millor.
+
+## Estructura del test deduïda dels diagnòstics (14/11 22:45)
+
+Dos enviaments de diagnòstic sobre la v12 exacta:
+- buidar la bateria a final de mes → públic 19,61 (ràtio 0,83 respecte a 23,53);
+- bateria quieta de març a agost → públic 10,33 (ràtio 0,44; set–feb aporta el 45 % del CO₂ evitat del públic).
+
+Simulant diverses particions públic/privat a la validació (setmanes enganxades en ordre cronològic), l'única que
+reprodueix tots dos resultats és **públic = primera meitat de cada setmana de test, privat = segona meitat**
+(ràtios simulats 0,77 i 0,37). Totes les altres (hores aleatòries, setmanes alternes, totes les hores, segona meitat)
+donen que buidar a final de mes no baixa o puja.
+
+Conseqüència: la v12 porta l'energia del final de cada setmana a l'inici de la següent (part pública). Buidar-la a
+final de setmana transfereix punts del públic al privat (simulat: públic 21,74 → 16,71, privat 19,62 → 23,72), però
+la **mitjana** baixa (20,68 → 20,21) i també amb versions suaus (últimes 3–24 h: 19,97–20,21). Com que el resultat
+final pondera públic i privat al 50 %, **la v12 (sense regla de final) és la correcta**.
