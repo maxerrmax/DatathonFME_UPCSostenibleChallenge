@@ -595,7 +595,9 @@ Normes:
 5. Si les dades tenen problemes de qualitat rellevants per a la pregunta, esmenta'ls.
 6. Fes servir com a màxim 3 eines; no repeteixis una eina amb els mateixos arguments.
 7. Respon primer exactament el que es pregunta (la xifra o l'hora concreta) i després el context.
-8. Si cap eina permet respondre, digues-ho i proposa la pregunta més propera que sí pots respondre."""
+8. Si cap eina permet respondre, digues-ho i proposa la pregunta més propera que sí pots respondre.
+9. No afegeixis afirmacions, matisos ni advertiments que no surtin de les evidències (per exemple, sobre la previsió de consum, si no l'has consultada amb una eina).
+10. Text pla: sense taules ni encapçalaments; només pots usar **negreta** per a la xifra clau."""
 
 
 def _llm_settings() -> tuple[str | None, str | None, str]:

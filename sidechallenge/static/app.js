@@ -201,9 +201,15 @@ function addChat(role,lines){
   const node=el('div','message '+role);
   node.append(el('div','message-label',role==='user'?'TU':'ENERGY COPILOT'));
   (Array.isArray(lines)?lines:[lines]).forEach(x=>{
-    const p=el('p'); const parts=String(x).split(/(\[E\d+\])/g);
-    parts.forEach(part=>{ if(/^\[E\d+\]$/.test(part)) p.append(el('span','ev-chip',part.slice(1,-1))); else if(part) p.append(document.createTextNode(part)); });
-    if(/^Decisió:/.test(String(x)))p.classList.add('decision-line');
+    // Evidence chips [E1] and **bold** are built as DOM nodes (never innerHTML): model text stays inert.
+    const line=String(x).replace(/^#+\s*/,'').replace(/^[-*]\s+/,'• ');
+    const p=el('p'); const parts=line.split(/(\[E\d+\]|\*\*[^*]+\*\*)/g);
+    parts.forEach(part=>{
+      if(/^\[E\d+\]$/.test(part)) p.append(el('span','ev-chip',part.slice(1,-1)));
+      else if(/^\*\*[^*]+\*\*$/.test(part)) p.append(el('strong',null,part.slice(2,-2)));
+      else if(part) p.append(document.createTextNode(part));
+    });
+    if(/^\**Decisió:/.test(line))p.classList.add('decision-line');
     node.append(p);
   });
   $('chat-messages').append(node);$('chat-messages').scrollTop=$('chat-messages').scrollHeight;return node;
@@ -236,7 +242,7 @@ async function askAssistant(question){
     if(state.lastAi){$('context-label').textContent='Context de gràfic · '+state.lastAi.plan.metrics.map(m=>dataset()?.metrics.find(x=>x.key===m)?.label||m).join(' + ');}
     if(res.mode==='greeting'){$('ai-evidence').hidden=true;return;}
     state.aiCharts=res.charts;
-    plotCards('ai-canvas-charts',res.charts,'AI Copilot',()=>messages.filter(m=>!m.startsWith('Avís')).map(m=>m.replace(/\s*\[E\d+\]/g,'')).slice(0,4),
+    plotCards('ai-canvas-charts',res.charts,'AI Copilot',()=>messages.filter(m=>!m.startsWith('Avís')).map(m=>m.replace(/\s*\[E\d+\]/g,'').replace(/\*\*/g,'')).slice(0,4),
       ()=>({type:'question',question}));
     $('ai-canvas-title').textContent=res.charts.map(c=>c.title).join(' / ')||'Resposta sense gràfic';
     $('ai-canvas-subtitle').textContent=(MODE_LABEL[res.mode]||res.mode)+' · '+ca.format(res.evidence?.rows||0)+' registres';

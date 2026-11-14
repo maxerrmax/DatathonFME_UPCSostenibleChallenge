@@ -84,7 +84,7 @@ def test_helmcode_fallback_is_explained(monkeypatch):
 def test_plotly_svg_not_restricted_to_icon_dimensions():
     """Regression for heatmaps being invisible due to a global svg CSS selector."""
     from pathlib import Path
-    css = (Path(__file__).resolve().parents[1] / 'static/style.css').read_text()
+    css = (Path(__file__).resolve().parents[1] / 'static/style.css').read_text(encoding='utf-8')
     assert 'svg{width:18px' not in css
     assert 'svg:has(> use)' in css
 

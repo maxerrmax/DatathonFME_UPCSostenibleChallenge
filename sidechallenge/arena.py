@@ -14,6 +14,7 @@ The dashboard never writes to the participant's agent: it imports it read-only.
 """
 from __future__ import annotations
 
+import datetime as _dt
 import hashlib
 import importlib.util
 import json
@@ -318,14 +319,15 @@ def pseudo_test_weeks(df: pd.DataFrame) -> list[dict]:
     days = set(complete_days(df))
     weeks = []
     for (_, month), part in df.groupby([df["Fecha"].dt.year, df["Fecha"].dt.month]):
-        end = part["Fecha"].dt.normalize().max()
-        while end - pd.Timedelta(days=6) >= part["Fecha"].dt.normalize().min():
-            span = [(end - pd.Timedelta(days=k)).strftime("%Y-%m-%d") for k in range(6, -1, -1)]
+        dates = sorted({_dt.date.fromisoformat(d) for d in part["date"].unique()})
+        end, first = dates[-1], dates[0]
+        while end - _dt.timedelta(days=6) >= first:
+            span = [(end - _dt.timedelta(days=k)).isoformat() for k in range(6, -1, -1)]
             if all(d in days for d in span):
                 frame = df[df["date"].isin(span)].dropna(subset=COLS).sort_values("Fecha").reset_index(drop=True)
                 weeks.append({"id": span[0], "label": f"{span[0]} → {span[-1]}", "month": int(month), "frame": frame})
                 break
-            end -= pd.Timedelta(days=1)
+            end -= _dt.timedelta(days=1)
     return weeks
 
 

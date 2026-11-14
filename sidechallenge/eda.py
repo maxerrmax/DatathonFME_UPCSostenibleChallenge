@@ -6,6 +6,8 @@ cohort comparisons, and a data-quality layer that makes measurement artefacts
 """
 from __future__ import annotations
 
+import datetime as _dt
+
 import numpy as np
 import pandas as pd
 
@@ -33,7 +35,9 @@ def data_quality(df: pd.DataFrame) -> dict:
     out: dict = {"rows": int(len(df)), "issues": []}
     if "Fecha" not in df:
         return out
-    full = pd.date_range(df["Fecha"].min().floor("D"), df["Fecha"].max().ceil("D") - pd.Timedelta(hours=1), freq="h")
+    first = df["Fecha"].min().to_pydatetime().replace(hour=0, minute=0, second=0, microsecond=0)
+    last = df["Fecha"].max().to_pydatetime().replace(hour=0, minute=0, second=0, microsecond=0) + _dt.timedelta(days=1)
+    full = pd.date_range(first, last, freq="h", inclusive="left")
     missing = full.difference(df["Fecha"])
     out["expected_hours"] = int(len(full))
     out["missing_hours"] = int(len(missing))

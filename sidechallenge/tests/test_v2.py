@@ -98,8 +98,8 @@ def test_historical_radar_has_physical_margin_and_grounded_disclaimer():
 
 def test_v2_html_has_board_and_lab_entrypoints():
     from pathlib import Path
-    html=(Path(service.HERE)/'static/index.html').read_text()
-    js=(Path(service.HERE)/'static/app.js').read_text()
+    html=(Path(service.HERE)/'static/index.html').read_text(encoding='utf-8')
+    js=(Path(service.HERE)/'static/app.js').read_text(encoding='utf-8')
     assert 'id="view-board"' in html
     assert 'id="board-export"' in html
     assert 'id="lab-pin"' in html
