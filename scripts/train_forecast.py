@@ -109,33 +109,9 @@ def train_all(samples):
     return models
 
 
-# Augmentació d'inici de bloc: al test cada setmana comença sense historial. Dupliquem una part de les
-# mostres esborrant-ne l'historial perquè el model aprengui a prever només amb el calendari.
-AUG_FRAC = 0.0  # desactivada: a les proves de puntuació (dies especials i validació de l'equip) va una mica pitjor
-AUG_COLS = {
-    "load": (["load_l1", "load_l24", "load_l48", "load_m24", "load_l24_0", "temp_l1", "temp_m24", "irr_l1"],  # sense res
-             ["load_l24", "load_l48", "load_l24_0"]),                                                       # primer dia
-}
-
-
-def augment(tg, X, y, seed=0):
-    if tg not in AUG_COLS or AUG_FRAC <= 0:
-        return X, y
-    rng = np.random.default_rng(seed)
-    Xs, ys = [X], [y]
-    for cols in AUG_COLS[tg]:
-        idx = rng.choice(len(X), int(AUG_FRAC * len(X)), replace=False)
-        Xa = X[idx].copy()
-        for c in cols:
-            Xa[:, FEATS[tg].index(c)] = np.nan
-        Xs.append(Xa); ys.append(y[idx])
-    return np.vstack(Xs), np.concatenate(ys)
-
-
 def train(samples, resid=True):
     models = {}
     for tg, (X, y) in samples.items():
-        X, y = augment(tg, X, y)
         if tg in RESID and resid:
             ok = ~np.isnan(resid_base(tg, X))
             X, y = X[ok], y[ok] - resid_base(tg, X[ok])

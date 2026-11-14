@@ -56,16 +56,9 @@ def calendar(h):
     festiu = iso in FESTIUS
     off = festiu or d.weekday() >= 5
     doy = d.timetuple().tm_yday
-    # Règims reals del campus (vistos a les dades):
-    #   tancat: 25/12-6/1 i 1-23/08 (el 24/08/2026 torna a obrir: 1.223 kW vs ~880 kW)
-    #   reduit: 22-24/12 i dimecres-dijous sant (~1.000-1.150 kW vs ~1.250 kW)
-    tancat = md >= (12, 25) or md <= (1, 6) or (d.month == 8 and d.day <= 23)
-    reduit = (12, 22) <= md <= (12, 24) or date(2026, 3, 30) <= d.date() <= date(2026, 4, 2)
     return {
         "hour": d.hour, "dow": d.weekday(), "month": d.month, "doy": doy,
         "festiu": int(festiu), "off": int(off), "nadal": int(nadal), "pasqua": int(pasqua), "agost": int(agost),
-        "tancat": int(tancat), "reduit": int(reduit),
-        "doy_s": math.sin(2 * math.pi * doy / 365.25), "doy_c": math.cos(2 * math.pi * doy / 365.25),
     }
 
 
@@ -93,7 +86,7 @@ def _mean(vals):
 PRICE_FEATS = ["k", "hour", "dow", "month", "off", "festiu", "nadal", "pasqua", "agost",
                "p0", "p1", "p2", "c0", "c1", "c2", "x_l24", "x_l48", "x_m24", "y_l24", "x_l24_0",
                "x_shift", "x_cur", "elev", "irr_l1", "irr_l24", "irr_m24", "temp_l1", "y_cur"]
-LOAD_FEATS = ["k", "hour", "dow", "doy_s", "doy_c", "off", "festiu", "tancat", "reduit",
+LOAD_FEATS = ["k", "hour", "dow", "month", "off", "festiu", "nadal", "pasqua", "agost",
               "load_l1", "load_l24", "load_l48", "load_m24", "load_l24_0", "temp_l1", "temp_m24", "irr_l1"]
 PV_FEATS = ["k", "hour", "month", "doy", "elev", "pv_l1", "irr_l1", "pv_l24", "irr_l24", "pv_m24max",
             "temp_l1", "elev_l1", "kt_l1", "kt_l24", "kt_d1", "pv_l48", "pv_clear"]
