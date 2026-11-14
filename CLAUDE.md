@@ -21,6 +21,8 @@
   - Codi: `dificil/agent_hard/` (agent i features) · models: `python dificil/train_v7.py fit|all`
     · validació: `python dificil/heval.py '[{...params}]'` (models `fit`). Notes: `dificil/README.md`.
 - **Tot canvi nou s'ha de fer partint del v9 (23,45).** Abans de proposar un lliurament, comparar a validació amb el v9.
+- **Llegir `docs/TRASPASO_MODE_DIFICIL.md` abans de proposar res**: estat, com validar (`scripts/eval_agent_dir.py`,
+  referència 20,52) i tot el que ja s'ha provat sense èxit (amb xifres).
 
 ### Versions anteriors (referència, no són la base)
 - Agent MPC de `submission_hard/` (22,95 al públic; zip `submissions_hard_diag/mpc_lgbm_submission.zip`,
