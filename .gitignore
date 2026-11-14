@@ -2,4 +2,5 @@ opencode.json
 # Caché generada por el dashboard
 data/processed/
 __pycache__/
-notes/
+notes/src/hm_build/
+catboost_info/
