@@ -30,7 +30,7 @@ from pydantic import BaseModel, Field
 from scipy.optimize import linprog
 from plotly.subplots import make_subplots
 
-from . import arena, copilot, eda
+from . import arena, copilot, eda, guardrails
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent
@@ -982,7 +982,15 @@ async def assistant(req: AssistantReq):
     verified chart-plan path; analytical and decision questions go to the
     tool-using analyst (Helmcode tool calling, JSON-plan fallback, or local).
     """
+    if not guardrails.ASSISTANT_LIMIT.allow(SESSION.get()):
+        raise HTTPException(429, "Massa preguntes en poc temps. Espera un minut i torna-ho a provar.")
     ds=_get_dataset(req.dataset_id)
+    refusal=guardrails.input_check(req.message)
+    if refusal:
+        return {"mode":"guardrail","intent":"guardrail","answer":refusal,"insights":[refusal],"charts":[],"trace":[],
+                "evidence":{"rows":len(ds.frame)},"verification":None,"llm_warning":None,
+                "plan":{"kind":"analysis","metrics":[],"aggregation":"tools"},
+                "note":"Petició bloquejada abans d'arribar al model (guardrail d'entrada)."}
     available=_numeric_fields(ds.frame)
     plain=unicodedata.normalize("NFKD", req.message.casefold())
     plain="".join(c for c in plain if not unicodedata.combining(c))

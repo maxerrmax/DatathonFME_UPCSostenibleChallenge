@@ -214,7 +214,7 @@ function addChat(role,lines){
   });
   $('chat-messages').append(node);$('chat-messages').scrollTop=$('chat-messages').scrollHeight;return node;
 }
-const MODE_LABEL={greeting:'Presentació',helmcode:'Planificat amb Helmcode',context:'Context anterior verificat',physics:'Simulació física verificada',local:'Planificador local',
+const MODE_LABEL={guardrail:'Guardrail d’entrada',greeting:'Presentació',helmcode:'Planificat amb Helmcode',context:'Context anterior verificat',physics:'Simulació física verificada',local:'Planificador local',
   'analyst-helmcode':'Analista Helmcode · eines verificades','analyst-helmcode-json':'Analista Helmcode (pla JSON) · eines verificades','analyst-local':'Analista local · eines verificades'};
 async function askAssistant(question){
   if(state.busy)return;
@@ -240,7 +240,7 @@ async function askAssistant(question){
     if(res.plan?.kind && !['analysis','what_if'].includes(res.plan.kind))state.lastAi={dataset:state.dataset,question,plan:res.plan};
     $('copilot-context').hidden=!state.lastAi;
     if(state.lastAi){$('context-label').textContent='Context de gràfic · '+state.lastAi.plan.metrics.map(m=>dataset()?.metrics.find(x=>x.key===m)?.label||m).join(' + ');}
-    if(res.mode==='greeting'){$('ai-evidence').hidden=true;return;}
+    if(res.mode==='greeting'||res.mode==='guardrail'){$('ai-evidence').hidden=true;return;}
     state.aiCharts=res.charts;
     plotCards('ai-canvas-charts',res.charts,'AI Copilot',()=>messages.filter(m=>!m.startsWith('Avís')).map(m=>m.replace(/\s*\[E\d+\]/g,'').replace(/\*\*/g,'')).slice(0,4),
       ()=>({type:'question',question}));
@@ -264,6 +264,8 @@ function renderEvidence(res){
   if(v){badge.textContent=v.ok?`✓ ${v.verified}/${v.checked} xifres verificades`:`⚠ ${v.unverified.length} xifres sense evidència: ${v.unverified.join(', ')}`;badge.className='verify-badge '+(v.ok?'ok':'warn');}
   else{badge.textContent='càlcul directe al servidor';badge.className='verify-badge ok';}
   const text=$('ai-evidence-text');text.replaceChildren(el('p',null,res.note||''));
+  (v?.removed_sentences||[]).forEach(r=>text.append(el('p','guard-note','Guardrail: s’ha eliminat una frase del model amb xifres no verificables ('+r.unverified.join(', ')+'): «'+r.sentence+'»')));
+  if(v?.uncited_lines?.length)text.append(el('p','guard-note','Avís: '+v.uncited_lines.length+' línia(es) amb xifres però sense cita [E#].'));
   if(res.plan?.kind && res.plan.kind!=='analysis')text.append(el('p',null,'Operació: '+res.plan.kind+' · agregació: '+res.plan.aggregation+' · variables: '+(res.plan.metrics||[]).join(', ')));
 }
 

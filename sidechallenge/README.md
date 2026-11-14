@@ -85,6 +85,19 @@ Després d'editar l'agent, prem **Reexecutar** a l'Arena. Els resultats es desen
 - Comparacions de cohort: mitjanes horàries amb IC 95% bootstrap remostrejant **dies**, no hores.
 - El Copilot no calcula: Helmcode només tria eines i redacta. Els arguments es validen contra un esquema tancat i les xifres es verifiquen.
 
+## Guardrails del Copilot
+
+| Capa | Què evita | Com |
+|---|---|---|
+| **Entrada** | Injecció de prompt, extracció de claus o del prompt de sistema | `guardrails.input_check` respon sense cridar el model; els noms de columna pujats (text no fiable) es filtren abans d'arribar a cap prompt |
+| **Eines** | Que el model executi codi o toqui dades arbitràries | Esquemes tancats, llista blanca de variables, rangs limitats (p. ex. potència ≤ 500 kW), màxim 6 crides, crides repetides reaprofitades |
+| **Evidència** | Respostes de memòria o reutilitzant l'historial | Per a preguntes reconegudes el servidor executa abans les eines i el model redacta a partir d'aquests resultats; per a preguntes obertes, `tool_choice: required` |
+| **Sortida** | Xifres inventades, afirmacions sense suport, HTML | Cada frase amb una xifra que no és a les evidències d'aquest torn s'elimina (es mostra a la interfície); «N punts» ha de coincidir amb un score calculat; no es confia en xifres de la pregunta; es marquen les línies sense cita; text pla i longitud limitada |
+| **Volum** | Consum de crèdit si la demo s'exposa | Límit de 20 preguntes per minut i sessió |
+| **Privacitat** | Fuites de dades | El model només rep agregats de les eines i noms de columna, mai files de dades; la clau no surt del servidor |
+
+Limitació coneguda: la verificació és numèrica. Una afirmació qualitativa sense xifres i sense cita no s'elimina, només es pot detectar llegint-la; el prompt prohibeix afegir matisos que no surtin de les evidències.
+
 ## Arquitectura
 
 ```text
@@ -92,6 +105,7 @@ sidechallenge/
   service.py       API FastAPI: dades, gràfics, planificador de gràfics, Lab, Radar, endpoints Arena
   arena.py         Física oficial, LP amb marge, MPC, backtest, Pareto, dimensionat, calendari (en segon pla, amb memòria cau)
   eda.py           Estadística robusta, bootstrap per dies, qualitat de dades, senyal 70/30 per mes
+  guardrails.py    Entrada (injeccions, columnes no fiables), sortida (frases no verificables), límit de peticions
   copilot.py       Analista amb eines: classificació d'intenció, tool calling Helmcode, pla JSON, analista local, verificador
   static/          index.html · style.css · app.js · plotly.min.js
   tests/           test_service.py (v1) · test_v2.py · test_v3.py
