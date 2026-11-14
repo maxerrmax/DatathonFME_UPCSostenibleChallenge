@@ -1,4 +1,4 @@
-# UPC Energy Intelligence · v2.0
+# UPC Energy Intelligence · v3.0
 
 **Datathon FME 2026 — Side Challenge Tukey.** Una aplicació web orientada a l'anàlisi exploratòria i a les decisions energètiques, complementària (i independent) de `BatteryAgent`.
 
@@ -38,51 +38,63 @@ $env:HELMCODE_MODEL="qwen3.6"
 
 El model ha d'estar habilitat per la vostra clau. **No publiquis la clau a Git ni al frontend.** `mode: helmcode` a `/api/status` només significa que les variables estan configurades, **no** que el proveïdor hagi respost. La interfície distingeix entre planificador Helmcode verificat, context local i fallback local; no inventa visualitzacions si el proveïdor falla.
 
-## Què fa la v2.0?
+## Què fa la v3.0?
 
-| Espai | Funcions |
-|---|---|
-| **Vista general** | KPI de demanda, energia solar, emissions i cost sense bateria; gràfics i insights sobre train |
-| **Data Explorer** | Importar CSV/ZIP, construir heatmaps, perfils, histogrames, boxplots, scatter; exportar PNG |
-| **AI Copilot** | Preguntar en llenguatge natural, generar gràfics verificables, seguir una conversa amb context analític, filtrar per laborables/caps de setmana, canviar agregacions i comparar perfils |
-| **Decision Lab** | Simular un cicle de càrrega i descàrrega amb física del campus, comparar-lo amb un òptim retrospectiu i explorar el *Historical Opportunity Radar* |
-| **Decision Board** | Fixar figures de qualsevol anàlisi, canviar títols, reordenar amb drag-and-drop o fletxes, anotar decisions, exportar PNG o un JSON del board i imprimir a PDF |
+| Espai | Pregunta de decisió que respon | Com |
+|---|---|---|
+| **Vista general** | Què diuen les dades i quant me'n puc refiar? | KPI, perfils de **mediana + rang interquartílic** (un eix per unitat), panell **Data Quality** (lectures congelades 22–05 h, solar imputada, forats de test, absència d'excedents) |
+| **Data Explorer** | Com es distribueix i es relaciona cada variable? | Heatmaps, perfils amb banda de quartils, *small multiples* quan les unitats difereixen, scatter acolorit per hora, agregació setmanal sense *aliasing* |
+| **AI Copilot** | Quina decisió prenc i per què? | Analista **multi-step amb eines controlades** (perfil robust, millors hores, comparació amb IC bootstrap, correlació, simulació física, backtest, Pareto, qualitat). Helmcode tria les eines (*tool calling*; si no s'admet, pla JSON; si falla, analista local). **Verificador numèric**: cada xifra del text s'ha de trobar a les evidències `[E1]` |
+| **Decision Lab** | Com hauria de carregar avui? | Finestres de càrrega/descàrrega, física i score de `environment.py`, òptim del dia, **valor capturat**, gràfic «per què decideix així l'òptim», Radar per mes amb distribució diària del marge |
+| **Agent Arena** | Quina política presentem i on perdem punts? | Backtest al simulador **oficial** de BatteryAgent, regla horària, MPC 24 h (previsió ingènua i perfecta) i òptim setmanal sobre 11 setmanes pseudo-test; descomposició del regret; frontera CO₂–cost; dimensionat capacitat×potència; calendari de valor diari |
+| **Decision Board** | Com ho expliquem al jurat? | Targetes amb especificació reproduïble, notes que s'imprimeixen, conclusions generades només amb les evidències fixades, import/export JSON, persistència a `localStorage` |
+
+### Resultats clau (train, 11 setmanes pseudo-test, `environment.py`)
+
+- MPC de 24 h amb les previsions de preu i CO₂: **6,45 punts**, igual que l'òptim amb informació perfecta (regret d'horitzó i de previsió: 0,00).
+- Plantilla `starter_kit/agent.py`: **1,17 punts** i 4 infraccions (0,00 amb la penalització de l'ENUNCIAT).
+- La previsió de consum no aporta valor: la demanda neta mínima (460 kW) gairebé mai limita una descàrrega de 500 kW.
+- Doblar la capacitat (4.000 kWh) val més que doblar la potència (9,92 vs 7,33 punts òptims).
 
 ### Demo recomanada (3 minuts)
 
-1. **Overview:** verifica l'origen de dades i explica la prioritat del 70% sobre CO₂.
-2. **AI Copilot:** «Fes-me un heatmap dels preus i les emissions per hora i dia de la setmana» → comprova els dos gràfics.
-3. **Memòria:** «Ara només els caps de setmana» → els mateixos gràfics, però filtrats. Després «Compara-ho amb els laborables» → perfils amb dues línies, una per cohort.
-4. **Fixar al board:** fes clic a `+ Fixar al board` en dos gràfics.
-5. **Decision Lab:** mira l'Opportunity Radar, aplica el parell candidat al simulador i fixa l'escenari al board.
-6. **Decision Board:** reordena les evidències, explica què justifica cada gràfic, exporta el JSON i imprimeix el dossier a PDF.
+1. **Vista general → Data Quality** (20 s): «abans de concloure, sabem que el 33% de les hores de consum són lectures congelades».
+2. **Copilot → «Quina estratègia de bateria funciona millor?»** (40 s): mostra la traça `backtest()`, les cites `[E1]` i el segell «10/10 xifres verificades».
+3. **Agent Arena** (60 s): 1,17 → 6,45 punts; waterfall del regret; conclusió «no cal predir consum». Fixa el waterfall al board.
+4. **Decision Lab** (40 s): aplica el parell del Radar (14 → 21 h) i observa que captura poc; amplia les finestres i mira «per què decideix així l'òptim».
+5. **Arena → Pareto i dimensionat** (20 s): recomanació per a UPC Sostenible.
+6. **Board → Generar conclusions → Imprimir/PDF**.
+
+### Agent avaluat a l'Arena
+
+Per defecte s'importa (només lectura) `src/agent.py` si existeix; si no, `starter_kit/agent.py`. Per apuntar a un altre fitxer:
+
+```bash
+UPC_AGENT_PATH=ruta/al/agent.py python -m uvicorn sidechallenge.service:app --port 8502
+```
+
+Després d'editar l'agent, prem **Reexecutar** a l'Arena. Els resultats es desen a `sidechallenge/.cache/` (claus per hash de dades i data de modificació de l'agent).
 
 ### Notes metodològiques essencials
 
-- Tot el càlcul de visualitzacions i de KPIs es fa al servidor amb `pandas`, `Plotly` i, per a decisions, `SciPy`. Helmcode interpreta preguntes i proposa plans, però **no genera els valors estadístics**.
-- Les consultes amb context reutilitzen l'últim pla verificat, que es transmet al servidor com a configuració de gràfics, **no** com a codi executable. El backend revalida columnes i operacions.
-- L'Opportunity Radar és **descriptiu**: índex adimensional format pel 70% de CO₂ normalitzat i el 30% del preu normalitzat, ajustat a l'eficiència del 90% d'un cicle. És útil per trobar hipòtesis, **no és l'score oficial** ni garanteix una consigna òptima.
-- El Decision Lab opera **retrospectivament** i per **un dia**. Compara una estratègia manual amb un òptim de coneixement perfecte per aquell dia. Les restriccions de SOC inicial/final poden diferir de l'avaluació oficial de 2.016 hores; per això no s'ha de presentar la puntuació com a leaderboard.
-- Les dades d'entrenament poden tenir mancances i lectures congelades del comptador. L'EDA ha de documentar-les abans de formular conclusions causals.
-- Els datasets pujats s'aïllen per cookie de sessió i es mantenen només a la memòria del servidor. El Decision Board es guarda al `sessionStorage` del navegador (durant la sessió d'aquella pestanya) i el JSON exportat és local. **No es guarden claus API al navegador.**
-- El dashboard no altera `starter_kit/agent.py`, `dashboard/app.py` ni cap component de l'agent del challenge principal. S'executa amb el seu propi servei a port 8502.
+- Tots els números de bateria surten de `arena.official_eval`, una rèplica pas a pas de `environment.py` validada per test, o directament de `CampusBatteryEnv`. Els programes lineals deixen un marge d'1e-3 kWh als límits del SOC: la v2 provocava infraccions de *clipping* en 191 de 245 dies.
+- `environment.py` resta 0,2 punts per infracció i l'ENUNCIAT diu 1,00: l'Arena mostra totes dues puntuacions.
+- Setmanes pseudo-test: per a cada mes, els 7 últims dies complets de train (just abans de la finestra oculta). Les polítiques causals es normalitzen i calibren amb els dies **fora** d'aquestes setmanes.
+- L'òptim, el Pareto, el dimensionat i el calendari tenen informació perfecta: són **cotes superiors**, no previsions.
+- El Lab diari treballa en cicle tancat (la bateria no baixa del SOC inicial) per comparar dies de manera justa.
+- Comparacions de cohort: mitjanes horàries amb IC 95% bootstrap remostrejant **dies**, no hores.
+- El Copilot no calcula: Helmcode només tria eines i redacta. Els arguments es validen contra un esquema tancat i les xifres es verifiquen.
 
 ## Arquitectura
 
 ```text
 sidechallenge/
-  service.py                API FastAPI, estadístiques, planificació, anàlisi contextual,
-                            radar i simulador físic retrospectiu
-  static/
-    index.html              Interfície editorial en català
-    style.css               Identitat visual, estats, responsive i impressió/PDF
-    app.js                  Interaccions, memòria analítica i board fixat
-    plotly.min.js           Gràfics interactius sense CDN
-  tests/
-    test_service.py         Tests de la v1.x
-    test_v2.py              Tests de context, comparació i radar
-  sample_hourly.csv         Mostra de train per demostracions independents
-  requirements.txt
+  service.py       API FastAPI: dades, gràfics, planificador de gràfics, Lab, Radar, endpoints Arena
+  arena.py         Física oficial, LP amb marge, MPC, backtest, Pareto, dimensionat, calendari (en segon pla, amb memòria cau)
+  eda.py           Estadística robusta, bootstrap per dies, qualitat de dades, senyal 70/30 per mes
+  copilot.py       Analista amb eines: classificació d'intenció, tool calling Helmcode, pla JSON, analista local, verificador
+  static/          index.html · style.css · app.js · plotly.min.js
+  tests/           test_service.py (v1) · test_v2.py · test_v3.py
 ```
 
 ## Tests

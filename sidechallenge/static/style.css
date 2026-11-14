@@ -100,3 +100,53 @@ button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-vis
 .radar-arrow{font-size:22px;color:#a3b1a6}
 .radar-caption{font-size:11px!important;color:#82948a!important;line-height:1.6}
 @media(max-width:650px){.radar-rail{grid-template-columns:1fr 20px 1fr}.radar-rail>div:last-child{grid-column:1/-1}.radar-rail strong{font-size:20px}}
+/* ---------- v3 components ---------- */
+.lg-blue{background:var(--blue)}
+.quality-strip{background:#fff;border:1px solid var(--line);border-left:3px solid #C9A24C;padding:16px 20px;margin-top:14px}
+.quality-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.quality-items{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.quality-item{border:1px solid var(--line);padding:11px 12px;display:flex;flex-direction:column;gap:5px;background:#FBFBF8}
+.quality-item strong{font-size:12.5px;color:var(--ink)}.quality-item p{margin:0;font-size:11.5px;line-height:1.45;color:var(--ink2)}.quality-item small{font-size:11px;color:var(--muted)}
+.quality-level{font-size:9px;letter-spacing:1.4px;font-weight:700;color:#8a6d22}.level-alta{border-color:#e8c7b3;background:#fdf6f1}.level-alta .quality-level{color:var(--orange2)}
+.level-informativa .quality-level{color:var(--blue)}.quality-ok{margin:0;color:var(--muted);font-size:12px}
+.ev-chip{display:inline-block;font:700 9.5px/1 var(--display);letter-spacing:.6px;color:#2f5d43;background:#e4efe7;border:1px solid #c5dccb;border-radius:3px;padding:3px 5px;margin:0 3px;vertical-align:1px}
+.message p.decision-line{border-left:3px solid var(--orange);padding-left:9px;font-weight:600;color:var(--ink)}
+.verify-badge{margin-left:auto;font-size:10px;letter-spacing:.3px;padding:3px 7px;border-radius:3px;font-weight:700}
+.verify-badge.ok{background:#e4efe7;color:#2f5d43}.verify-badge.warn{background:#fbe9df;color:var(--orange2)}
+.evidence-header{display:flex;align-items:center;gap:8px}
+.trace-list{list-style:none;margin:10px 0 6px;padding:0;display:flex;flex-direction:column;gap:6px}
+.trace-item{background:#fff;border:1px solid var(--line);padding:7px 9px;font-size:11.5px}.trace-item.error{border-color:#e8c7b3}
+.trace-head{display:flex;align-items:center;gap:6px;flex-wrap:wrap}.trace-head code{font-size:11px;color:var(--ink2);word-break:break-all}.trace-item p{margin:5px 0 0;color:var(--orange2)}
+.window-block{border:1px solid var(--line);padding:11px 12px;margin:12px 0 4px}
+.window-title{display:flex;align-items:center;gap:7px;font-size:10px;letter-spacing:1.3px;font-weight:700;color:var(--ink2)}
+.window-title strong{margin-left:auto;font:700 13px var(--display);color:var(--ink)}.window-title .dot{width:8px;height:8px;border-radius:50%}
+.window-block.charge .dot{background:#7E9F83}.window-block.discharge .dot{background:#E77B50}
+.window-row{display:grid;grid-template-columns:44px 1fr;align-items:center;font-size:11px;color:var(--muted);margin-top:7px}.window-row input{width:100%}
+.window-hint{font-size:11px;color:var(--muted);margin:6px 0 12px}
+.lab-comparisons{grid-template-columns:repeat(4,minmax(0,1fr))}
+.capture-bar{height:6px;background:#eef1ee;border-radius:3px;overflow:hidden}.capture-bar i{display:block;height:100%;width:0;background:var(--orange);transition:width .4s}
+.radar-controls{display:flex;align-items:center;gap:9px}.radar-controls select{border:1px solid var(--line);background:#fff;padding:6px 8px;font-size:12px}
+.radar-grid{display:grid;grid-template-columns:1.2fr 1fr;gap:12px}.radar-grid .graph{height:265px}
+.radar-subhead{margin:14px 0 2px}.radar-subhead p{margin:4px 0 0;font-size:12px;color:var(--muted)}#radar-matrix{height:330px}
+.arena-status{display:flex;align-items:center;gap:10px;background:#fff;border:1px solid var(--line);padding:11px 15px;font-size:12.5px;color:var(--ink2);margin-bottom:12px}
+.arena-status .text-link{margin-left:auto}
+.arena-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:14px}
+.arena-kpi{background:#fff;border:1px solid var(--line);padding:16px 18px;display:flex;flex-direction:column;gap:8px}
+.arena-kpi span{font-size:9.5px;letter-spacing:1.5px;font-weight:700;color:var(--muted)}.arena-kpi strong{font:700 30px/1 var(--display);color:var(--ink)}.arena-kpi small{font-size:11px;color:var(--muted);line-height:1.4}
+.arena-kpi.accent{background:var(--ink);border-color:var(--ink)}.arena-kpi.accent strong{color:#fff}.arena-kpi.accent span,.arena-kpi.accent small{color:#b7c3c1}
+.arena-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-bottom:16px}.arena-grid .graph{height:330px}
+.panel-wide-arena{grid-column:1/-1}
+.arena-callout{margin-top:8px;font-size:12px;line-height:1.5;color:var(--ink2)}.arena-callout p{margin:5px 0}
+.arena-insight{background:#fdf6f1;border-left:3px solid var(--orange);padding:8px 10px;font-weight:600;color:var(--ink)}
+.arena-foot{font-size:11px;color:var(--muted);line-height:1.5;margin-top:10px}
+.comparison-table tr.row-team td{background:#fdf6f1;font-weight:700}
+.arena-studies-head{margin-top:8px}
+.board-summary{background:#fff;border:1px solid var(--line);border-left:3px solid var(--orange);padding:18px 22px;margin:0 0 16px}
+.board-summary ol{margin:10px 0;padding-left:20px;font-size:13px;line-height:1.55;color:var(--ink2)}.board-summary li{margin-bottom:6px}.board-summary em{color:var(--ink)}
+.board-summary-foot{font-size:11px;color:var(--muted)}
+.board-note-print{display:none}
+.board-card-action.inline{margin-left:8px;padding:1px 6px;font-size:10px}
+code{font-size:.92em}
+@media (max-width:1180px){.quality-items,.arena-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.lab-comparisons{grid-template-columns:repeat(2,minmax(0,1fr))}.arena-grid,.radar-grid{grid-template-columns:1fr}.panel-wide-arena{grid-column:auto}}
+@media (max-width:620px){.quality-items,.arena-kpis,.lab-comparisons{grid-template-columns:1fr}}
+@media print{.board-note-print{display:block!important;font-size:11px;font-style:italic;color:#23313D;margin-top:6px}.board-summary{display:block}.board-summary[hidden]{display:none}.board-card-action.inline{display:none}}

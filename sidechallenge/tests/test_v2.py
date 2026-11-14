@@ -105,4 +105,4 @@ def test_v2_html_has_board_and_lab_entrypoints():
     assert 'id="lab-pin"' in html
     assert 'id="radar-apply"' in html
     assert 'previous_plan:context?.plan' in js
-    assert 'sessionStorage.setItem' in js
+    assert 'localStorage.setItem' in js  # v3: survives closing the tab

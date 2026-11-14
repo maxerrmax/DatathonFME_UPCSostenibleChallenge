@@ -61,8 +61,11 @@ def test_assistant_what_if_uses_simulator():
         assert r.status_code == 200
         x=r.json()
         assert x['mode'] == 'physics'
-        assert x['evidence']['simulation']['manual']['soc_end_kwh'] == 1000
+        sim = x['evidence']['items'][0]['summary']
+        assert sim['charge_window'] == [14, 14] and sim['discharge_window'] == [20, 20]
+        assert abs(sim['soc_end_kwh'] - 1000) < 0.01   # closed daily cycle
         assert len(x['charts']) == 1
+        assert x['verification']['ok']
 
 
 def test_helmcode_fallback_is_explained(monkeypatch):

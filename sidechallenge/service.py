@@ -30,6 +30,8 @@ from pydantic import BaseModel, Field
 from scipy.optimize import linprog
 from plotly.subplots import make_subplots
 
+from . import arena, copilot, eda
+
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent
 DEFAULT_SAMPLE = HERE / "sample_hourly.csv"
@@ -49,7 +51,7 @@ FIELD_NAMES = {
 UNITS = {"load_kw": "kW", "pv_kw": "kW", "net_kw": "kW", "precio_eur_per_kwh": "€/kWh", "co2_kg_per_kwh": "kg CO₂/kWh", "temp_c": "°C", "irr_wm2": "W/m²", "baseline_cost": "€", "baseline_co2": "kg CO₂"}
 PALETTE = ["#E77741", "#4A6C9A", "#789A77", "#9C76A9", "#D0A64C", "#4F7580"]
 
-app = FastAPI(title="UPC Energy Intelligence", version="2.0.0")
+app = FastAPI(title="UPC Energy Intelligence", version="3.0.0")
 app.mount("/static", StaticFiles(directory=HERE / "static"), name="static")
 
 @dataclass
@@ -186,6 +188,10 @@ def _numeric_fields(df: pd.DataFrame) -> list[str]:
     return [c for c in df.select_dtypes(include="number").columns if c not in {"hour", "weekday", "month", "row_id"}]
 
 
+def _energy_ready(df: pd.DataFrame) -> bool:
+    return all(x in df.columns for x in ("load_kw", "pv_kw", "precio_eur_per_kwh", "co2_kg_per_kwh", "Fecha"))
+
+
 def _catalogue(ds_id: str, ds: Dataset) -> dict:
     df = ds.frame
     fields = _numeric_fields(df)
@@ -196,7 +202,9 @@ def _catalogue(ds_id: str, ds: Dataset) -> dict:
         "end": str(df["Fecha"].max().date()) if "Fecha" in df else None,
         "metrics": [{"key": c, "label": FIELD_NAMES.get(c, c), "unit": UNITS.get(c, "")} for c in fields],
         "missing_pct": _num(df[fields].isna().mean().mean() * 100, 2) if fields else 0,
-        "energy_ready": all(x in df.columns for x in ("load_kw", "pv_kw", "precio_eur_per_kwh", "co2_kg_per_kwh", "Fecha")),
+        "energy_ready": _energy_ready(df),
+        "months": sorted(int(m) for m in df["month"].dropna().unique()) if "month" in df else [],
+        "official": ds.source.startswith("data/train"),
     }
 
 
@@ -207,6 +215,9 @@ def home():
 
 @app.get("/api/status")
 def status():
+    campus = DATASETS.get("campus")
+    if campus is not None and campus.source.startswith("data/train") and _energy_ready(campus.frame):
+        arena.start_background(campus.frame)
     return {
         "status": "ok", "mode": "helmcode" if os.getenv("HELMCODE_API_KEY") and os.getenv("HELMCODE_MODEL") else "local",
         "datasets": [_catalogue(k, v) for k, v in DATASETS.items() if v.owner is None or v.owner == SESSION.get()],
@@ -310,6 +321,11 @@ def _style_fig(fig: go.Figure, title: str = "") -> go.Figure:
     return fig
 
 
+def _rgba(hex_color: str, alpha: float) -> str:
+    h = hex_color.lstrip("#")
+    return f"rgba({int(h[0:2], 16)},{int(h[2:4], 16)},{int(h[4:6], 16)},{alpha})"
+
+
 def _hour_profile(df: pd.DataFrame) -> list[dict]:
     if "hour" not in df:
         return []
@@ -326,15 +342,12 @@ def overview(dataset_id: str = "campus", month: int | None = None, day_type: str
         raise HTTPException(400, "El filtre no conté dades")
     profile = _hour_profile(df)
     numerics = _numeric_fields(df)
-    daily = []
-    if "date" in df:
-        selected = [c for c in ("load_kw", "pv_kw", "baseline_co2", "baseline_cost") if c in df]
-        if selected:
-            dg = df.groupby("date")[selected].sum(min_count=1)
-            if len(dg) > 250:
-                # Preserve the actual dates at each 7-day aggregation.
-                dg = dg.iloc[::7]
-            daily = [{"date": str(k), **{c: _num(row[c], 3) for c in selected}} for k, row in dg.iterrows()]
+    robust = {}
+    if "hour" in df:
+        for m in ("load_kw", "pv_kw", "net_kw", "precio_eur_per_kwh", "co2_kg_per_kwh"):
+            if m in df:
+                r = eda.robust_profile(df, m)
+                robust[m] = {k: [_num(v, 5) for v in r[k]] for k in ("median", "q25", "q75")}
     key = {}
     for k, source, scale, decimals in [
         ("demand_mwh", "load_kw", 1000, 1), ("solar_mwh", "pv_kw", 1000, 1),
@@ -345,7 +358,7 @@ def overview(dataset_id: str = "campus", month: int | None = None, day_type: str
     corr = _num(df[["precio_eur_per_kwh", "co2_kg_per_kwh"]].corr().iloc[0, 1], 3) if all(c in df for c in ("precio_eur_per_kwh", "co2_kg_per_kwh")) else None
     return {
         "dataset": _catalogue(dataset_id, ds), "kpi": key, "corr": corr,
-        "profile": profile, "daily": daily, "rows": len(df), "missing": [
+        "profile": profile, "robust": robust, "frozen_hours": eda.frozen_hours(ds.frame), "rows": len(df), "missing": [
             {"field": FIELD_NAMES.get(c,c), "missing_pct": _num(df[c].isna().mean()*100,1)}
             for c in sorted(numerics, key=lambda c: df[c].isna().mean(), reverse=True)[:12]
         ],
@@ -398,40 +411,71 @@ def make_charts(req: ChartReq) -> list[dict]:
             ))
             fig.update_xaxes(title="Hora del dia", type="category", dtick=2)
             fig.update_yaxes(title="Dia de la setmana", autorange="reversed")
-            results.append({"title": FIELD_NAMES.get(metric,metric), "unit": UNITS.get(metric,""), "figure": _fig_json(_style_fig(fig))})
+            frozen = eda.frozen_hours(df) if metric in {"load_kw", "net_kw", "baseline_cost", "baseline_co2"} else []
+            note = f" · ⚠ {eda._hours_label(frozen)}: lectura congelada" if frozen else ""
+            results.append({"title": FIELD_NAMES.get(metric,metric) + note, "unit": UNITS.get(metric,""), "figure": _fig_json(_style_fig(fig))})
     elif req.kind in {"line", "bar"}:
-        x = df.groupby(group)[metrics].agg(agg).sort_index()
-        if group == "date" and len(x) > 200:
-            x = x.iloc[::max(1,len(x)//200)]
-        # Different physical units must not share the same numeric axis.
-        diff_unit = len(metrics) == 2 and UNITS.get(metrics[0]) != UNITS.get(metrics[1])
-        fig = make_subplots(specs=[[{"secondary_y": True}]]) if diff_unit else go.Figure()
+        if group == "date" and "Fecha" in df:
+            daily = df.groupby("date")[metrics].agg(agg)
+            if len(daily) > 200:
+                # Aggregate to weeks instead of skipping rows (no aliasing of the series).
+                weekly = df.set_index("Fecha")[metrics].resample("W-MON", label="left", closed="left").agg(agg if agg != "sum" else "sum")
+                x = weekly.dropna(how="all"); x.index = x.index.strftime("%Y-%m-%d"); group_label = "Setmana"
+            else:
+                x = daily; group_label = "Data"
+        else:
+            x = df.groupby(group)[metrics].agg(agg).sort_index()
+            group_label = {"hour": "Hora", "weekday": "Dia", "month": "Mes", "date": "Data"}.get(group, group)
+        # Different physical units never share an axis: one panel per unit (small multiples).
+        units = list(dict.fromkeys(UNITS.get(m, m) for m in metrics))
+        fig = make_subplots(rows=len(units), cols=1, shared_xaxes=True, vertical_spacing=0.09) if len(units) > 1 else go.Figure()
         labels = [DAYS[int(v)] for v in x.index] if group == "weekday" else list(x.index)
-        for i,m in enumerate(metrics):
-            trace = go.Bar(x=labels,y=x[m],name=FIELD_NAMES.get(m,m),marker_color=PALETTE[i]) if req.kind == "bar" else go.Scatter(x=labels,y=x[m],mode="lines+markers",name=FIELD_NAMES.get(m,m),line=dict(color=PALETTE[i],width=2.5),marker=dict(size=4))
-            if diff_unit: fig.add_trace(trace,secondary_y=bool(i))
-            else: fig.add_trace(trace)
-        fig.update_xaxes(title={"hour":"Hora", "weekday":"Dia", "month":"Mes","date":"Data"}.get(group,group))
-        if diff_unit:
-            fig.update_yaxes(title_text=UNITS.get(metrics[0],""),secondary_y=False)
-            fig.update_yaxes(title_text=UNITS.get(metrics[1],""),secondary_y=True,showgrid=False)
-        results.append({"title":" · ".join(FIELD_NAMES.get(m,m) for m in metrics), "unit":"", "figure":_fig_json(_style_fig(fig))})
+        band = req.kind == "line" and group == "hour" and agg in {"mean", "median"}
+        for i, m in enumerate(metrics):
+            row = units.index(UNITS.get(m, m)) + 1
+            pos = dict(row=row, col=1) if len(units) > 1 else {}
+            if band:
+                q = df.groupby("hour")[m].quantile([0.25, 0.75]).unstack().reindex(x.index)
+                fig.add_trace(go.Scatter(x=labels, y=q[0.75], mode="lines", line=dict(width=0), showlegend=False, hoverinfo="skip"), **pos)
+                fig.add_trace(go.Scatter(x=labels, y=q[0.25], mode="lines", line=dict(width=0), fill="tonexty",
+                                         fillcolor=_rgba(PALETTE[i], .14), showlegend=False, hoverinfo="skip"), **pos)
+            trace = (go.Bar(x=labels, y=x[m], name=FIELD_NAMES.get(m, m), marker_color=PALETTE[i]) if req.kind == "bar" else
+                     go.Scatter(x=labels, y=x[m], mode="lines+markers", name=FIELD_NAMES.get(m, m) + (" (banda: quartils 25–75%)" if band else ""),
+                                line=dict(color=PALETTE[i], width=2.5), marker=dict(size=4)))
+            fig.add_trace(trace, **pos)
+            fig.update_yaxes(title_text=UNITS.get(m, ""), **pos)
+        fig.update_xaxes(title=group_label, row=len(units), col=1) if len(units) > 1 else fig.update_xaxes(title=group_label)
+        if len(units) > 1:
+            fig.update_layout(height=230 * len(units) + 60)
+        results.append({"title": " · ".join(FIELD_NAMES.get(m, m) for m in metrics), "unit": "", "figure": _fig_json(_style_fig(fig))})
     elif req.kind == "scatter":
         if len(metrics) < 2: raise HTTPException(400, "Scatter necessita dues mètriques")
-        vals = df[metrics[:2]].dropna()
-        if len(vals)>4500: vals=vals.sample(4500,random_state=42)
-        fig = go.Figure(go.Scattergl(x=vals[metrics[0]], y=vals[metrics[1]], mode="markers", marker=dict(size=6,color="#E77741",opacity=.4)))
-        fig.update_xaxes(title=FIELD_NAMES.get(metrics[0],metrics[0])+" ("+UNITS.get(metrics[0],"")+")")
-        fig.update_yaxes(title=FIELD_NAMES.get(metrics[1],metrics[1])+" ("+UNITS.get(metrics[1],"")+")")
-        results.append({"title":"Relació entre variables", "unit":"", "figure":_fig_json(_style_fig(fig))})
+        cols = metrics[:2] + (["hour"] if "hour" in df else [])
+        vals = df[cols].dropna()
+        if len(vals) > 4500: vals = vals.sample(4500, random_state=42)
+        marker = dict(size=6, opacity=.5, color=vals["hour"], colorscale="Twilight", colorbar=dict(title="Hora", thickness=10)) if "hour" in vals else dict(size=6, color="#E77741", opacity=.4)
+        fig = go.Figure(go.Scattergl(x=vals[metrics[0]], y=vals[metrics[1]], mode="markers", marker=marker,
+                                     hovertemplate="%{x:.4g} · %{y:.4g}<extra></extra>"))
+        r = vals[metrics[0]].corr(vals[metrics[1]])
+        fig.update_xaxes(title=FIELD_NAMES.get(metrics[0], metrics[0]) + " (" + UNITS.get(metrics[0], "") + ")")
+        fig.update_yaxes(title=FIELD_NAMES.get(metrics[1], metrics[1]) + " (" + UNITS.get(metrics[1], "") + ")")
+        results.append({"title": f"Relació entre variables · r = {r:.3f} (color = hora)", "unit": "", "figure": _fig_json(_style_fig(fig))})
     elif req.kind in {"histogram", "box"}:
-        fig=go.Figure()
-        for i,m in enumerate(metrics):
-            vals=df[m].dropna()
-            if req.kind=="histogram": fig.add_histogram(x=vals,name=FIELD_NAMES.get(m,m),marker_color=PALETTE[i],opacity=.65,nbinsx=35)
-            else: fig.add_box(y=vals,name=FIELD_NAMES.get(m,m),marker_color=PALETTE[i],boxpoints=False)
-        fig.update_layout(barmode="overlay")
-        results.append({"title":"Distribució de les variables", "unit":"", "figure":_fig_json(_style_fig(fig))})
+        units = list(dict.fromkeys(UNITS.get(m, m) for m in metrics))
+        many = len(units) > 1
+        fig = make_subplots(rows=1, cols=len(metrics), subplot_titles=[FIELD_NAMES.get(m, m) for m in metrics]) if many else go.Figure()
+        for i, m in enumerate(metrics):
+            vals = df[m].dropna()
+            pos = dict(row=1, col=i + 1) if many else {}
+            if req.kind == "histogram":
+                fig.add_trace(go.Histogram(x=vals, name=FIELD_NAMES.get(m, m), marker_color=PALETTE[i], opacity=.7, nbinsx=35), **pos)
+                fig.update_xaxes(title_text=UNITS.get(m, ""), **pos)
+            else:
+                fig.add_trace(go.Box(y=vals, name=FIELD_NAMES.get(m, m), marker_color=PALETTE[i], boxpoints="outliers", boxmean=True), **pos)
+                fig.update_yaxes(title_text=UNITS.get(m, ""), **pos)
+        fig.update_layout(barmode="overlay", showlegend=not many)
+        title = "Distribució de les variables" + (" · un panell per unitat" if many else "")
+        results.append({"title": title, "unit": "", "figure": _fig_json(_style_fig(fig))})
     else:
         raise HTTPException(400, "Tipus de gràfic no compatible")
     return results
@@ -449,6 +493,8 @@ class AssistantReq(BaseModel):
     # intentionally stateless: no user message is saved by the server.
     previous_query: str | None = Field(default=None, max_length=900)
     previous_plan: dict[str, Any] | None = None
+    # Last turns (question + answer text) for the analyst; never stored server-side.
+    history: list[dict[str, str]] | None = Field(default=None, max_length=6)
 
 
 def _local_plan(query: str, metrics: list[str], has_time: bool) -> dict:
@@ -827,6 +873,15 @@ def _grounded_insights(df:pd.DataFrame, metrics:list[str], req:ChartReq) -> tupl
     return insights,evidence
 
 
+FOLLOWUP_RE = (r"\b(ara|nomes|sols|mateix|mateixa|mateixos|filtra|separa|compara|despres|pero|aixo|ho|igual|abans|anterior|"
+               r"canvia|enlloc|en lloc|tambe|i si)\b")
+
+
+def is_followup(plain: str, earlier: dict | None, explicit: list[str]) -> bool:
+    """A follow-up must say so ('ara…', '…-ho', 'el mateix…'); short new questions are new questions."""
+    return bool(earlier and not explicit and re.search(FOLLOWUP_RE, plain))
+
+
 def _continuation(query: str, previous_query: str | None, previous_plan: dict | None, available: list[str], has_time: bool) -> tuple[str, dict | None, str, bool]:
     """Resolve short references and filters without trusting previous plans.
 
@@ -845,10 +900,7 @@ def _continuation(query: str, previous_query: str | None, previous_plan: dict | 
     explicit, explicit_heatmap = _query_requirements(query, available)
     # Direct questions about metrics are new questions. Follow-ups like
     # 'ara només caps de setmana' must reuse the earlier chart type/metrics.
-    followup = bool(earlier and not explicit and (
-        re.search(r"\b(ara|nomes|sols|mateix|mateixa|filtra|separa|compara|despres|pero|pero|aixo|ho)\b",plain)
-        or len(plain.split()) <= 8
-    ))
+    followup = is_followup(plain, earlier, explicit)
     if earlier and followup:
         kind = earlier.get("kind") if earlier.get("kind") in {"heatmap","line","bar","scatter","histogram","box"} else "line"
         metrics = [m for m in earlier.get("metrics", []) if isinstance(m,str) and m in available][:3]
@@ -874,7 +926,11 @@ def _continuation(query: str, previous_query: str | None, previous_plan: dict | 
 
 
 def _compare_daytypes(dataset_id: str, plan: dict) -> tuple[list[dict], list[str], dict]:
-    """Compare weekday vs weekend on *paired axes*, more faithful than two sparse heatmaps."""
+    """Weekday vs weekend on shared axes, with day-level bootstrap 95% intervals.
+
+    Always compares hourly *means*: sums would mostly reflect that there are 2,5×
+    more working days than weekend days.
+    """
     df = _get_dataset(dataset_id).frame
     if "weekday" not in df or "hour" not in df:
         raise HTTPException(400,"La comparació horària necessita una data reconeguda")
@@ -882,62 +938,59 @@ def _compare_daytypes(dataset_id: str, plan: dict) -> tuple[list[dict], list[str
     weekend=df[df["weekday"]>=5]
     charts: list[dict] = []
     summaries: list[str] = []
-    evidence: dict = {"comparison":"laborables vs cap de setmana",
+    evidence: dict = {"comparison":"laborables vs cap de setmana", "statistic": "mitjana horària amb IC 95% bootstrap per dies",
                       "groups":{"weekday":{"rows":len(weekday)},"weekend":{"rows":len(weekend)}}}
+    if plan.get("aggregation") not in (None, "mean"):
+        summaries.append(f"S'ha comparat la mitjana (no «{plan.get('aggregation')}») perquè els dos grups tenen un nombre de dies diferent.")
     for metric in plan["metrics"]:
         if metric not in df: continue
+        r = eda.bootstrap_diff(weekday, weekend, metric)
+        if not r: continue
         fig=go.Figure()
-        for part,name,color in ((weekday,"Laborables","#527b91"),(weekend,"Caps de setmana","#d67b4e")):
-            h=part.groupby("hour")[metric].agg(plan["aggregation"]).reindex(range(24))
-            fig.add_scatter(x=list(range(24)),y=h.tolist(),mode="lines+markers",name=name,
+        for key,name,color in (("a","Laborables","#527b91"),("b","Caps de setmana","#d67b4e")):
+            mean = r[f"mean_{key}"]
+            fig.add_scatter(x=list(range(24)),y=[_num(v,5) for v in mean],mode="lines+markers",name=name,
                             line=dict(width=2.6,color=color),marker=dict(size=4),
-                            hovertemplate="%{x}:00 · %{y:.4f} "+UNITS.get(metric,"")+"<extra>"+name+"</extra>")
+                            error_y=dict(type="data",symmetric=False,array=[_num(v,5) for v in (r[f"{key}_hi"]-mean)],
+                                         arrayminus=[_num(v,5) for v in (mean-r[f"{key}_lo"])],thickness=1,width=2,color=color),
+                            hovertemplate="%{x}:00 · %{y:.4g} "+UNITS.get(metric,"")+"<extra>"+name+"</extra>")
         fig.update_xaxes(title="Hora del dia",dtick=2)
         fig.update_yaxes(title=UNITS.get(metric,""))
-        charts.append({"title":FIELD_NAMES.get(metric,metric)+" · laborables vs cap de setmana",
+        charts.append({"title":FIELD_NAMES.get(metric,metric)+" · laborables vs cap de setmana (IC 95%)",
                        "unit":UNITS.get(metric,""),"figure":_fig_json(_style_fig(fig))})
-        a=weekday[metric].dropna().mean()
-        b=weekend[metric].dropna().mean()
-        if pd.notna(a) and pd.notna(b):
-            summaries.append(f"{FIELD_NAMES.get(metric,metric)}: laborables {a:.4g} {UNITS.get(metric,'')}, caps de setmana {b:.4g} {UNITS.get(metric,'')}; diferència {(b-a):+.4g} {UNITS.get(metric,'')}.")
-            evidence[metric]={"weekday_mean":_num(a,5),"weekend_mean":_num(b,5)}
+        a=float(np.nanmean(r["mean_a"])); b=float(np.nanmean(r["mean_b"]))
+        summaries.append(f"{FIELD_NAMES.get(metric,metric)}: laborables {eda.ca(a,3 if abs(a)<10 else 1)} {UNITS.get(metric,'')}, caps de setmana "
+                         f"{eda.ca(b,3 if abs(b)<10 else 1)} {UNITS.get(metric,'')}; diferència significativa en {len(r['significant_hours'])} de 24 hores.")
+        evidence[metric]={"weekday_mean":_num(a,5),"weekend_mean":_num(b,5),"significant_hours":r["significant_hours"],
+                          "days":{"weekday":r["days_a"],"weekend":r["days_b"]}}
     summaries.append("Comparació descriptiva de períodes històrics; no prova causalitat ni determina per si sola una consigna de bateria.")
     return charts[:3], summaries, evidence
 
 
 @app.post("/api/assistant")
 async def assistant(req: AssistantReq):
-    # Interpret what-if questions as real physics simulations, never as LLM guesses.
-    question=req.message.casefold()
-    if any(t in question for t in ("què passaria", "que passaria", "qué pasaría", "what if", "simula", "simulació de", "simulación de")):
-        d=_get_dataset(req.dataset_id).frame
-        if "date" not in d:
+    """Route a question: physics what-if, multi-step analyst with tools, or chart planner.
+
+    Chart requests and explicit follow-ups ("ara només…", "compara-ho…") keep the
+    verified chart-plan path; analytical and decision questions go to the
+    tool-using analyst (Helmcode tool calling, JSON-plan fallback, or local).
+    """
+    ds=_get_dataset(req.dataset_id)
+    available=_numeric_fields(ds.frame)
+    plain=unicodedata.normalize("NFKD", req.message.casefold())
+    plain="".join(c for c in plain if not unicodedata.combining(c))
+    explicit,_=_query_requirements(req.message, available)
+    followup=is_followup(plain, req.previous_plan if isinstance(req.previous_plan, dict) else None, explicit)
+    intent="simulate_day" if copilot.is_what_if(req.message) else (None if followup else copilot.classify(req.message))
+    if intent:
+        if intent == "simulate_day" and not _energy_ready(ds.frame):
             raise HTTPException(400, "Per fer un what-if calen dades de temps i energia")
-        full=d.dropna(subset=["load_kw","pv_kw","precio_eur_per_kwh","co2_kg_per_kwh"]).groupby("date").size()
-        days=full[full==24].index.tolist()
-        if not days:raise HTTPException(400,"No hi ha cap dia complet per simular")
-        date=re.search(r"20\d{2}-\d{2}-\d{2}",req.message)
-        selected=date.group(0) if date and date.group(0) in days else days[0]
-        # Parse explicit charge and discharge times; show assumptions in the answer.
-        ch=re.search(r"(?:carreg\w*|carg\w*|charg\w*).*?(?:a les|a las|at)\s*(\d{1,2})",question)
-        dis=re.search(r"(?:descarreg\w*|descarg\w*|discharg\w*).*?(?:a les|a las|at)\s*(\d{1,2})",question)
-        ch_hour=int(ch.group(1)) if ch and int(ch.group(1))<24 else 14
-        dis_hour=int(dis.group(1)) if dis and int(dis.group(1))<24 else 20
-        sim=simulate(SimReq(dataset_id=req.dataset_id,date=selected,charge_hour=ch_hour,discharge_hour=dis_hour))
-        fig=make_subplots(specs=[[{"secondary_y":True}]])
-        fig.add_trace(go.Bar(x=sim["hours"],y=sim["manual_actions"],name="Consigna · kW",marker_color="#E77741"),secondary_y=False)
-        fig.add_trace(go.Scatter(x=sim["hours"],y=sim["manual_soc"],mode="lines+markers",name="SOC · kWh",line=dict(color="#4A6C9A",width=2.5)),secondary_y=True)
-        fig.update_xaxes(title="Hora");fig.update_yaxes(title_text="Potència (kW)",secondary_y=False)
-        fig.update_yaxes(title_text="SOC (kWh)",secondary_y=True,range=[0,2100],showgrid=False)
-        impact=sim["manual"]
-        insights=[f"Escenari del {selected}: carregar a les {ch_hour:02d}:00 i descarregar a les {dis_hour:02d}:00 (potència màxima 500 kW).",
-                  f"Estalvi calculat: {impact['saving_eur']} € i {impact['saving_kg']} kg de CO₂, amb score diari {impact['score']} punts.",
-                  f"Referència retrospectiva amb coneixement perfecte: {sim['optimal']['score']} punts. El SOC final és {impact['soc_end_kwh']} kWh.",
-                  "És un experiment d'un dia amb SOC inicial i final iguals; no és el score oficial ni una recomanació executable sense previsions."]
-        return {"mode":"physics", "plan":{"kind":"what_if","metrics":["consigna_kw","soc_kwh"],"aggregation":"simulation"},
-                "charts":[{"title":"Simulació física · càrrega i SOC", "unit":"", "figure":_fig_json(_style_fig(fig))}],
-                "insights":insights, "evidence":{"rows":24,"date":selected,"simulation":sim},
-                "note":"Calculat amb balanços d'energia i optimització lineal. El LLM no genera els resultats."}
+        history=[t for t in (req.history or []) if isinstance(t, dict)][-3:]
+        return await copilot.answer(sys.modules[__name__], req.dataset_id, req.message, history, intent)
+    return await _chart_assistant(req)
+
+
+async def _chart_assistant(req: "AssistantReq"):
     ds=_get_dataset(req.dataset_id)
     available=_numeric_fields(ds.frame)
     has_time="hour" in ds.frame
@@ -980,131 +1033,147 @@ async def assistant(req: AssistantReq):
 
 
 @app.get("/api/radar")
-def opportunity_radar(dataset_id: str = "campus"):
+def opportunity_radar(dataset_id: str = "campus", month: int | None = None):
     """Exploratory historical opportunity profile, not an executable dispatch.
 
-    The weighted signal uses train means for dimensionless scaling. Unlike
-    the official score, this indicator is not normalized by a specific week's
-    baseline energy bill/emissions. A charge/discharge candidate is *only* a
-    hypothesis to check against the physical simulator.
+    Signal = 0.7·CO₂/mean + 0.3·price/mean (dimensionless). A candidate pair is
+    a hypothesis to validate in the Lab. Uses the same complete days as the Lab,
+    and reports the per-day spread distribution and the best pair per month.
     """
     df=_get_dataset(dataset_id).frame
     need=["hour","date","precio_eur_per_kwh","co2_kg_per_kwh"]
     if any(c not in df for c in need):
         raise HTTPException(400,"Aquest dataset no disposa de preus i emissions horaris")
-    clean=df.dropna(subset=need).copy()
+    days=set(arena.complete_days(df)) if _energy_ready(df) else set(df.dropna(subset=need).groupby("date")["hour"].nunique().loc[lambda x: x==24].index)
+    clean=df[df["date"].isin(days)].dropna(subset=need).copy()
+    if month is not None:
+        clean=clean[clean["month"]==month]
     if len(clean)<24:raise HTTPException(400,"Falten hores suficients per al radar")
-    pmean=float(clean["precio_eur_per_kwh"].mean())
-    cmean=float(clean["co2_kg_per_kwh"].mean())
+    pmean=float(df["precio_eur_per_kwh"].mean()); cmean=float(df["co2_kg_per_kwh"].mean())
     if pmean<=0 or cmean<=0:raise HTTPException(400,"No es pot normalitzar aquest mercat")
     clean["signal"]=0.7*clean["co2_kg_per_kwh"]/cmean + 0.3*clean["precio_eur_per_kwh"]/pmean
     profile=clean.groupby("hour")["signal"].mean().reindex(range(24))
     if profile.isna().any():raise HTTPException(400,"Calen dades representatives de les 24 hores")
     signal=profile.to_numpy(float)
-    pairs=[(0.9*signal[d]-signal[c],c,d) for c in range(24) for d in range(c+1,24)]
-    best,c,d=max(pairs,key=lambda x:x[0])
-    full=clean.groupby("date").filter(lambda x:len(x)==24 and x["hour"].nunique()==24)
-    pivot=full.pivot_table(index="date",columns="hour",values="signal",aggfunc="mean")
-    viable=0
-    count=0
-    if c in pivot and d in pivot:
-        spread=(0.9*pivot[d]-pivot[c]).dropna()
-        count=int(len(spread)); viable=int((spread>0).sum())
+    best,c,d=max(((0.9*signal[d]-signal[c],c,d) for c in range(24) for d in range(c+1,24)),key=lambda x:x[0])
+    pivot=clean.pivot_table(index="date",columns="hour",values="signal",aggfunc="mean")
+    spread=(0.9*pivot[d]-pivot[c]).dropna()
+    count=int(len(spread)); viable=int((spread>0).sum())
+    by_month=eda.signal_by_month(df[df["date"].isin(days)])
+    matrix=by_month["matrix"]
     return {"method":"Indicador exploratori 70% CO₂ normalitzat + 30% preu normalitzat",
-            "efficiency":0.90, "profile":[{"hour":i,"signal":_num(signal[i],4)} for i in range(24)],
-            "candidate":{"charge_hour":c,"discharge_hour":d,"spread_index":_num(best,4),
+            "efficiency":0.90, "month":month, "profile":[{"hour":i,"signal":_num(signal[i],4)} for i in range(24)],
+            "candidate":{"charge_hour":int(c),"discharge_hour":int(d),"spread_index":_num(best,4),
                          "viable_day_pct":_num(100*viable/count,1) if count else None,
-                         "days_examined":count},
-            "disclaimer":"Perfils mitjans de train, no previsió de les pròximes 24h ni score oficial. La factibilitat real depèn del SOC, la demanda neta i les consignes. Valida el parell al Decision Lab."}
+                         "days_examined":count,
+                         "spread_quartiles":[_num(spread.quantile(q),3) for q in (.1,.25,.5,.75,.9)] if count else []},
+            "day_spreads":[_num(v,3) for v in spread.tolist()],
+            "by_month":by_month["best"],
+            "matrix":{"months":[int(m) for m in matrix.index],"z":[[_num(v,3) for v in row] for row in matrix.to_numpy()]},
+            "disclaimer":"Perfils mitjans de train, no previsió de les pròximes 24 h ni score oficial. La parella òptima canvia segons el mes "
+                         "i el marge diari varia molt: valida-ho al Decision Lab o, millor, a l'Agent Arena."}
+
+
+def default_day(days: list[str]) -> str:
+    """Most recent complete working day: a realistic, reproducible default for demos."""
+    for d in reversed(days):
+        if pd.Timestamp(d).dayofweek < 5:
+            return d
+    return days[-1]
 
 
 @app.get("/api/days")
 def days(dataset_id: str = "campus"):
     df=_get_dataset(dataset_id).frame
-    if not all(c in df for c in ("date","load_kw","pv_kw","precio_eur_per_kwh","co2_kg_per_kwh")):
+    if not _energy_ready(df):
         return {"dates":[],"reason":"Es necessiten dades horàries del campus, solar, preus i CO₂"}
-    complete=df.dropna(subset=["load_kw","pv_kw","precio_eur_per_kwh","co2_kg_per_kwh"])
-    dates=complete.groupby("date").size()
-    return {"dates":[str(x) for x in dates[dates==24].index],"reason":None}
+    ds=arena.complete_days(df)
+    return {"dates":ds,"default":default_day(ds) if ds else None,"reason":None}
 
 
 class SimReq(BaseModel):
     dataset_id: str = "campus"
     date: str
+    # Windows are inclusive and may wrap around midnight (e.g. 22 → 3).
+    charge_start: int | None = Field(default=None,ge=0,le=23)
+    charge_end: int | None = Field(default=None,ge=0,le=23)
+    discharge_start: int | None = Field(default=None,ge=0,le=23)
+    discharge_end: int | None = Field(default=None,ge=0,le=23)
+    # Backwards compatible single-hour fields (v2).
     charge_hour: int = Field(default=14,ge=0,le=23)
     discharge_hour: int = Field(default=20,ge=0,le=23)
     power_kw: float = Field(default=500,ge=0,le=500)
 
 
-def _manual_dispatch(df:pd.DataFrame, c_hour:int, d_hour:int, power:float) -> dict:
-    """One round-trip with end SOC equal to start SOC (fair daily comparison)."""
-    eta=math.sqrt(.9); soc=1000.; acts=[]; socs=[]
-    # 500 kWh charged at AC permits only 450 kWh returned at AC.
-    charge_power = min(power, (2000-1000)/eta)
-    discharge_power = min(power, charge_power*eta*eta)
-    if c_hour == d_hour:
-        charge_power=discharge_power=0.
-    for _,row in df.iterrows():
-        hour=int(row["hour"]); net=max(0,float(row["load_kw"])-float(row["pv_kw"]))
-        if hour==c_hour:
-            p=min(charge_power, (2000-soc)/eta)
-        elif hour==d_hour:
-            p=-min(discharge_power, soc*eta, net)
-        else: p=0.
-        if p>=0:soc+=p*eta
-        else:soc+=p/eta
-        soc=min(2000,max(0,soc)); acts.append(p);socs.append(soc)
-    return {"actions":np.asarray(acts),"soc":np.asarray(socs)}
-
-
-def _optimal_dispatch(df:pd.DataFrame) -> dict:
-    n=len(df);eta=math.sqrt(.9)
-    net=np.maximum(df["load_kw"].to_numpy(float)-df["pv_kw"].to_numpy(float),0)
-    price=df["precio_eur_per_kwh"].to_numpy(float);co2=df["co2_kg_per_kwh"].to_numpy(float)
-    cost0=float(net@price); co20=float(net@co2)
-    if cost0<=0 or co20<=0:raise HTTPException(400,"L'òptim requereix consums de xarxa positius")
-    weights=100*(.7*co2/co20+.3*price/cost0)
-    # Sparse linear programming with n<=24; constraints are energy conservation.
-    from scipy.sparse import eye,diags,hstack
-    D=eye(n,format="csr")-diags([np.ones(n-1)],[-1],shape=(n,n),format="csr")
-    A=hstack([-eta*eye(n,format="csr"),(1/eta)*eye(n,format="csr"),D],format="csr")
-    b=np.zeros(n);b[0]=1000.
-    bounds=([(0.,500.)]*n+[(0.,min(500.,v)) for v in net]+[(0.,2000.)]*(n-1)+[(1000.,1000.)])
-    res=linprog(np.r_[weights,-weights,np.zeros(n)],A_eq=A,b_eq=b,bounds=bounds,method="highs")
-    if not res.success:raise HTTPException(500,"No s'ha pogut resoldre l'optimització")
-    return {"actions":res.x[:n]-res.x[n:2*n],"soc":res.x[2*n:]}
-
-
-def _evaluate(df:pd.DataFrame,decision:dict) -> dict:
-    net=np.maximum(df["load_kw"].to_numpy(float)-df["pv_kw"].to_numpy(float),0)
-    grid=np.maximum(0,net+decision["actions"])
-    p=df["precio_eur_per_kwh"].to_numpy(float);c=df["co2_kg_per_kwh"].to_numpy(float)
-    bcost=float(net@p); bco2=float(net@c); cost=float(grid@p);co2=float(grid@c)
-    pcost=100*(bcost-cost)/bcost if bcost else 0
-    pco2=100*(bco2-co2)/bco2 if bco2 else 0
-    return {"cost":_num(cost,2),"co2":_num(co2,2),"saving_eur":_num(bcost-cost,2),
-            "saving_kg":_num(bco2-co2,2),"saving_cost_pct":_num(pcost,2),"saving_co2_pct":_num(pco2,2),
-            "score":_num(.7*pco2+.3*pcost,2),"soc_end_kwh":_num(decision["soc"][-1],1)}
+def run_day_simulation(df: pd.DataFrame, date: str, charge: tuple[int,int], discharge: tuple[int,int], power: float) -> dict:
+    day=df[df["date"]==date].sort_values("Fecha").dropna(subset=["load_kw","pv_kw","precio_eur_per_kwh","co2_kg_per_kwh"])
+    if len(day)!=24 or set(day["hour"])!=set(range(24)):
+        raise HTTPException(400,"Selecciona un dia amb les 24 hores completes")
+    try:
+        r=arena.simulate_day(day, charge, discharge, power)
+    except RuntimeError as exc:
+        raise HTTPException(500,"No s'ha pogut resoldre l'optimització") from exc
+    m,o=r["manual"],r["optimal"]
+    capture=_num(100*m["score_raw"]/o["score_raw"],1) if o["score_raw"]>0 else None
+    return {"date":date,"baseline":{"cost":_num(m["cost_baseline_eur"],2),"co2":_num(m["co2_baseline_kg"],2)},
+            "manual":arena.public(m),"optimal":arena.public(o),"capture_pct":capture,
+            "hours":list(range(24)),"price":day["precio_eur_per_kwh"].round(5).tolist(),
+            "carbon":day["co2_kg_per_kwh"].round(5).tolist(),
+            "weights":[_num(v,5) for v in r["weights"]],
+            "manual_actions":np.around(r["manual_actions"],2).tolist(),"manual_soc":np.around(m["_soc"],2).tolist(),
+            "optimal_actions":np.around(r["optimal_actions"],2).tolist(),"optimal_soc":np.around(o["_soc"],2).tolist(),
+            "charge_hours":r["charge_hours"],"discharge_hours":r["discharge_hours"],"overlap_hours":r["overlap_hours"],
+            "notice":"Avaluat amb la física i la fórmula de starter_kit/environment.py. Cicle tancat: la bateria no baixa del SOC inicial "
+                     "(1.000 kWh) i l'òptim acaba com a mínim al mateix SOC, perquè la comparació diària sigui justa. "
+                     "L'òptim coneix tota la demanda del dia: és una cota superior, no un agent desplegable."}
 
 
 @app.post("/api/simulate")
 def simulate(req:SimReq):
     df=_get_dataset(req.dataset_id).frame
-    if "date" not in df:raise HTTPException(400,"Calen sèries temporals")
-    day=df[df["date"]==req.date].sort_values("Fecha").dropna(subset=["load_kw","pv_kw","precio_eur_per_kwh","co2_kg_per_kwh"])
-    if len(day)!=24 or set(day["hour"])!=set(range(24)):
-        raise HTTPException(400,"Selecciona un dia amb les 24 hores completes")
-    manual=_manual_dispatch(day,req.charge_hour,req.discharge_hour,req.power_kw)
-    optimal=_optimal_dispatch(day)
-    net=np.maximum(day["load_kw"].to_numpy(float)-day["pv_kw"].to_numpy(float),0)
-    baseline={"cost":_num(net@day["precio_eur_per_kwh"].to_numpy(float),2),
-              "co2":_num(net@day["co2_kg_per_kwh"].to_numpy(float),2)}
-    return {"date":req.date,"baseline":baseline,
-            "manual":_evaluate(day,manual),"optimal":_evaluate(day,optimal),
-            "hours":list(range(24)),"price":day["precio_eur_per_kwh"].round(5).tolist(),
-            "carbon":day["co2_kg_per_kwh"].round(5).tolist(),
-            "manual_actions":np.around(manual["actions"],2).tolist(),
-            "manual_soc":np.around(manual["soc"],2).tolist(),
-            "optimal_actions":np.around(optimal["actions"],2).tolist(),
-            "optimal_soc":np.around(optimal["soc"],2).tolist(),
-            "notice":"Simulació retrospectiva d'un dia amb SOC inicial i final fixat a 1.000 kWh per fer la comparació justa. L'òptim coneix tota la demanda futura; no és un agent desplegable ni el leaderboard."}
+    if "date" not in df or not _energy_ready(df):raise HTTPException(400,"Calen sèries temporals d'energia")
+    charge=(req.charge_start if req.charge_start is not None else req.charge_hour,
+            req.charge_end if req.charge_end is not None else (req.charge_start if req.charge_start is not None else req.charge_hour))
+    discharge=(req.discharge_start if req.discharge_start is not None else req.discharge_hour,
+               req.discharge_end if req.discharge_end is not None else (req.discharge_start if req.discharge_start is not None else req.discharge_hour))
+    return run_day_simulation(df, req.date, charge, discharge, req.power_kw)
+
+
+# ---------------------------------------------------------------------------
+# Data quality, Agent Arena and strategic studies
+# ---------------------------------------------------------------------------
+@app.get("/api/quality")
+def quality(dataset_id: str = "campus"):
+    return eda.data_quality(_get_dataset(dataset_id).frame)
+
+
+def _official_frame() -> pd.DataFrame:
+    ds = DATASETS.get("campus")
+    if ds is None or not _energy_ready(ds.frame):
+        raise HTTPException(400, "L'Arena necessita les dades oficials del campus")
+    return ds.frame
+
+
+@app.get("/api/arena")
+def arena_status():
+    df = _official_frame()
+    arena.start_background(df)
+    snap = arena.ARENA.snapshot()
+    return {**snap, "result": arena.ARENA.result if snap["status"] == "ready" else None}
+
+
+@app.post("/api/arena/rerun")
+def arena_rerun():
+    """Re-run after editing the agent file (results are cached per agent mtime)."""
+    df = _official_frame()
+    arena.reset_arena()
+    arena.start_background(df)
+    return arena.ARENA.snapshot()
+
+
+@app.get("/api/studies")
+def studies_status():
+    df = _official_frame()
+    arena.start_background(df)
+    snap = arena.STUDIES.snapshot()
+    return {**snap, "result": arena.STUDIES.result if snap["status"] == "ready" else None}
