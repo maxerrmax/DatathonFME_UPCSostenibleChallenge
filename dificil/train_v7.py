@@ -35,6 +35,8 @@ def mkt2_matrix(tr, key):
 
 if __name__ == "__main__":
     which = sys.argv[1] if len(sys.argv) > 1 else "fit"
+    seed = int(sys.argv[2]) if len(sys.argv) > 2 else 0
+    P["random_state"] = seed
     df = load_hard(); fit, val = split_val(df); tr = fit if which == "fit" else df
     CS = make_cs(tr); feats.set_cs(CS); t0 = time.time()
     dump = {"pv_cs": CS, "mkt2": {}}
@@ -94,13 +96,16 @@ if __name__ == "__main__":
         yn.append(hist.get("load", t) - hist.get("pv", t))
     Xn = np.array(Xn); yn = np.array(yn); okn = np.isfinite(yn)
     dump["net0"] = lgb.LGBMRegressor(n_estimators=400, learning_rate=0.04, num_leaves=31, min_child_samples=30, subsample=0.8,
-                                     subsample_freq=1, colsample_bytree=0.8, verbose=-1).fit(Xn[okn], yn[okn]).booster_.model_to_string()
+                                     subsample_freq=1, colsample_bytree=0.8, verbose=-1, random_state=seed).fit(Xn[okn], yn[okn]).booster_.model_to_string()
     D = build(tr)
     for k in ("pv",):
         X, y = D[k]; X = X.copy(); X[:, 7] = np.nan; lag = X[:, 5]; ok = np.isfinite(lag)
         dump[k + "_dir"] = lgb.LGBMRegressor(**P).fit(X, y).booster_.model_to_string()
         dump[k + "_res"] = lgb.LGBMRegressor(**P).fit(X[ok], (y - lag)[ok]).booster_.model_to_string()
     eh = epoch_hours(tr.index).values
-    dump["hist0"] = {k: (eh.astype(np.int64), tr[c].values.astype(float)) for k, c in COLS.items()}
-    out = HERE / "agent_hard" / f"models_{which}7.pkl"; joblib.dump(dump, out, compress=3)
+    if seed == 0:                                     # l'historial i el cel clar només al primer fitxer
+        dump["hist0"] = {k: (eh.astype(np.int64), tr[c].values.astype(float)) for k, c in COLS.items()}
+    else:
+        dump.pop("pv_cs", None)
+    out = HERE / "agent_hard" / (f"models_{which}7.pkl" if seed == 0 else f"models_{which}7_s{seed}.pkl"); joblib.dump(dump, out, compress=3)
     print("desat", out, f"{time.time()-t0:.0f}s", f"{out.stat().st_size/1e6:.1f} MB")

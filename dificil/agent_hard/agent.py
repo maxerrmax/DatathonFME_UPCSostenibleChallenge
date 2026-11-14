@@ -62,14 +62,20 @@ class BatteryAgent:
         self.ld2 = []
         self.n0 = None
         self.mkg = {}
-        try:
-            raw = p.get("_models")
+        self.sets = []
+        files = p["models"] if isinstance(p["models"], list) else [p["models"]]
+        for i, fname in enumerate(files):
+          try:
+            raw = p.get("_models") if i == 0 else None
             if raw is None:
-                raw = joblib.load(HERE / p["models"])
+                raw = joblib.load(HERE / fname)
             # LightGBM es desa com a text; la resta (XGBoost, sklearn, ensembles) com a objectes amb .predict
             raw = dict(raw)
-            set_cs(raw.pop("pv_cs", None))
-            self._h0 = raw.pop("hist0", None)
+            cs = raw.pop("pv_cs", None); h0 = raw.pop("hist0", None)
+            if cs is not None:
+                set_cs(cs)
+            if h0 is not None:
+                self._h0 = h0
             mk2 = raw.pop("mkt2", None) or {}
             self.mk2 = {k: [(lgb.Booster(model_str=ms), list(cols), base) for ms, cols, base in v] for k, v in mk2.items()}
             self.ld2 = [(lgb.Booster(model_str=ms), list(cols), base) for ms, cols, base in (raw.pop("load2", None) or [])]
@@ -78,7 +84,13 @@ class BatteryAgent:
             n0 = raw.pop("net0", None)
             self.n0 = lgb.Booster(model_str=n0) if n0 else None
             self.m = {k: (lgb.Booster(model_str=v) if isinstance(v, str) else v) for k, v in raw.items()}
-        except Exception:
+            self.sets.append({k: getattr(self, k) for k in ("m", "mk2", "ld2", "n0", "mkg")})
+          except Exception:
+            pass
+        if self.sets:                                   # el primer conjunt queda actiu per defecte
+            for k, v in self.sets[0].items():
+                setattr(self, k, v)
+        else:
             self.m = {}
         self.hist = Hist()
         # historial inicial = dades d'entrenament (el dia abans de cada setmana de test és al train):
@@ -140,12 +152,16 @@ class BatteryAgent:
         res = np.mean(out, axis=0)
         # horitzons propers: models especialitzats per tram (molt més precisos a +3..+11 h)
         hs_a = np.asarray(hs)
-        for a, b_, bst, cols, kind in self.mkg.get(key, []):
+        gk = self.p.get("grp_keys", ["price", "co2"])
+        for a, b_, bst, cols, kind in (self.mkg.get(key, []) if (self.p.get("grp_mix", 1.0) > 0 and key in gk) else []):
+            if a > self.p.get("grp_max_a", 99):
+                continue
             sel = (hs_a >= a) & (hs_a <= b_)
             if sel.any():
                 pr = bst.predict(X[sel][:, cols], num_threads=1)
                 v = np.where(k2[sel] > 0, k2[sel] * np.exp(pr), k2[sel]) if kind == "log" else k2[sel] + pr
-                res[sel] = np.where(np.isfinite(v), v, res[sel])
+                gm = self.p.get("grp_mix", 1.0)
+                res[sel] = np.where(np.isfinite(v), gm * v + (1 - gm) * res[sel], res[sel])
         return res
 
     def _pred_load2(self, t, hs):
@@ -162,6 +178,17 @@ class BatteryAgent:
         return w * pr["xs"] + (1 - w) * pr["lag24"]
 
     def _forecast(self, t, price3, co2_3):
+        """Mitjana de les previsions de tots els conjunts de models (bagging d'entrenaments)."""
+        if len(self.sets) <= 1:
+            return self._forecast1(t, price3, co2_3)
+        outs = []
+        for st in self.sets:
+            for k, v in st.items():
+                setattr(self, k, v)
+            outs.append(self._forecast1(t, price3, co2_3))
+        return tuple(np.mean([o[i] for o in outs], axis=0) for i in range(4))
+
+    def _forecast1(self, t, price3, co2_3):
         H = 24
         price = np.full(H, np.nan); co2 = np.full(H, np.nan)
         price[:len(price3)] = price3; co2[:len(co2_3)] = co2_3
