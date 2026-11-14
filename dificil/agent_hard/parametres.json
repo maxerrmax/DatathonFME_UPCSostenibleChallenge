@@ -13,6 +13,7 @@
  "no168": true,
  "scen": 15,
  "scen_win": 2,
- "jump": true,
- "seg_off": 0
+ "jump": false,
+ "seg_off": 0,
+ "jump_meas": false
 }

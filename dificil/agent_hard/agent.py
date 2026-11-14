@@ -20,7 +20,7 @@ try:
 except Exception:  # pragma: no cover
     joblib = lgb = None
 
-from feats import Hist, mkt_features, mkt_features2, load_features2, meas_features, set_cs, cs_value
+from feats import Hist, mkt_features, mkt_features2, load_features2, meas_features, set_cs, cs_value, net0_extra
 
 ETA = 0.9 ** 0.5
 HERE = Path(__file__).parent
@@ -61,6 +61,7 @@ class BatteryAgent:
         self.mk2 = {}
         self.ld2 = []
         self.n0 = None
+        self.n0x = False
         self.mkg = {}
         self.h0_max = None
         try:
@@ -76,6 +77,7 @@ class BatteryAgent:
             self.ld2 = [(lgb.Booster(model_str=ms), list(cols), base) for ms, cols, base in (raw.pop("load2", None) or [])]
             self.mkg = {k: [(a, b_, lgb.Booster(model_str=ms), list(cols), kind) for a, b_, ms, cols, kind in v]
                         for k, v in (raw.pop("mktg", None) or {}).items()}
+            self.n0x = bool(raw.pop("net0x", False))     # v14: el model net0 porta senyals de curt termini
             n0 = raw.pop("net0", None)
             self.n0 = lgb.Booster(model_str=n0) if n0 else None
             self.m = {k: (lgb.Booster(model_str=v) if isinstance(v, str) else v) for k, v in raw.items()}
@@ -100,7 +102,7 @@ class BatteryAgent:
         self.hist_w = []
         self.cap, self.pmax = 6000.0, 1500.0
         self.max_len = 0                                # llargada màxima vista de la finestra de mercat
-        self._co2_raw_forecasts = {}                     # prediccions CAUSALS de mercat anteriors
+        self._raw_fc = {}                                 # prediccions CAUSALS de mercat anteriors (crues)
 
 
     # ------------------------------------------------------------------ previsions
@@ -195,7 +197,10 @@ class BatteryAgent:
         mix = self.p.get("net0_mix", 0.5)
         if self.n0 is not None and mix > 0:
             try:
-                x0 = np.concatenate([load_features2(self.hist, t, [0])[0], meas_features(self.hist, "pv", t, [0])[0]])
+                x0 = [load_features2(self.hist, t, [0])[0], meas_features(self.hist, "pv", t, [0])[0]]
+                if self.n0x:
+                    x0.append(net0_extra(self.hist, t))
+                x0 = np.concatenate(x0)
                 nd = float(self.n0.predict(x0.reshape(1, -1), num_threads=1)[0])
                 if np.isfinite(nd) and np.isfinite(load[0]) and np.isfinite(pv[0]):
                     load[0] = mix * nd + (1 - mix) * (load[0] - pv[0]) + pv[0]
@@ -219,27 +224,47 @@ class BatteryAgent:
                         v = tbl[k].get(t + h)
                         if v is not None:
                             arr[h] = v
-        # Correcció causal en línia de CO2. A t, ja coneixem exactament t,t+1,t+2;
-        # comparem aquests tres valors amb la previsió crua feta a t-3 (h=3..5).
-        # Només es fan servir dades conegudes en l'instant t, mai dades del futur.
-        try:
-            old = self._co2_raw_forecasts.get(t - 3)
-            raw_co2 = co2.copy()
-            # Al final de la simulació la finestra coneguda pot tenir només 1 o 2 hores.
-            n_exact = min(3, len(co2_3))
-            if self.p.get("co2_cal", True) and old is not None and n_exact > 0 and len(old) >= 3 + n_exact:
-                e = np.asarray(co2[:n_exact] - old[3:3+n_exact], dtype=float)
-                if np.isfinite(e).all():
-                    bias = float(np.clip(np.median(e), -0.06, 0.06))
-                    h = np.arange(3, len(co2))
-                    co2[3:] = np.clip(co2[3:] + bias * np.exp(-(h - 3) / 8.0), 0.0, 1.0)
-            self._co2_raw_forecasts[t] = raw_co2
-            # memòria acotada i segura si el timestamp salta entre blocs
-            for key in list(self._co2_raw_forecasts):
-                if key < t - 6:
-                    del self._co2_raw_forecasts[key]
-        except Exception:
-            pass
+        # Correcció causal en línia (v12 de l'equip, generalitzada). A t ja coneixem exactament t, t+1, t+2;
+        # comparem aquests valors amb les previsions crues fetes fa L hores (per defecte L=3, horitzons 3..5),
+        # estimem el biaix recent i el sumem (o multipliquem) a les previsions futures, decreixent amb l'horitzó.
+        # Només es fan servir dades conegudes en l'instant t. Els valors per defecte reprodueixen la v12 exacta.
+        for key, arr, known_v, on, clip_d in (("co2", co2, co2_3, self.p.get("co2_cal", True), 0.06),
+                                              ("price", price, price3, self.p.get("price_cal", False), 0.06)):
+            try:
+                store = self._raw_fc.setdefault(key, {})
+                raw = arr.copy()
+                pre = key + "_"
+                n_exact = min(3, len(known_v))
+                if on and n_exact > 0:
+                    mult = self.p.get(pre + "cal_mult", False)
+                    errs = []
+                    for L in self.p.get(pre + "cal_lags", [3]):
+                        old = store.get(t - L)
+                        if old is None:
+                            continue
+                        for j in range(n_exact):
+                            i = j + L
+                            if 3 <= i < len(old) and np.isfinite(old[i]) and np.isfinite(arr[j]):
+                                if mult:
+                                    if old[i] > 0 and arr[j] > 0:
+                                        errs.append(math.log(arr[j] / old[i]))
+                                else:
+                                    errs.append(arr[j] - old[i])
+                    if errs and (len(errs) >= n_exact or self.p.get(pre + "cal_partial", False)):
+                        agg = np.mean if self.p.get(pre + "cal_agg", "median") == "mean" else np.median
+                        c = self.p.get(pre + "cal_clip", 0.5 if mult else clip_d)
+                        bias = float(np.clip(agg(errs), -c, c)) * self.p.get(pre + "cal_k", 1.0)
+                        h = np.arange(3, len(arr))
+                        tau = self.p.get(pre + "cal_tau", 8.0)
+                        dec = np.exp(-(h - 3) / tau) if tau > 0 else np.ones(len(h))
+                        arr[3:] = np.clip(arr[3:] * np.exp(bias * dec), 0.0, 1.0) if mult else \
+                            np.clip(arr[3:] + bias * dec, 0.0, 1.0)
+                store[t] = raw
+                for k_ in list(store):                  # memòria acotada i segura si el timestamp salta entre blocs
+                    if k_ < t - 6:
+                        del store[k_]
+            except Exception:
+                pass
         return price, co2, load, pv
 
     # ------------------------------------------------------------------ optimització

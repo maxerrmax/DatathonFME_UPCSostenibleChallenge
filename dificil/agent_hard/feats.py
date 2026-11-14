@@ -240,3 +240,23 @@ def load_features2(hist, t, hs):
                      m24, mn, mx, temp, tm24, irr, *fl, day_flags(tau - 24)[6], off_lm, same, same_m,
                      same + (last - same_lm), lm % 24, _nanmean([v for v, _ in vals])])
     return np.array(rows, dtype=float)
+
+
+# ---------------------------------------------------------------- v14: senyals de curt termini per al consum net de l'hora actual
+NET0X_NAMES = ["net_l1", "net_l2", "net_l3", "dnet_1", "pv_l2", "pv_l3", "irr_l2", "irr_l3", "dirr_1", "k_l2", "k_l3", "dk_1",
+               "cs_t", "cs_rel", "pvx_cs", "dtemp_1", "netx_shift"]
+
+
+def net0_extra(hist, t):
+    """Features addicionals (només fins a t-1) per al model directe del consum net de l'hora actual."""
+    g = hist.get; nan = np.nan; lm = t + KNOWN_MEAS
+    L = [g("load", lm - i) for i in range(3)]; P = [g("pv", lm - i) for i in range(3)]
+    I = [g("irr", lm - i) for i in range(3)]; C = [cs_value(lm - i) for i in range(3)]
+    K = [min(1.3, max(0.0, P[i] / C[i])) if (np.isfinite(P[i]) and np.isfinite(C[i]) and C[i] > 30) else nan for i in range(3)]
+    N = [L[i] - P[i] for i in range(3)]
+    cs_t = cs_value(t)
+    rel = cs_t / C[0] if (np.isfinite(C[0]) and C[0] > 30) else nan
+    pvx = P[0] * rel if np.isfinite(rel) else nan
+    n24 = g("load", t - 24) - g("pv", t - 24); n24l = g("load", lm - 24) - g("pv", lm - 24)
+    return np.array([N[0], N[1], N[2], N[0] - N[1], P[1], P[2], I[1], I[2], I[0] - I[1], K[1], K[2], K[0] - K[1],
+                     cs_t, rel, pvx, g("temp", lm) - g("temp", lm - 1), n24 + (N[0] - n24l)], dtype=float)

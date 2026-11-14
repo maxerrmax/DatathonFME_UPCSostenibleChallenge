@@ -1,6 +1,6 @@
 """v7: preu/CO2 amb features ampliades (ensemble de 4 models residuals), consum/solar sense lag setmanal,
 i historial inicial (dades d'entrenament) dins del fitxer de models.
-Ús: python dificil/train_v7.py [fit|all] [--bands]   (--bands: afegeix models per trams d'horitzó -> models_*7b.pkl)"""
+Ús: python dificil/train_v7.py [fit|all] [--bands] [--net0x]   (--bands: afegeix models per trams d'horitzó -> models_*7b.pkl)"""
 import sys, time
 from pathlib import Path
 import numpy as np, pandas as pd, joblib, lightgbm as lgb
@@ -46,6 +46,7 @@ def _bands(argv):
 if __name__ == "__main__":
     which = sys.argv[1] if len(sys.argv) > 1 else "fit"
     BANDS = _bands(sys.argv)
+    NET0X = "--net0x" in sys.argv
     df = load_hard(); fit, val = split_val(df); tr = fit if which == "fit" else df
     CS = make_cs(tr); feats.set_cs(CS); t0 = time.time()
     dump = {"pv_cs": CS, "mkt2": {}}
@@ -102,10 +103,15 @@ if __name__ == "__main__":
     # model directe del consum net de l'hora actual (features de consum + solar a h=0)
     Xn, yn = [], []
     for t in eh:
-        Xn.append(np.concatenate([feats.load_features2(hist, t, [0])[0], feats.meas_features(hist, "pv", t, [0])[0]]))
+        x = [feats.load_features2(hist, t, [0])[0], feats.meas_features(hist, "pv", t, [0])[0]]
+        if NET0X:
+            x.append(feats.net0_extra(hist, t))
+        Xn.append(np.concatenate(x))
         yn.append(hist.get("load", t) - hist.get("pv", t))
     Xn = np.array(Xn); yn = np.array(yn); okn = np.isfinite(yn)
-    dump["net0"] = lgb.LGBMRegressor(n_estimators=400, learning_rate=0.04, num_leaves=31, min_child_samples=30, subsample=0.8,
+    n0kw = {"objective": "l1"} if NET0X else {}           # v14: senyals de curt termini + pèrdua L1
+    dump["net0x"] = bool(NET0X)
+    dump["net0"] = lgb.LGBMRegressor(**n0kw, n_estimators=400, learning_rate=0.04, num_leaves=31, min_child_samples=30, subsample=0.8,
                                      subsample_freq=1, colsample_bytree=0.8, verbose=-1).fit(Xn[okn], yn[okn]).booster_.model_to_string()
     D = build(tr)
     for k in ("pv",):
@@ -114,5 +120,5 @@ if __name__ == "__main__":
         dump[k + "_res"] = lgb.LGBMRegressor(**P).fit(X[ok], (y - lag)[ok]).booster_.model_to_string()
     eh = epoch_hours(tr.index).values
     dump["hist0"] = {k: (eh.astype(np.int64), tr[c].values.astype(float)) for k, c in COLS.items()}
-    out = HERE / "agent_hard" / (f"models_{which}7b.pkl" if BANDS else f"models_{which}7.pkl"); joblib.dump(dump, out, compress=3)
+    out = HERE / "agent_hard" / f"models_{which}7{'b' if BANDS else ''}{'x' if NET0X else ''}.pkl"; joblib.dump(dump, out, compress=3)
     print("desat", out, f"{time.time()-t0:.0f}s", f"{out.stat().st_size/1e6:.1f} MB")

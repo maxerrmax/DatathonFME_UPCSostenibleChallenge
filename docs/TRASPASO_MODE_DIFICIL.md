@@ -161,3 +161,25 @@ El ranking público usa **1.008 h = 6 semanas**, no las 12. Se intentó reproduc
 Ninguno da −0,48 → la causa no está identificada. Patrón preocupante: v10 (+0,33 val. → −0,50 público) y v13 (+0,43 →
 −0,48) suben en validación y bajan en el público; la v12 del equipo (+0,22/+0,46 → +0,08) apenas se traslada.
 No volver a probar el salto sin saber antes cómo simula el servidor las semanas (p. ej. con un envío de diagnóstico).
+
+## 10. Sobre la v12 del equipo (14/11 noche) — nada supera el ruido del público
+
+Un compañero comprobó que el servidor encadena las semanas (un agente que se para al ver un salto de fecha bajó muchísimo).
+El público usa 6 de las 12 semanas: el ruido de una nota de 6 semanas es grande para cambios que ganan en unas semanas y
+pierden en otras (v13: −2,5 a +3,4 puntos por semana; con 6 semanas sale peor que la v12 el 14–27 % de las veces).
+Criterio: subir en A **y** B, con ganancia repartida por semanas (`/tmp/.../lab/noise.py` → probabilidad de salir peor).
+
+Base reproducida: `parametres.json` por defecto = v12 exacta (A 20,75 · B 18,91; `jump` desactivado por defecto).
+
+| Probado sobre la v12 (modelos `fit`) | A | B |
+|---|---|---|
+| Calibración CO₂: `co2_cal_tau` 4/16/sin decaimiento | −0,04/−0,03/−0,07 | −0,05/−0,04/−0,04 |
+| `co2_cal_k` 0,5/1,5 · `co2_cal_clip` 0,03/0,12 · media en lugar de mediana | −0,10/−0,09 · 0,00/0,00 · −0,01 | −0,16/−0,16 · −0,07/−0,01 · −0,01 |
+| `co2_cal_lags` [1,2,3] + `co2_cal_mult` (cociente) | +0,09 | +0,02 |
+| Calibración también del precio (`price_cal`, tau 8/4) | −0,03/0,00 | −0,01/+0,01 |
+| `net0` con señales de corto plazo + pérdida L1 (`train_v7.py --net0x`): MAE −5 % (A), −3 % (B) | −0,01 | +0,01 |
+| Modelos por tramos (tipo v10) encima de la calibración | −0,09 | −0,01 |
+
+Valor de mejorar la hora actual: unos +0,05 por cada 10 % menos de error del consumo neto (MAE actual 62 kW).
+Margen que queda con información perfecta: CO₂ de +3..+7 h (+0,6) — es la única vía con recorrido, pero requiere un
+modelo nuevo de CO₂ a corto plazo, no ajustes de parámetros.
