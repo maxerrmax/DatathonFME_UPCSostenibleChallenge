@@ -20,7 +20,7 @@ try:
 except Exception:  # pragma: no cover
     joblib = lgb = None
 
-from feats import Hist, mkt_features, meas_features, set_cs, cs_value
+from feats import Hist, mkt_features, mkt_features2, load_features2, meas_features, set_cs, cs_value
 
 ETA = 0.9 ** 0.5
 HERE = Path(__file__).parent
@@ -58,6 +58,9 @@ class BatteryAgent:
             p.update(params)
         self.p = p
         self.m = {}
+        self.mk2 = {}
+        self.ld2 = []
+        self.n0 = None
         try:
             raw = p.get("_models")
             if raw is None:
@@ -65,10 +68,26 @@ class BatteryAgent:
             # LightGBM es desa com a text; la resta (XGBoost, sklearn, ensembles) com a objectes amb .predict
             raw = dict(raw)
             set_cs(raw.pop("pv_cs", None))
+            self._h0 = raw.pop("hist0", None)
+            mk2 = raw.pop("mkt2", None) or {}
+            self.mk2 = {k: [(lgb.Booster(model_str=ms), list(cols), base) for ms, cols, base in v] for k, v in mk2.items()}
+            self.ld2 = [(lgb.Booster(model_str=ms), list(cols), base) for ms, cols, base in (raw.pop("load2", None) or [])]
+            n0 = raw.pop("net0", None)
+            self.n0 = lgb.Booster(model_str=n0) if n0 else None
             self.m = {k: (lgb.Booster(model_str=v) if isinstance(v, str) else v) for k, v in raw.items()}
         except Exception:
             self.m = {}
         self.hist = Hist()
+        # historial inicial = dades d'entrenament (el dia abans de cada setmana de test és al train):
+        # així els lags de 24/48/168 h existeixen des de la primera hora de cada setmana
+        try:
+            h0 = p.get("_hist0", getattr(self, "_h0", None)) if p.get("prefill", True) else None
+            if h0:
+                for k, (hh, vv) in h0.items():
+                    for e, v in zip(hh, vv):
+                        self.hist.put(k, e, v)
+        except Exception:
+            pass
         self.t_prev = None
         self.err = []                                   # errors recents de previsió de net (t-1)
         self.pred_net0 = None
@@ -78,12 +97,14 @@ class BatteryAgent:
 
     # ------------------------------------------------------------------ previsions
     def _pred(self, key, X, kind):
+        if self.p.get("no168"):
+            X[:, 7] = np.nan                            # el lag setmanal generalitza malament
         lag = X[:, 5]
         if not self.m:
             out = lag.copy()
         else:
-            d = self.m[key + "_dir"].predict(X)
-            r = lag + self.m[key + "_res"].predict(X)
+            d = self.m[key + "_dir"].predict(X, num_threads=1)
+            r = lag + self.m[key + "_res"].predict(X, num_threads=1)
             out = np.where(np.isfinite(lag), r, d) if kind == "res" else d
         if key == "pv":
             last, last24 = X[:, 8], X[:, 8] - X[:, 9]
@@ -99,18 +120,63 @@ class BatteryAgent:
             out = np.where((hod < 6) | (hod > 21), 0.0, np.maximum(out, 0.0))
         return np.where(np.isfinite(out), out, np.nan)
 
+    def _pred_mkt2(self, key, t, hs):
+        """Mitjana de models residuals (respecte a l'últim valor conegut o al perfil d'ahir desplaçat)."""
+        X = mkt_features2(self.hist, key, t, hs)
+        k2 = X[:, 7]; xs = np.where(np.isfinite(X[:, 13]), X[:, 13], k2)
+        out = []
+        xsl = np.where(np.isfinite(X[:, 13]) & (X[:, 13] > 0.3 * k2), X[:, 13], k2)
+        for b, cols, base in self.mk2[key]:
+            pr = b.predict(X[:, cols], num_threads=1)
+            if base == "logk2":                          # model del quocient (escala lliure)
+                out.append(np.where(k2 > 0, k2 * np.exp(pr), k2))
+            elif base == "logxs":
+                out.append(np.where(xsl > 0, xsl * np.exp(pr), xsl))
+            else:
+                out.append((xs if base == "xs" else k2) + pr)
+        return np.mean(out, axis=0)
+
+    def _pred_load2(self, t, hs):
+        """Consum: perfil d'ahir desplaçat al nivell actual (hores properes) barrejat amb lag24 + residu (hores llunyanes)."""
+        X = load_features2(self.hist, t, hs)
+        def fb(*idx):
+            b = X[:, idx[0]]
+            for i in idx[1:]:
+                b = np.where(np.isfinite(b), b, X[:, i])
+            return np.where(np.isfinite(b), b, 1000.0)
+        bases = {"lag24": fb(9, 5, 15), "xs": fb(13, 9, 5, 15)}
+        pr = {base: bases[base] + b.predict(X[:, cols], num_threads=1) for b, cols, base in self.ld2}
+        w = np.exp(-X[:, 0] / self.p.get("load_tau", 4.0))
+        return w * pr["xs"] + (1 - w) * pr["lag24"]
+
     def _forecast(self, t, price3, co2_3):
         H = 24
         price = np.full(H, np.nan); co2 = np.full(H, np.nan)
         price[:len(price3)] = price3; co2[:len(co2_3)] = co2_3
         hs = list(range(len(price3), H))
         if hs:
-            price[hs] = self._pred("price", mkt_features(self.hist, "price", t, hs), "res")
-            co2[hs] = self._pred("co2", mkt_features(self.hist, "co2", t, hs), "dir")
+            if self.mk2:
+                price[hs] = self._pred_mkt2("price", t, hs)
+                co2[hs] = self._pred_mkt2("co2", t, hs)
+            else:
+                price[hs] = self._pred("price", mkt_features(self.hist, "price", t, hs), "res")
+                co2[hs] = self._pred("co2", mkt_features(self.hist, "co2", t, hs), "dir")
         hs_all = list(range(H))
-        load = self._pred("load", meas_features(self.hist, "load", t, hs_all), "res")
+        if self.ld2:
+            load = self._pred_load2(t, hs_all)
+        else:
+            load = self._pred("load", meas_features(self.hist, "load", t, hs_all), "res")
         pv = self._pred("pv", meas_features(self.hist, "pv", t, hs_all), "dir")
-        # farciment de forats: últim valor conegut / mitjana
+        # hora actual: model directe del consum net (consum - solar), barrejat amb la previsió per separat
+        mix = self.p.get("net0_mix", 0.5)
+        if self.n0 is not None and mix > 0:
+            try:
+                x0 = np.concatenate([load_features2(self.hist, t, [0])[0], meas_features(self.hist, "pv", t, [0])[0]])
+                nd = float(self.n0.predict(x0.reshape(1, -1), num_threads=1)[0])
+                if np.isfinite(nd) and np.isfinite(load[0]) and np.isfinite(pv[0]):
+                    load[0] = mix * nd + (1 - mix) * (load[0] - pv[0]) + pv[0]
+            except Exception:
+                pass
         def fill(a, default):
             a = np.asarray(a, float)
             if not np.isfinite(a).any():
@@ -132,17 +198,26 @@ class BatteryAgent:
         return price, co2, load, pv
 
     # ------------------------------------------------------------------ optimització
-    def _lp(self, w, net, soc0, v_term, dmax0):
+    def _lp(self, w, net, soc0, v_term, dmax0, scen=None):
         H = len(w); cap, pm = self.cap, self.pmax
+        K = 0 if scen is None else len(scen)
         L = np.tril(np.ones((H, H)))
-        Asoc = np.hstack([L * ETA, -L / ETA, np.zeros((H, H))])          # SOC_k - soc0
+        Asoc = np.hstack([L * ETA, -L / ETA, np.zeros((H, H + K))])      # SOC_k - soc0
         # net + c - d - imp <= 0
-        Aimp = np.hstack([np.eye(H), -np.eye(H), -np.eye(H)])
+        Aimp = np.hstack([np.eye(H), -np.eye(H), -np.eye(H), np.zeros((H, K))])
         A = np.vstack([Asoc, -Asoc, Aimp])
         b = np.concatenate([np.full(H, cap - 1e-3 - soc0), np.full(H, soc0 - 1e-3), -net])
-        cost = np.concatenate([np.zeros(2 * H), w]) - v_term * Asoc[-1]
-        bounds = [(0, pm)] * H + [(0, pm)] * H + [(0, None)] * H
+        cost = np.concatenate([np.zeros(2 * H), w, np.zeros(K)]) - v_term * Asoc[-1]
+        bounds = [(0, pm)] * H + [(0, pm)] * H + [(0, None)] * (H + K)
         bounds[H] = (0, max(0.0, min(pm, dmax0)))
+        if K:
+            # hora actual estocàstica: cost esperat de la importació sobre K escenaris del consum net
+            # (el que es descarrega de més es perd; el que es carrega de més s'importa)
+            S = np.zeros((K, 3 * H + K)); S[:, 0] = 1.0; S[:, H] = -1.0
+            S[np.arange(K), 3 * H + np.arange(K)] = -1.0
+            A = np.vstack([A, S]); b = np.concatenate([b, -(net[0] + np.asarray(scen, float))])
+            cost[2 * H] = 0.0; cost[3 * H:] = w[0] / K
+            b[2 * H] = 1e9                                   # la restricció determinista de l'hora 0 queda inactiva
         r = linprog(cost, A_ub=A, b_ub=b, bounds=bounds, method="highs")
         if r.status != 0 or r.x is None:
             return None
@@ -214,8 +289,11 @@ class BatteryAgent:
         if fi:
             Hh = max(1, n_mkt)
         price, co2, load, pvf = price[:Hh], co2[:Hh], load[:Hh], pvf[:Hh]
+        self.pred_net0 = float(load[0] - pvf[0])        # error de previsió mesurat sense biaix
+        # biaix deliberat: descarregar de més es perd del tot, descarregar de menys només ajorna
+        load = np.maximum(load + self.p.get("load_bias", 0.0), 0.0)
+        pvf = pvf * self.p.get("pv_bias", 1.0)
         net = load - pvf
-        self.pred_net0 = float(net[0])
         w = 0.7 * co2 + 0.3 * self.p["ratio"] * price
         self.hist_w.append(float(w[0]))
         ref = np.concatenate([w, self.hist_w[-72:]])
@@ -227,10 +305,27 @@ class BatteryAgent:
             if len(same) >= 3:
                 sig = float(np.mean(same))
         dmax0 = max(0.0, float(net[0]) - self.p["k_dis"] * sig)
+        scen = None
+        K = int(self.p.get("scen", 0))
+        if K:
+            h0 = t % 24
+            pool = [e for h_, e in self.err if min((h_ - h0) % 24, (h0 - h_) % 24) <= self.p.get("scen_win", 1)]
+            if len(pool) < 8:
+                pool = [e for _, e in self.err]
+            qs = (np.arange(K) + 0.5) / K
+            if len(pool) >= 8:
+                scen = np.quantile(pool, qs) * self.p.get("scen_scale", 1.0)
+            else:
+                from statistics import NormalDist
+                scen = np.array([NormalDist().inv_cdf(q) for q in qs]) * self.p.get("scen_s0", 100.0)
+            st = self.p.get("_scen_table")
+            if st is not None and t in st:
+                scen = np.asarray(st[t], float) - float(net[0])
+            dmax0 = self.pmax
         net_plan = np.asarray(net, float).copy()
         if self.p.get("k_future", 0.0):
             net_plan[1:] = net_plan[1:] - self.p["k_future"] * sig * np.sqrt(np.arange(1, len(net_plan)))
-        P = self._lp(w, net_plan, soc, v, dmax0)
+        P = self._lp(w, net_plan, soc, v, dmax0, scen)
         if P is None:
             a = 0.0
         else:
