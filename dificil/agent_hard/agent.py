@@ -98,6 +98,8 @@ class BatteryAgent:
         self.jump_off = False                           # es desactiva si el calendari de salts no es compleix
         self.t_prev = None
         self.err = []                                   # errors recents de previsió de net (t-1)
+        self.err_v = []                                 # variabilitat recent del consum net quan es va fer cada previsió
+        self.vol_pred = float("nan")
         self.pred_net0 = None
         self.hist_w = []
         self.cap, self.pmax = 6000.0, 1500.0
@@ -377,6 +379,7 @@ class BatteryAgent:
             self.hist.put("vent", t - 1, _num(nd.get("vent_ms")))
         if self.pred_net0 is not None and math.isfinite(ld) and math.isfinite(pv):
             self.err.append(((t - 1) % 24, (ld - pv) - self.pred_net0)); self.err = self.err[-336:]
+            self.err_v.append(self.vol_pred); self.err_v = self.err_v[-336:]
 
         # tots els valors de mercat coneguts consecutius (3 h al Mode Difícil, 24 h a l'Estàndard)
         def known(v, d):
@@ -433,6 +436,8 @@ class BatteryAgent:
                             arr[k] = v
         price, co2, load, pvf = price[:Hh], co2[:Hh], load[:Hh], pvf[:Hh]
         self.pred_net0 = float(load[0] - pvf[0])        # error de previsió mesurat sense biaix
+        n1 = self.hist.get("load", t - 1) - self.hist.get("pv", t - 1); n2 = self.hist.get("load", t - 2) - self.hist.get("pv", t - 2)
+        self.vol_pred = abs(n1 - n2) if (math.isfinite(n1) and math.isfinite(n2)) else float("nan")
         # biaix deliberat: descarregar de més es perd del tot, descarregar de menys només ajorna
         load = np.maximum(load + self.p.get("load_bias", 0.0), 0.0)
         pvf = pvf * self.p.get("pv_bias", 1.0)
@@ -452,7 +457,15 @@ class BatteryAgent:
         K = int(self.p.get("scen", 0))
         if K:
             h0 = t % 24
-            pool = [e for h_, e in self.err if min((h_ - h0) % 24, (h0 - h_) % 24) <= self.p.get("scen_win", 1)]
+            win = [i for i, (h_, e) in enumerate(self.err) if min((h_ - h0) % 24, (h0 - h_) % 24) <= self.p.get("scen_win", 1)]
+            vnow = self.vol_pred
+            fr = self.p.get("scen_vol", 0.0)                # v15: només els errors d'hores amb variabilitat semblant
+            if fr > 0 and math.isfinite(vnow) and len(self.err_v) == len(self.err):
+                cand = [i for i in win if math.isfinite(self.err_v[i])]
+                nkeep = max(8, int(round(fr * len(cand))))
+                if len(cand) > nkeep:
+                    win = sorted(cand, key=lambda i: abs(self.err_v[i] - vnow))[:nkeep]
+            pool = [self.err[i][1] for i in win]
             if len(pool) < 8:
                 pool = [e for _, e in self.err]
             qs = (np.arange(K) + 0.5) / K
