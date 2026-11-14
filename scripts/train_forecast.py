@@ -26,6 +26,7 @@ OUT = ROOT / "submission_hard"
 COLS = {"p": "precio_eur_per_kwh", "c": "co2_kg_per_kwh", "load": "load_kw", "pv": "pv_kw",
         "irr": "irradiancia_wm2", "temp": "temp_ambient_c"}
 KNOWN_AHEAD = {"p": 2, "c": 2}  # la resta: fins a t0-1
+KMAX = int(sys.argv[sys.argv.index("--kmax") + 1]) if "--kmax" in sys.argv else 24  # horitzó màxim de previsió
 
 
 def build_store(raw):
@@ -55,7 +56,7 @@ def make_samples(raw, store, hours, blocks_keep):
             v = store[col].get(h, float("nan"))
             return float(v)
 
-        for k in range(24):
+        for k in range(KMAX):
             T = t0 + k
             if blk_of_hour.get(T) != b:
                 break
