@@ -2,5 +2,22 @@ opencode.json
 # Caché generada por el dashboard
 data/processed/
 __pycache__/
-notes/src/hm_build/
-catboost_info/
+notes/
+
+# Pipeline
+estandard/submissions/
+estandard/results_tune_*.log
+estandard/results/run_all.log
+
+# Mode Difícil: models i zips es regeneren amb dificil/train_forecast.py
+dificil/agent_hard/*.pkl
+dificil/agent_hard/*.bak
+dificil/submissions/
+dificil/cache/
+dificil/referencia_company/
+dificil/results/*.pkl
+
+# Models de validació (es regeneren amb scripts/train_forecast.py)
+submission_hard/val_model_*.txt
+
+submission_hard/val_solar*.json
