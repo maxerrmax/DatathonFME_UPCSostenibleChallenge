@@ -14,3 +14,5 @@ dificil/agent_hard/*.pkl
 dificil/agent_hard/*.bak
 dificil/submissions/
 dificil/cache/
+dificil/referencia_company/
+dificil/results/*.pkl

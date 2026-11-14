@@ -60,6 +60,8 @@ if __name__ == "__main__":
         models[k + "_res"] = lgb.LGBMRegressor(**P).fit(X[ok], (y - lag)[ok]).booster_  # y - lag24
     out = HERE / "agent_hard" / f"models_{which}.pkl"
     dump = {k: b.model_to_string() for k, b in models.items()}; dump["pv_cs"] = CS
+    eh = epoch_hours(tr.index).values
+    dump["hist0"] = {k: (eh.astype(np.int64), tr[c].values.astype(float)) for k, c in COLS.items()}
     joblib.dump(dump, out)
     print("desat", out)
 
