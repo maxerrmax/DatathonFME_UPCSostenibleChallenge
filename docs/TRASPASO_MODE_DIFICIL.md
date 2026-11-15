@@ -55,6 +55,9 @@ Sobre la v9 (validación del equipo, ref. 20,52):
 - **Ensemble de semillas de CO₂**: 2 semillas 20,54 (+0,02, ruido) a 21 ms/paso; 3 semillas 20,52 a 25 ms/paso
   (riesgo con el límite de 60 s). No adoptado.
 
+Sobre la v12 (calibratge online del CO₂, públic **23,53**, validació 20,74):
+- **Constant de decaïment del calibratge**: 4 h 20,70 · 6 h 20,72 · 8 h (v12) 20,74 · 11 h 20,74 · 16 h 20,71; guany ×0,75 20,69 · ×1,5 20,65; límit 0,1 20,74. **11 h al públic: 23,49 (−0,04)** → es queda 8 h. Diferències de ±0,05 al públic són soroll d'ajust.
+
 Sobre el agente MPC antiguo (`submission_hard/`, 22,95 en el público), conclusiones que también aplican:
 - **Horizonte**: 8 h 16,16 · 12 h 16,94 · 16–24 h 17,00 · 30/36/48 h (modelos hasta 48 h) 16,90. 24 h es suficiente.
 - **Valor terminal**: no cambia la primera decisión (el LP llena la batería en las horas más baratas, normalmente más
