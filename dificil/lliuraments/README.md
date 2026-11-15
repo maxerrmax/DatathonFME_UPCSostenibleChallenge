@@ -2,6 +2,7 @@
 
 | Fitxer | Score públic | Observació |
 |---|---:|---|
+| `hard_v16_salt_co2escenaris.zip` | pendent | v12 + salt entre setmanes + escenaris de CO2 + final. Validació setmanes senceres: A 21,21 · B 19,35 (v12: 20,75 · 18,91) |
 | `hard_v15_v14_co2escenaris.zip` | **23,29** (CO2 22,07 % · cost 26,12 %; pitjor) | v14 + escenaris d'error del CO2 a l'optimitzador (3). Validació: A 20,78 · B 19,03 (v12: 20,75 · 18,91) |
 | `hard_v14_v12_final_agost.zip` | pendent | v12 + buidar la bateria al final de la setmana d'agost (final del test). Fora d'aquesta setmana, idèntic a la v12 |
 | `hard_v13_v12equip_salt.zip` | **23,05** (pitjor; no fer-lo servir) | v12 + planificació a través del salt entre setmanes de test. Validació (`fit`): A 21,18 · B 19,19 (v12: 20,75 · 18,91) |

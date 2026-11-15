@@ -254,3 +254,14 @@ Puntuar solo media semana es muy ruidoso, y las dos mitades se compensan (cambio
 Ningún reparto (mitades, días pares/impares) reproduce el público → no es que la validación esté mal: el público
 (media semana) es una medida muy ruidosa. Aproximación: nota privada ≈ 2 × nota de la semana entera − nota pública.
 Si las mejoras de validación son reales, un público malo implica un privado bueno.
+
+## 15. v16 = v12 + salto entre semanas + escenarios de CO₂ + final — la mejor en semanas enteras
+
+| Sobre la v12 (validación, semanas enteras) | A | B | Prob. salir peor con 6 sem. (A/B) |
+|---|---|---|---|
+| v13 (salto) | +0,43 | +0,31 | 14 % / 25 % |
+| v15 (CO₂ esc. + final) | +0,15 | +0,27 | — |
+| **v16 (salto + CO₂ esc.)** | **+0,46** | **+0,44** | 11 % / 17 % |
+
+Pseudo-test con calendario real: 31,5 s. Zip: `dificil/lliuraments/hard_v16_salt_co2escenaris.zip` (mismo `.pkl` que v12).
+Ojo: su nota pública será tan ruidosa como las anteriores (media semana); el objetivo es el privado.
