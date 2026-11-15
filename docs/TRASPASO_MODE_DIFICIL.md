@@ -111,7 +111,7 @@ Sobre el agente MPC antiguo (`dificil/arxiu/submission_hard/`, 22,95 en el públ
 
 **Factors externs pendents (15/11), de més a menys probabilitat de millora.** Base: v19 + hora solar (`dificil/arxiu/v19_dst/`, públic 23,75). Adoptar només si la validació puja > +0,05 i no empitjora `scripts/eval_weeks.py` ni `scripts/eval_dst_emul.py`.
 1. Onades de calor/fred: temperatura mitjana de 24/72 h i màxima d'ahir a les features de preu/CO₂ (`mkt_features2`) i consum.
-2. Llindars de climatització d'edificis públics (19 °C calefacció, 27 °C fred): graus-hora per sobre/sota al model de consum.
+2. ~~Llindars de climatització~~ **provat (15/11)**: graus per sota de 19 °C i per sobre de 27 °C (temperatura de l'última hora i mitjana 24 h) al model de consum, sobre v19 + hora solar: validació 20,73 vs 20,72. Soroll; el model ja capta la temperatura. No.
 3. Llum natural → il·luminació: elevació solar o hores des de la posta a `tau` al model de consum (`load_features2`).
 4. Hores del canvi d'hora: 25/10 té l'hora 02:00 repetida (`hist.put` la sobreescriu) i el 29/3 en falta una; blindar-ho.
 5. Temperatura del panell (`temp_panel_c`, ≈ −0,4 %/°C) a la previsió solar de l'hora actual.
