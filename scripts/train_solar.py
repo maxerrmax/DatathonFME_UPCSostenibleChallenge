@@ -1,8 +1,8 @@
 """
 Ajusta el model físic de solar (src/solar.py) i desa solar.json.
 
-    python scripts/train_solar.py            -> submission_hard/val_solar.json (sense els blocs de validació 15-21)
-    python scripts/train_solar.py --final    -> submission_hard/solar.json (tot el train)
+    python scripts/train_solar.py            -> dificil/arxiu/submission_hard/val_solar.json (sense els blocs de validació 15-21)
+    python scripts/train_solar.py --final    -> dificil/arxiu/submission_hard/solar.json (tot el train)
     python scripts/train_solar.py --exclude-teamval  -> val_solar_teamval.json (sense la validació de l'equip)
 """
 import sys
@@ -55,7 +55,7 @@ def main():
                 break
             samples[k].append((pv[j], csv[j], kn, kd, ktc[mon[j] - 1, hr[j]]))
     w_now, w_d1 = fit_weights(samples)
-    save(ROOT / "submission_hard" / out, cs, ktc, w_now, w_d1)
+    save(ROOT / "dificil/arxiu/submission_hard" / out, cs, ktc, w_now, w_d1)
     print("desat", out, "| w_now:", np.round(w_now, 2).tolist(), "| w_d1:", np.round(w_d1, 2).tolist())
 
 

@@ -25,7 +25,7 @@ amb els zips, el codi legible, els hashes i les instruccions per verificar-les i
 | Carpeta | Contingut |
 |---|---|
 | [`entrega_final/`](entrega_final/) | **Les 2 solucions finals del Mode Difícil**, codi, SHA-256 i guia de verificació. Començar aquí. |
-| [`dificil/`](dificil/README.md) | Mode Difícil: agent MPC + LightGBM (`agent_hard/`), entrenament (`train_v7.py`), validació, historial de versions, recerca (`RECERCA_v13.md`), experiments (`arena/`, `diag/`) i lliuraments antics (`lliuraments/`). |
+| [`dificil/`](dificil/README.md) | Mode Difícil: agent MPC + LightGBM (`agent_hard/`), entrenament (`train_v7.py`), validació, historial de versions, recerca (`RECERCA_v13.md`), experiments (`arena/`, `diag/`), lliuraments de referència (`lliuraments/`) i **totes les versions anteriors a [`arxiu/`](dificil/arxiu/README.md)** (variants v13–v20, primer agent MPC de 22,95 i zips de diagnòstic). |
 | [`estandard/`](estandard/README.md) | Mode Estàndard: comparació de 10 agents (regles, MPC-LP, DP, imitació, RL) amb el simulador oficial i el seu lliurament. |
 | [`docs/`](docs/) | Enunciat oficial ([`ENUNCIAT.md`](docs/ENUNCIAT.md), PDF/LaTeX), [guia de variables](docs/GUIA_VARIABLES.md), [traspàs del Mode Difícil](docs/TRASPASO_MODE_DIFICIL.md) i [informe de recerca](docs/recerca/estrategies_control_bateries.md). |
 | [`scripts/`](scripts/) | Utilitats: `package_final.py` (regenera la solució B), `eval_agent_dir.py` (validació d'un agent tal com es lliura), `extend_hist0_v8.py`, `oracle_hard.py`, etc. |
@@ -33,7 +33,6 @@ amb els zips, el codi legible, els hashes i les instruccions per verificar-les i
 | [`data/train/`](data/) | Dades d'entrenament oficials (6 CSV: comptador, inversors, meteo, entrades/sortides, PVPC, CO₂). El test és ocult. |
 | [`dashboard/`](dashboard/README.md) | Dashboard de decisió i explorador de dades (Streamlit), repte secundari. |
 | [`notebooks/`](notebooks/) · [`src/`](src/) | Anàlisi exploratòria i codi base compartit (dades, previsions, MPC-LP) de les primeres versions dels dos modes. |
-| `submission_hard/`, `submissions_hard_diag/` | Arxiu: primer agent MPC del Mode Difícil (22,95) i zips de diagnòstic. |
 
 ## Com reproduir el lliurament final
 

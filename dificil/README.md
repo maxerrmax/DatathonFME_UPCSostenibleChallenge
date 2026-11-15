@@ -12,8 +12,8 @@
 | `heval.py`, `exp.py`, `stack.py`, `folds.py` | Validació: replay de previsions gravades, puntuació per blocs mensuals, plecs. Referència: `scripts/eval_agent_dir.py`. |
 | `RECERCA_v13.md` | Informe d'experiments (v13): què s'ha provat, amb xifres, i què no va funcionar. |
 | `arena/`, `diag/`, `probe/` | Estratègies alternatives (~40), diagnòstics i la sonda que va verificar el format del servidor. |
-| `v13/`…`v20/` | Variants de l'equip (codi i models). Cap supera la v12 de forma fiable; vegeu `../CLAUDE.md`. |
-| `lliuraments/` | Zips enviats al rànquing (vegeu la seva `README.md`). |
+| `arxiu/` | **Versions anteriors i variants descartades** (v13–v20, primer agent MPC, zips de diagnòstic). Vegeu [`arxiu/README.md`](arxiu/README.md). |
+| `lliuraments/` | Zips de referència enviats al rànquing: v8, v9 i v12 (vegeu la seva `README.md`). |
 | `train_forecast.py`, `hdata.py`, `henv.py`, `horacle.py`, `hpipe.py` | Dades horàries, entorn del Mode Difícil, òptim amb previsió perfecta i pipeline de la primera etapa. |
 
 ## Comandes

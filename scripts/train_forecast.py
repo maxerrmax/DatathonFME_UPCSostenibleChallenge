@@ -3,7 +3,7 @@ Entrena els models de previsió (LightGBM) per al Mode Difícil.
 
 Imita el que veu l'agent al test: blocs de 7 dies sense historial previ.
   - validació: bloc dels dies 15-21 de cada mes (fora de l'entrenament)
-  - final:     tots els blocs -> models a submission_hard/
+  - final:     tots els blocs -> models a dificil/arxiu/submission_hard/
 
 Ús:  python scripts/train_forecast.py [--final]
 """
@@ -22,7 +22,7 @@ from src.data import load_raw_hourly
 from src.forecast import (PRICE_FEATS, LOAD_FEATS, PV_FEATS, price_features, load_features,
                           pv_features, ts_to_hour)
 
-OUT = ROOT / "submission_hard"
+OUT = ROOT / "dificil/arxiu/submission_hard"
 COLS = {"p": "precio_eur_per_kwh", "c": "co2_kg_per_kwh", "load": "load_kw", "pv": "pv_kw",
         "irr": "irradiancia_wm2", "temp": "temp_ambient_c"}
 KNOWN_AHEAD = {"p": 2, "c": 2}  # la resta: fins a t0-1

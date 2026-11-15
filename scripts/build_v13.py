@@ -6,8 +6,8 @@ Genera el lliurament v13 (Mode Difícil) com un agent.py PLA (sense sys/os/impor
   + nn_pre   (dificil/arena/nn_pre): previsió CO2/preu amb xarxes pre-entrenades amb historial REE (GPU)
   + guarda de temps: si la mitjana de ms/pas supera `budget_ms`, aquell pas usa el LP determinista del v12.
 
-    python scripts/build_v13.py [n_assumed=1008] [budget_s=40] -> dificil/v13/ (agent.py, feats.py, nnfeat.py, parametres.json,
-                                              models_all7.pkl, nn_all.npz) i dificil/lliuraments/hard_v13.zip
+    python scripts/build_v13.py [n_assumed=1008] [budget_s=40] -> dificil/arxiu/v13/ (agent.py, feats.py, nnfeat.py, parametres.json,
+                                              models_all7.pkl, nn_all.npz) i dificil/arxiu/lliuraments/hard_v13.zip
 """
 import re
 import shutil
@@ -17,8 +17,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 AH = ROOT / "dificil" / "agent_hard"
 AR = ROOT / "dificil" / "arena"
-OUT = ROOT / "dificil" / "v13"
-ZIP = ROOT / "dificil" / "lliuraments" / "hard_v13.zip"
+OUT = ROOT / "dificil" / "arxiu" / "v13"
+ZIP = ROOT / "dificil" / "arxiu" / "lliuraments" / "hard_v13.zip"
 V12ZIP = ROOT / "dificil" / "lliuraments" / "hard_v12_public_23.53.zip"
 
 
