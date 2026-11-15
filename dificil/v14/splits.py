@@ -12,3 +12,18 @@ def split_B(df, val_days=7):
         m = (b.index >= cut) & (b.index <= end)
         fit.append(b[~m]); val.append(b[m])
     return pd.concat(fit).sort_index(), pd.concat(val)
+
+
+def split_C(df, val_days=7):
+    """Holdout C: dies -21..-15 de cada bloc."""
+    import sys; sys.path.insert(0, "/home/user/DatathonFME_UPCSostenibleChallenge/estandard")
+    from data import blocks
+    fit, val = [], []
+    for b in blocks(df):
+        if len(b) < 24 * (3 * val_days + 3):
+            fit.append(b); continue
+        end = b.index[-1] - pd.Timedelta(days=2 * val_days)
+        cut = end - pd.Timedelta(days=val_days) + pd.Timedelta("1h")
+        m = (b.index >= cut) & (b.index <= end)
+        fit.append(b[~m]); val.append(b[m])
+    return pd.concat(fit).sort_index(), pd.concat(val)
