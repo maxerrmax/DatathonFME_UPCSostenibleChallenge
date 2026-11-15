@@ -1,0 +1,2 @@
+40d1cb745b22d4197b06c3a85954c2658c023e687286cdc08ecc76cfdd5771d8  solucio_A_v12_original.zip
+d17dacd92169a83c67b03ae2883cbcc3751c9d1d0ff1c5c3ee7bb18418dcefb2  solucio_B_v12_hora_solar.zip

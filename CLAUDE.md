@@ -31,8 +31,8 @@
 - La v2 d'aquest agent amb règims d'obertura (tancat/reduït) va empitjorar al test i es va revertir.
 
 ## Estat del Mode Difícil i memòria de la sessió (15/11/2026)
-Públic: v12 23,53 (millor) · v15 23,53 (v12 + final conegut del test; el guany cau a la meitat privada) · v18 23,13 ·
-v17 23,29 · v16 22,97 · v13 23,07 · v10 22,95. **Lliurament final recomanat: v15** (`dificil/lliuraments/hard_v15.zip`).
+Públic: **v12 + hora solar 23,63 (millor)** · v12 23,53 · v15 23,53 (v12 + final conegut del test; el guany cau a la meitat privada) · v18 23,13 ·
+v17 23,29 · v16 22,97 · v13 23,07 · v10 22,95. **LLIURAMENT FINAL (decisió del 15/11): dues solucions, `entrega_final/solucio_A_v12_original.zip` (23,53) i `entrega_final/solucio_B_v12_hora_solar.zip` (23,63).** Vegeu `entrega_final/README.md`. La v15 no es selecciona (el seu guany depèn de conèixer el final del test).
 v19 (`hard_v19.zip`, v15 + previsions conscients del canvi de setmana, plecs +0,22/+0,17/+0,08) no s'ha provat al públic:
 pujar-lo un cop i quedar-s'hi només si fa **> 23,53**.
 

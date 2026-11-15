@@ -1,15 +1,43 @@
 # Mode Difícil (6.000 kWh, ±1.500 kW, solar ×12, mercat a 3 h)
 
+> **Estat actual (15/11/2026).** Lliurament final: les dues solucions de [`../entrega_final/`](../entrega_final/README.md)
+> (A: v12 original, 23,53 al públic; B: v12 + hora solar, 23,63). Tot el que hi ha sota és l'historial de treball.
+
+## On és cada cosa
+
+| Ruta | Què és |
+|---|---|
+| `agent_hard/` | Codi de l'agent (`agent.py`, `feats.py`, `parametres.json`). Els models (`*.pkl`) no es versionen: `python dificil/train_v7.py fit\|all`. L'`agent.py` d'aquí és la v12 més opcions experimentals **desactivades per defecte** (CBR, SAA, trams d'horitzó…); amb els paràmetres per defecte decideix igual que el lliurat (comprovat: 20,72 a validació amb tots dos). El codi exacte lliurat és a `../entrega_final/codi_solucio_*/`. |
+| `train_v7.py` | Entrenament dels models de preu, CO₂, consum, solar i `net0` (`fit` = sense la validació, `all` = tot el train; 2n argument opcional = llavor). |
+| `heval.py`, `exp.py`, `stack.py`, `folds.py` | Validació: replay de previsions gravades, puntuació per blocs mensuals, plecs. Referència: `scripts/eval_agent_dir.py`. |
+| `RECERCA_v13.md` | Informe d'experiments (v13): què s'ha provat, amb xifres, i què no va funcionar. |
+| `arena/`, `diag/`, `probe/` | Estratègies alternatives (~40), diagnòstics i la sonda que va verificar el format del servidor. |
+| `v13/`…`v20/` | Variants de l'equip (codi i models). Cap supera la v12 de forma fiable; vegeu `../CLAUDE.md`. |
+| `lliuraments/` | Zips enviats al rànquing (vegeu la seva `README.md`). |
+| `train_forecast.py`, `hdata.py`, `henv.py`, `horacle.py`, `hpipe.py` | Dades horàries, entorn del Mode Difícil, òptim amb previsió perfecta i pipeline de la primera etapa. |
+
+## Comandes
+
 ```bash
-python dificil/train_forecast.py fit   # models sense validació -> agent_dificil/models_fit.pkl (+ MAE a validació)
-python dificil/train_forecast.py all   # models amb tot train   -> agent_dificil/models_all.pkl (lliurament)
+python dificil/train_v7.py fit          # models sense validació  -> dificil/agent_hard/models_fit7.pkl
+python scripts/eval_agent_dir.py <carpeta_agent>      # validació d'un agent empaquetat (1 procés, ~30 s)
+python scripts/package_final.py         # regenera la solució B de zero
+```
+
+---
+
+# Historial de versions (referència)
+
+```bash
+python dificil/train_forecast.py fit   # models sense validació -> agent_hard/models_fit.pkl (+ MAE a validació)
+python dificil/train_forecast.py all   # models amb tot train   -> agent_hard/models_all.pkl (lliurament)
 python dificil/heval.py '[{"k_dis":0.5}]'   # avalua a validació amb models_fit
 cd dificil/agent_hard && zip ../submissions/hard_mpc_lgbm.zip agent.py feats.py parametres.json models_all.pkl
 ```
 
 - `henv.py`: environment oficial amb l'observació del Mode Difícil (finestra 3 h, meteo, cap/power).
 - `horacle.py`: òptim amb previsió perfecta (LP amb import/excedent).
-- `agent_dificil/`: MPC-LP + previsions LightGBM (preu, CO2, consum, solar). Funciona també en Mode Estàndard.
+- `agent_hard/`: MPC-LP + previsions LightGBM (preu, CO2, consum, solar). Funciona també en Mode Estàndard.
 
 | Validació (models entrenats sense validació) | Score |
 |---|---|
