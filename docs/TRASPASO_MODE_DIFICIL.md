@@ -66,6 +66,13 @@ Sobre la v9 (validación del equipo, ref. 20,52):
   (−0,04/−0,11/−0,06: el calibrado sigue haciendo falta); media proper/original +0,02; modelos por franjas
   (3-5, 6-8, 9-11) +0,02. **v19 + CO₂ proper: 19,230 (+0,21; +0,30/+0,24/+0,09)** frente a v19 solo 19,177
   (+0,16): los dos cambios se suman. Candidato a subir una vez (cambiar solo si supera 23,53).
+- **Features nuevas de meteo/calendario** (15/11, `dificil/diag/extra_feats.py`, sobre v19 + hora solar, 3 pliegues, base
+  21,13/17,78/19,23 = 19,380; grupos opcionales `JAMM_EXTRA` de `feats.py`, apagados por defecto): olas de calor/frío
+  (temp. media 24/72 h y máx. 24 h en precio, CO₂ y consumo) −0,003 (0,00/−0,02/+0,01); umbrales 19/27 °C en consumo
+  +0,003 (0,00/−0,01/+0,02); altura del sol en consumo +0,013 (+0,01/+0,01/+0,02); festivos estatales, vísperas, puentes
+  y Navidad en precio/CO₂ −0,030 (+0,01/0,00/−0,10); temperatura del panel en consumo/neto de la hora actual 0,000
+  (0,00/−0,02/+0,02). Todo dentro del redondeo: no subir. Horas del cambio de hora: no se puede validar (el train no
+  contiene ningún cambio de hora) y afecta a 2 noches; no tocado.
 - **Ensemble de semillas de CO₂**: 2 semillas 20,54 (+0,02, ruido) a 21 ms/paso; 3 semillas 20,52 a 25 ms/paso
   (riesgo con el límite de 60 s). No adoptado.
 
