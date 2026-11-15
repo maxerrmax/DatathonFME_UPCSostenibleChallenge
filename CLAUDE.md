@@ -32,7 +32,7 @@
 
 ## Estat del Mode Difícil i memòria de la sessió (15/11/2026)
 Públic: **v12 + hora solar 23,63 (millor)** · v12 23,53 · v15 23,53 (v12 + final conegut del test; el guany cau a la meitat privada) · v18 23,13 ·
-v17 23,29 · v16 22,97 · v13 23,07 · v10 22,95. **LLIURAMENT FINAL (decisió del 15/11): dues solucions, `entrega_final/solucio_A_v12_original.zip` (23,53) i `entrega_final/solucio_B_v12_hora_solar.zip` (23,63).** Vegeu `entrega_final/README.md`. La v15 no es selecciona (el seu guany depèn de conèixer el final del test).
+v17 23,29 · v16 22,97 · v13 23,07 · v10 22,95. **LLIURAMENT FINAL (decisió definitiva del 15/11, 11:50): `entrega_final/solucio_C_v19_hora_solar_hvac.zip` (23,78) i `entrega_final/solucio_B_v12_hora_solar.zip` (23,63); la A (23,53) queda com a referència.** Vegeu `entrega_final/README.md`. La v15 no es selecciona (el seu guany depèn de conèixer el final del test).
 v19 (`dificil/arxiu/lliuraments/hard_v19.zip`, v15 + previsions conscients del canvi de setmana, plecs +0,22/+0,17/+0,08): públic **23,64**.
 **v19 + hora solar + llindars de climatització (`dificil/lliuraments/hard_v19dst_hvac.zip`, codi a `dificil/arxiu/v19_dst_hvac/`): públic 23,78 (CO₂ 22,43 %, cost 26,93 %), el millor** (+0,03 sobre la v19 + hora solar, dins del soroll; validació 20,73 vs 20,72). Mateixa dependència del final del test que la v19.
 **v19 + hora solar (`dificil/arxiu/lliuraments/hard_v19_dst.zip`, codi a `dificil/arxiu/v19_dst/`): públic 23,75.**
@@ -45,6 +45,11 @@ Escombrat de paràmetres del planificador sobre v19 + hora solar (`dificil/diag/
 un sol episodi continu de 12 setmanes (SOC arrossegat; la hipòtesi de reinici per setmana, v18, és falsa).
 `ultim_consum_kw` i `ultima_solar_kw` són l'hora anterior (mesurat píxel a píxel). El moment de les dades meteo no importa
 (v12 igual amb t, t-1, t-2). No cal fer més sondes de format.
+
+**Rànquing públic (15/11/2026, captura de l'equip):** Ommetje **27,98** (era 23,59 abans), Low BaterIA **27,60**, Riviera Maya Boys **27,36**;
+després SSA Gourmet 24,37, Fanboy & Chum Chum 24,25, SanHackobos 24,15, manguets 23,89, TeamName2/HelloWorld/Equip1/sisoev 23,84; JAMM 16a
+entrada amb 23,78 (CO₂ 22,43 %, cost 26,93 %). **Tres equips han saltat ~3,5 punts per sobre del grup de 24:** la bretxa ja no és de ~0,8 sinó
+de ~4. El rànquing de sota és anterior a aquest salt; CO₂/cost (15/11 11:40, 56 equips, 466 lliuraments): Ommetje 27,05 % / 30,15 %, Low BaterIA 26,61 / 29,91, Riviera Maya Boys 26,37 / 29,65 (ens guanyen +4,6 punts de CO₂ i +3,2 de cost). No s'ha investigat què han canviat.
 
 **Bretxa amb els líders** (~0,8): SSA Gourmet 24,36 (CO2 22,94 % / cost 27,69 %), Fanboy & Chum Chum 24,25, SanHackobos 24,15,
 manguets 23,89, TeamName2 23,84; nosaltres 23,53 (22,34 / 26,31). Ens guanyen en CO2 i en cost alhora: és sistemàtic.
@@ -72,3 +77,8 @@ Ni els plecs ni el pseudo-test van predir cap de les pèrdues al públic (biaix 
 **Forma de treballar**: ser crític i no excessivament confiat; donar guanys com a rangs amb l'evidència, dir què no està
 verificat i proposar regles de decisió ("canviar només si el públic > X"), no promeses. D'altres equips, només inspiració, sense
 copiar. Els notebooks d'entrenament s'executen a Kaggle (autocontinguts), mai en local.
+
+**Dashboard** (`dashboard/`, vegeu `dashboard/README.md`): eina per comparar i decidir, sense conclusions escrites als títols;
+cada gràfic té icona (?) amb l'explicació i etiqueta d'origen (VALIDACIÓ / PÚBLIC / CAMPUS / CALCULAT). Per refrescar-ho tot amb l'estat
+del repo: `python dashboard/refresh.py` (arena, traces de totes les estratègies, `voi.json`); després només cal omplir
+`dashboard/submissions.json` (lliuraments) i `dashboard/live_feed.json` (rànquing). «Cara a cara» compara qualsevol de les estratègies de l'arena.

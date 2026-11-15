@@ -84,3 +84,11 @@ if __name__ == "__main__":
         print(f"{n:<16}" + "".join(f"{R[(n, k)]:9.2f}" for k in (1, 2, 3)) + f"{m:9.2f}{m - base:+8.2f}")
     print(f"{'òptim':<16}" + "".join(f"{orc[k]:9.2f}" for k in (1, 2, 3)) + f"{np.mean(list(orc.values())):9.2f}"
           f"{np.mean(list(orc.values())) - base:+8.2f}")
+    out = ROOT / "dashboard" / "model_data" / "voi.json"           # llegit pel dashboard (pàgina «On són els punts»)
+    import json
+    out.write_text(json.dumps({
+        "base": float(base),
+        "oracle": {"mean": float(np.mean(list(orc.values()))), "gain": float(np.mean(list(orc.values())) - base)},
+        "variants": {n: {"folds": [R[(n, k)] for k in (1, 2, 3)], "mean": float(np.mean([R[(n, k)] for k in (1, 2, 3)])),
+                         "gain": float(np.mean([R[(n, k)] for k in (1, 2, 3)]) - base)} for n in names},
+    }, indent=1), encoding="utf-8")

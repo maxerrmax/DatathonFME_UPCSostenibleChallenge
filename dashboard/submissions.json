@@ -8,7 +8,7 @@
   "hours": 1008,
   "co2_base_kg": 60250,
   "cost_base_eur": 94975,
-  "note": "El rànquing públic del Mode Difícil usa 1.008 hores (6 setmanes), segons la web del repte. Les bases de CO₂ i cost es dedueixen dels percentatges."
+  "note": "El rànquing públic del Mode Difícil usa 1.008 hores (la meitat de cada setmana de test, uns 5 setmanes equivalents segons els totals de referència). Les bases de CO₂ i cost es dedueixen dels percentatges."
  },
  "limits": {
   "timeout_s": 60,
@@ -58,7 +58,7 @@
   },
   {
    "id": "v12",
-   "what": "+ calibratge en línia del biaix del CO₂",
+   "what": "Solució A: calibratge en línia del biaix del CO₂",
    "validation": 20.74,
    "public": 23.53,
    "co2": 22.34,
@@ -108,8 +108,44 @@
    "id": "v19",
    "what": "v15 + previsions conscients del canvi de setmana",
    "validation": 20.96,
+   "public": 23.64,
+   "note": "Públic 23,64 (+0,11 sobre la v15, dins del soroll). Depèn de conèixer el final del test i l'encadenament de setmanes."
+  },
+  {
+   "id": "v12_dst",
+   "what": "Solució B: v12 + taula de cel clar en hora estàndard (canvi d'hora)",
+   "validation": 20.72,
+   "public": 23.63,
+   "co2": 22.38,
+   "cost": 26.55,
+   "infr": 0
+  },
+  {
+   "id": "v19_dst",
+   "what": "v19 + hora solar (depèn de conèixer el final del test)",
+   "validation": 20.72,
+   "public": 23.75
+  },
+  {
+   "id": "v19_dst_hvac",
+   "what": "v19 + hora solar + llindars de climatització 19/27 °C",
+   "validation": 20.73,
+   "public": 23.78,
+   "co2": 22.43,
+   "cost": 26.93
+  },
+  {
+   "id": "v19_dst_near",
+   "what": "v19 + hora solar + CO₂ proper (h+3..+11) + correcció del canvi de setmana",
+   "validation": 20.8,
+   "public": 23.63
+  },
+  {
+   "id": "v12B_natcal",
+   "what": "Solució B + calendari nacional i període tarifari 2.0TD a preu i CO₂",
+   "validation": 20.75,
    "public": null,
-   "note": "Als plecs guanya +0,22 / +0,17 / +0,08. Regla: enviar-la un cop i quedar-s'hi només si fa més de 23,53."
+   "note": "Candidat, encara sense nota pública."
   }
  ],
  "leaderboard": {
@@ -117,194 +153,213 @@
   "announced_max": 25.0,
   "teams": [
    {
+    "team": "Ommetje",
+    "score": 27.98,
+    "co2": null,
+    "cost": null,
+    "rank": 1
+   },
+   {
+    "team": "Low BaterIA",
+    "score": 27.6,
+    "co2": null,
+    "cost": null,
+    "rank": 2
+   },
+   {
+    "team": "Riviera Maya Boys",
+    "score": 27.36,
+    "co2": null,
+    "cost": null,
+    "rank": 3
+   },
+   {
     "team": "SSA Gourmet",
-    "score": 24.36,
-    "co2": 22.94,
-    "cost": 27.69
+    "score": 24.37,
+    "co2": null,
+    "cost": null,
+    "rank": 4
    },
    {
     "team": "SSA Gourme",
     "score": 24.32,
     "co2": 22.87,
-    "cost": 27.69
-   },
-   {
-    "team": "Fanboy & Chum Chum",
-    "score": 24.25,
-    "co2": 22.98,
-    "cost": 27.23
-   },
-   {
-    "team": "SanHackobos",
-    "score": 24.15,
-    "co2": 22.92,
-    "cost": 27.02
-   },
-   {
-    "team": "SanHackobos_v7",
-    "score": 24.1,
-    "co2": 22.86,
-    "cost": 26.99
+    "cost": 27.69,
+    "rank": 5
    }
   ],
   "source": "https://repteupc.datathon.cat/ · Mode Difícil · rànquing públic (instantània)",
-  "n_teams": 51,
-  "n_submissions": 358,
+  "n_teams": 56,
+  "n_submissions": 466,
   "us": "JAMM",
   "standings": [
    {
-    "rank": 1,
-    "team": "SSA Gourmet",
-    "score": 24.36,
-    "co2": 22.94,
-    "cost": 27.69
+    "team": "Ommetje",
+    "score": 27.98,
+    "co2": null,
+    "cost": null,
+    "rank": 1
    },
    {
-    "rank": 2,
+    "team": "Low BaterIA",
+    "score": 27.6,
+    "co2": null,
+    "cost": null,
+    "rank": 2
+   },
+   {
+    "team": "Riviera Maya Boys",
+    "score": 27.36,
+    "co2": null,
+    "cost": null,
+    "rank": 3
+   },
+   {
+    "team": "SSA Gourmet",
+    "score": 24.37,
+    "co2": null,
+    "cost": null,
+    "rank": 4
+   },
+   {
     "team": "SSA Gourme",
     "score": 24.32,
     "co2": 22.87,
-    "cost": 27.69
+    "cost": 27.69,
+    "rank": 5
    },
    {
-    "rank": 3,
     "team": "Fanboy & Chum Chum",
     "score": 24.25,
     "co2": 22.98,
-    "cost": 27.23
+    "cost": 27.23,
+    "rank": 6
    },
    {
-    "rank": 4,
     "team": "SanHackobos",
     "score": 24.15,
     "co2": 22.92,
-    "cost": 27.02
+    "cost": 27.02,
+    "rank": 7
    },
    {
-    "rank": 5,
     "team": "SanHackobos_v7",
-    "score": 24.1,
-    "co2": 22.86,
-    "cost": 26.99
+    "score": 24.13,
+    "co2": null,
+    "cost": null,
+    "rank": 8
    },
    {
-    "rank": 6,
     "team": "SanHackobos_v9",
     "score": 24.1,
     "co2": 22.94,
-    "cost": 26.82
+    "cost": 26.82,
+    "rank": 9
    },
    {
-    "rank": 7,
     "team": "SanHackobos_v8",
     "score": 24.06,
     "co2": 22.88,
-    "cost": 26.79
+    "cost": 26.79,
+    "rank": 10
    },
    {
-    "rank": 8,
     "team": "manguets",
     "score": 23.89,
     "co2": 22.66,
-    "cost": 26.76
+    "cost": 26.76,
+    "rank": 11
    },
    {
-    "rank": 9,
     "team": "TeamName2",
     "score": 23.84,
     "co2": 23.06,
-    "cost": 25.65
+    "cost": 25.65,
+    "rank": 12
    },
    {
-    "rank": 10,
     "team": "HelloWorld",
     "score": 23.84,
     "co2": 23.06,
-    "cost": 25.65
+    "cost": 25.65,
+    "rank": 13
    },
    {
-    "rank": 11,
     "team": "Equip1",
     "score": 23.84,
     "co2": 23.06,
-    "cost": 25.65
+    "cost": 25.65,
+    "rank": 14
    },
    {
-    "rank": 12,
+    "team": "sisoev",
+    "score": 23.84,
+    "co2": 23.06,
+    "cost": 25.65,
+    "rank": 15
+   },
+   {
+    "team": "JAMM",
+    "score": 23.78,
+    "co2": 22.43,
+    "cost": 26.93,
+    "rank": 16
+   },
+   {
     "team": "AAAA",
     "score": 23.75,
     "co2": 22.99,
-    "cost": 25.53
+    "cost": 25.53,
+    "rank": 17
    },
    {
-    "rank": 13,
     "team": "Dos enginyers i mig",
     "score": 23.73,
     "co2": 22.62,
-    "cost": 26.34
+    "cost": 26.34,
+    "rank": 18
    },
    {
-    "rank": 14,
+    "team": "ASCII",
+    "score": 23.73,
+    "co2": 22.53,
+    "cost": 26.51,
+    "rank": 19
+   },
+   {
     "team": "AAA",
     "score": 23.71,
     "co2": 22.89,
-    "cost": 25.63
+    "cost": 25.63,
+    "rank": 20
    },
    {
-    "rank": 15,
     "team": "Sanhackobos_v6",
     "score": 23.7,
     "co2": 22.58,
-    "cost": 26.3
+    "cost": 26.3,
+    "rank": 21
    },
    {
-    "rank": 16,
     "team": "robertocarlos2",
     "score": 23.63,
     "co2": 22.38,
-    "cost": 26.55
+    "cost": 26.55,
+    "rank": 22
    },
    {
-    "rank": 17,
-    "team": "Ommetje",
-    "score": 23.59,
-    "co2": 22.17,
-    "cost": 26.9
-   },
-   {
-    "rank": 18,
     "team": "TeamName3",
     "score": 23.56,
     "co2": 22.83,
-    "cost": 25.25
+    "cost": 25.25,
+    "rank": 23
    },
    {
-    "rank": 19,
-    "team": "JAMM",
-    "score": 23.53,
-    "co2": 22.34,
-    "cost": 26.31
-   },
-   {
-    "rank": 20,
     "team": "t1",
     "score": 23.53,
     "co2": 22.34,
-    "cost": 26.31
-   },
-   {
-    "rank": 21,
-    "team": "ASCII",
-    "score": 23.52,
-    "co2": 22.26,
-    "cost": 26.47
-   },
-   {
-    "rank": 22,
-    "team": "Riviera Maya Boys",
-    "score": 23.45,
-    "co2": 22.47,
-    "cost": 25.73
+    "cost": 26.31,
+    "rank": 24
    }
   ]
  },
@@ -429,7 +484,31 @@
    "validation": "±0,25 com a molt",
    "public": "—",
    "verdict": "El planificador no és la palanca"
+  },
+  {
+   "idea": "v19 + CO₂ proper h+3..+11 + correcció de canvi de setmana",
+   "validation": "+0,08",
+   "public": "−0,12",
+   "verdict": "Descartat al públic"
+  },
+  {
+   "idea": "Variables noves: onades de calor, llindars 19/27 °C, alçada del sol, festius, temperatura de panell",
+   "validation": "−0,03 a +0,01",
+   "public": "—",
+   "verdict": "Cap guany a validar"
+  },
+  {
+   "idea": "Consum nocturn exacte (v20)",
+   "validation": "±0,01",
+   "public": "—",
+   "verdict": "Sense efecte"
+  },
+  {
+   "idea": "Àncora de CO₂ amb el dia posterior a la setmana (v21)",
+   "validation": "+0,00 a +0,01",
+   "public": "—",
+   "verdict": "Sense efecte"
   }
  ],
- "perfect_info_note": "Mitjana dels 3 plecs sobre la v12 (dificil/diag/voi_folds.py); amb tot conegut alhora, +1,62."
+ "perfect_info_note": "Mitjana dels 3 plecs sobre la v12; es regenera amb `python dashboard/refresh.py` (dificil/diag/voi_folds.py)."
 }

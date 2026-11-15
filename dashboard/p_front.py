@@ -16,7 +16,6 @@ import models
 import ui
 from ui import fmt
 
-SHORT = ["Demanda neta", "CO₂ a 3–11 h", "Preu a 3–11 h"]
 
 
 def _base_team(name: str) -> str:
@@ -50,7 +49,7 @@ def status():
     elif L.stale:
         cls, txt = "warn", f"dades de {live.ago(L.age_s)}"
     else:
-        cls, txt = "ok", f"en directe, actualitzat {live.ago(L.age_s)}"
+        cls, txt = "ok", f"actualitzat {live.ago(L.age_s)}"
     st.markdown(
         f"<div class='meta'>Equip JAMM · Repte UPC Sostenible · <span class='live {cls}'><i></i>{txt}"
         f" · {escape(L.source)}</span></div>",
@@ -78,7 +77,9 @@ def _trend(hist: pd.DataFrame, me: str, lead_score: float) -> str:
     for i, (vid, v) in enumerate(zip(ids, vals)):
         cur = vid == me
         g += f"<circle class='{'ac' if cur else 'mu'}' cx='{x(i):.1f}' cy='{y(v):.1f}' r='{4.5 if cur else 2.5}'/>"
-        g += f"<text class='{'hi' if cur else ''}' x='{x(i):.1f}' y='{H - 8}' text-anchor='middle'>{escape(str(vid))}</text>"
+        ci = ids.index(me) if me in ids else -1
+        if cur or (i % 2 == 0 and abs(i - ci) > 1):
+            g += f"<text class='{'hi' if cur else ''}' x='{x(i):.1f}' y='{H - 8}' text-anchor='middle'>{escape(str(vid))}</text>"
         if cur:
             cx = min(max(x(i), px0 + 48), px1 - 48)
             g += f"<text class='hi' x='{cx:.1f}' y='{y(v) - 11:.1f}' text-anchor='middle'>{escape(str(vid))} · {fmt(v, 2)}</text>"
@@ -95,8 +96,6 @@ def render():
     L = live.load()
     reg = L.registry
     ch = models.choose(reg)
-    me = ch["chosen"]
-    sel = {s["id"]: s for s in reg["submissions"]}[me]
     pt, raw = reg["public_test"], models.arena_raw()
     opt1 = raw["oracle"]["1"]["score"] if raw else None
     stand_raw = L.standings
@@ -106,37 +105,35 @@ def render():
     us_raw = next((r for r in stand_raw if r["team"] == L.us), None)
 
     all_pub = [s for s in reg["submissions"] if s.get("public") is not None]
+    best_pub = max(all_pub, key=lambda s: s["public"])["id"]
+    ids = [s["id"] for s in all_pub]
+    c_sel, _ = st.columns([3, 7])
+    me = c_sel.selectbox("Versió a mostrar", ids, index=ids.index(best_pub), key="front_version",
+                         help="Per defecte, la que té la nota pública més alta del registre.")
+    sel = {s["id"]: s for s in reg["submissions"]}[me]
     hist = pd.DataFrame([s for s in all_pub if s["public"] >= 22.5])
     omitted = [f"{s['id']} ({fmt(s['public'], 2)})" for s in all_pub if s["public"] < 22.5]
 
     gap = sel["public"] - lead["score"]
     top10 = stand_dedup[9]["score"] if len(stand_dedup) >= 10 else None
-    pend = ch["pending"][0] if ch["pending"] else None
 
-    # ------------------------------------------------------------ 1 · veredicte + nota sobre el fons
+    # ------------------------------------------------------------ 1 · versió i nota sobre el fons
     where = (
         f"{us_dedup['rank']}è equip ({us_raw['rank']}a entrada de {L.n_teams or len(stand_raw)}) · {_d(gap, 'vs líder')}"
-        if us_dedup and us_raw
-        else ""
+        if us_dedup and us_raw and me == best_pub
+        else f"{_d(gap, 'vs líder')}"
     )
-    cand = (
-        f"Candidat: <b>{pend['id']}</b> · ha de superar <b>{fmt(pend['threshold'], 2)}</b> per substituir la {me}"
-        if pend
-        else "Cap versió pendent de provar"
-    )
-    val = (
-        f"Validació <b>{fmt(sel['validation'], 2)}</b> de {fmt(opt1, 2)} ({fmt(100 * sel['validation'] / opt1, 1)} % de l'òptim)"
-        if opt1
-        else ""
-    )
+    est = f"Millor estimació d'avantatge al test privat: <b>{ch['chosen']}</b> {ui.tag('calc')}"
+    val = (f"Validació <b>{fmt(sel['validation'], 2)}</b> sobre un òptim de {fmt(opt1, 2)} {ui.tag('val')}"
+           if sel.get("validation") is not None and opt1 else "Sense validació registrada")
     if omitted:
         val += f" · Fora d'escala al gràfic: {', '.join(omitted)}"
 
     st.markdown(
         f"<div class='ed-hero'>"
-        f"<div class='verdict'><div class='lab'>Lliurem</div><div class='ver'>{me}</div>"
-        f"<div class='line'>{where}</div><div class='cand'>{cand}</div></div>"
-        f"<div class='scoreblk'><div class='lab'>Nota pública</div>"
+        f"<div class='verdict'><div class='lab'>Versió</div><div class='ver' style='font-size:{72 if len(me) <= 4 else 46 if len(me) <= 8 else 30}px'>{me}</div>"
+        f"<div class='line'>{where}</div><div class='cand'>{est}</div></div>"
+        f"<div class='scoreblk'><div class='lab'>Nota pública {ui.tag('pub')}</div>"
         f"<div class='big'>{fmt(sel['public'], 2)}{('<span class=sub>' + _d(sel['public'] - top10, 'vs top 10') + '</span>') if top10 else ''}</div>"
         f"{_trend(hist, me, lead['score']) if len(hist) > 2 else ''}"
         f"<div class='note2'>{val}</div></div></div>",
@@ -144,90 +141,74 @@ def render():
     )
 
     # ------------------------------------------------------------ 2 · comparació amb el líder
-    co2_t = pt["co2_base_kg"] * sel["co2"] / 100 / 1000
-    eur_k = pt["cost_base_eur"] * sel["cost"] / 100 / 1000
     lco2, lcost = lead.get("co2"), lead.get("cost")
+    have = sel.get("co2") is not None and sel.get("cost") is not None
 
     def kpi(lab, v, bar, delta, note):
         return (
-            f"<div><div class='lab'>{lab}</div><div class='kv'>{v}<small>%</small></div>"
+            f"<div><div class='lab'>{lab} {ui.tag('pub')}</div><div class='kv'>{v}<small>%</small></div>"
             f"<div class='kb'>{bar}{delta}</div><div class='kn'>{note}</div></div>"
         )
 
-    k1 = kpi(
-        "CO₂ evitat · pes 70 %",
-        fmt(sel["co2"], 2),
-        _bar(sel["co2"], lco2, (lco2 or sel["co2"]) * 1.06, "eco"),
-        _d(sel["co2"] - lco2, "vs líder") if lco2 else "",
-        f"líder {fmt(lco2, 2)} %" if lco2 else "",
-    )
-    k2 = kpi(
-        "Factura estalviada · pes 30 %",
-        fmt(sel["cost"], 2),
-        _bar(sel["cost"], lcost, (lcost or sel["cost"]) * 1.06, "slate"),
-        _d(sel["cost"] - lcost, "vs líder") if lcost else "",
-        f"líder {fmt(lcost, 2)} %" if lcost else "",
-    )
-    k3 = (
-        f"<div><div class='lab'>Impacte al públic (6 setmanes)</div><div class='kv'>{fmt(co2_t, 1)}<small>t CO₂</small></div>"
-        f"<div class='kn' style='margin-top:14px'>evitades · {fmt(eur_k, 1)} k€ de factura estalviats</div></div>"
-    )
-    st.markdown(f"<div class='ed-kpis'>{k1}{k2}{k3}</div>", unsafe_allow_html=True)
+    if have:
+        co2_t = pt["co2_base_kg"] * sel["co2"] / 100 / 1000
+        eur_k = pt["cost_base_eur"] * sel["cost"] / 100 / 1000
+        k1 = kpi("CO₂ evitat · pes 70 %", fmt(sel["co2"], 2),
+                 _bar(sel["co2"], lco2, (lco2 or sel["co2"]) * 1.06, "eco"),
+                 _d(sel["co2"] - lco2, "vs líder") if lco2 else "", f"líder {fmt(lco2, 2)} %" if lco2 else "")
+        k2 = kpi("Factura estalviada · pes 30 %", fmt(sel["cost"], 2),
+                 _bar(sel["cost"], lcost, (lcost or sel["cost"]) * 1.06, "slate"),
+                 _d(sel["cost"] - lcost, "vs líder") if lcost else "", f"líder {fmt(lcost, 2)} %" if lcost else "")
+        k3 = (f"<div><div class='lab'>Impacte al públic ({fmt(pt['hours'])} h) {ui.tag('pub')}</div>"
+              f"<div class='kv'>{fmt(co2_t, 1)}<small>t CO₂</small></div>"
+              f"<div class='kn' style='margin-top:14px'>evitades · {fmt(eur_k, 1)} k€ de factura estalviats</div></div>")
+        st.markdown(f"<div class='ed-kpis'>{k1}{k2}{k3}</div>", unsafe_allow_html=True)
+    else:
+        st.markdown("<div class='note'><b>Sense desglossament.</b> El registre no té el CO₂ i la factura públics "
+                    "d'aquesta versió.</div>", unsafe_allow_html=True)
 
-    # ------------------------------------------------------------ 3 · rànquing (taula) + punts per guanyar
-    cl, cr = st.columns([7, 5], gap="large")
-    with cl:
-        if not stand_raw:
-            ui.note("Sense rànquing.", "No hi ha cap font en directe. Vegeu <code>dashboard/live.py</code>.")
-        else:
-            view = st.segmented_control(
-                "Equips",
-                [
-                    "Per equip (sense duplicats)",
-                    "Al voltant nostre",
-                    "Top 10",
-                    f"Totes les entrades ({len(stand_raw)})",
-                ],
-                default="Per equip (sense duplicats)",
-                label_visibility="collapsed",
-                key="lb_view",
-            )
-            active_stand = stand_dedup if view in (None, "Per equip (sense duplicats)") else stand_raw
-            active_us = us_dedup if view in (None, "Per equip (sense duplicats)") else us_raw
-            n_ahead = sum(1 for r in active_stand if r["score"] > sel["public"] + 0.004)
-            st.markdown(f"<div class='lab'>Rànquing públic · {n_ahead} per davant</div>", unsafe_allow_html=True)
+    # ------------------------------------------------------------ 3 · rànquing (taula, amplada completa)
+    if not stand_raw:
+        ui.note("Sense rànquing.", "No hi ha cap font de dades. Vegeu <code>dashboard/live.py</code>.")
+        return
+    view = st.segmented_control(
+        "Equips",
+        ["Per equip (sense duplicats)", "Al voltant nostre", "Top 10", f"Totes les entrades ({len(stand_raw)})"],
+        default="Per equip (sense duplicats)", label_visibility="collapsed", key="lb_view",
+    )
+    dedup = view in (None, "Per equip (sense duplicats)")
+    active_stand = stand_dedup if dedup else stand_raw
+    active_us = us_dedup if dedup else us_raw
+    n_ahead = sum(1 for r in active_stand if r["score"] > sel["public"] + 0.004)
+    tip = ("Les entrades d'un mateix equip es poden agrupar (primer botó). La barra és la nota respecte al líder; "
+           "la xifra, la diferència amb la nostra entrada.")
+    st.markdown(f"<div class='ph'><div class='lab'>Rànquing públic · {n_ahead} per davant de la {me}</div>"
+                f"{ui.tag('pub')}{ui.helpicon(tip)}</div>", unsafe_allow_html=True)
 
-            idx = list(range(len(active_stand)))
-            if view == "Top 10":
-                idx = idx[:10]
-            elif view == "Al voltant nostre" and active_us:
-                k = active_us["rank"] - 1
-                idx = sorted(set(idx[:3]) | set(range(max(0, k - 4), min(len(active_stand), k + 5))))
+    idx = list(range(len(active_stand)))
+    if view == "Top 10":
+        idx = idx[:10]
+    elif view == "Al voltant nostre" and active_us:
+        k = active_us["rank"] - 1
+        idx = sorted(set(idx[:3]) | set(range(max(0, k - 4), min(len(active_stand), k + 5))))
 
-            rows, prev, body = [active_stand[i] for i in idx], None, ""
-            smin, smax = min(r["score"] for r in rows), lead["score"]
-            for r in rows:
-                if prev is not None and r["rank"] - prev > 1:
-                    body += "<tr class='sep'><td colspan='4'></td></tr>"
-                prev = r["rank"]
-                m = r["team"] == L.us
-                w = 100 * (r["score"] - smin + 0.05) / max(smax - smin + 0.05, 1e-6)
-                d = "" if m or not active_us else f"{r['score'] - active_us['score']:+.2f}".replace(".", ",").replace("-", "−")
-                body += (
-                    f"<tr class='{'me' if m else ''}'><td class='r'>{r['rank']}</td>"
-                    f"<td>{escape(r['team'])}{' · ' + me if m else ''}</td>"
-                    f"<td class='g'><div class='gwrap'><i style='width:{w:.0f}%'></i><span>{d}</span></div></td>"
-                    f"<td class='n'>{fmt(r['score'], 2)}</td></tr>"
-                )
-            st.markdown(f"<table class='lbt'><tbody>{body}</tbody></table>", unsafe_allow_html=True)
-    with cr:
-        # 1.62 és el guany conjunt de les 3 entrades sobre els 3 plecs (consistent amb perfect_info)
-        pot = reg["perfect_info"] + [{"gain": 1.62}]
-        vmax = max(p["gain"] for p in pot) if pot else 1
-        bars = "".join(
-            f"<div class='pbx'><span>{SHORT[i] if i < len(reg['perfect_info']) else 'Totes juntes (3 plecs)'}</span>"
-            f"<div><b class='{'full' if i >= len(reg['perfect_info']) else ''}' style='width:{100 * p['gain'] / vmax:.0f}%'></b></div>"
-            f"<em>+{fmt(p['gain'], 2)}</em></div>"
-            for i, p in enumerate(pot)
+    rows, prev, body = [active_stand[i] for i in idx], None, ""
+    smin, smax = min(r["score"] for r in rows), lead["score"]
+    for r in rows:
+        if prev is not None and r["rank"] - prev > 1:
+            body += "<tr class='sep'><td colspan='6'></td></tr>"
+        prev = r["rank"]
+        m = r["team"] == L.us
+        w = 100 * (r["score"] - smin + 0.05) / max(smax - smin + 0.05, 1e-6)
+        d = "" if m or not active_us else f"{r['score'] - active_us['score']:+.2f}".replace(".", ",").replace("-", "−")
+        co2 = fmt(r["co2"], 2) if r.get("co2") is not None else "—"
+        cost = fmt(r["cost"], 2) if r.get("cost") is not None else "—"
+        body += (
+            f"<tr class='{'me' if m else ''}'><td class='r'>{r['rank']}</td>"
+            f"<td>{escape(r['team'])}</td>"
+            f"<td class='g'><div class='gwrap'><i style='width:{w:.0f}%'></i><span>{d}</span></div></td>"
+            f"<td class='n'>{co2}</td><td class='n'>{cost}</td><td class='n'>{fmt(r['score'], 2)}</td></tr>"
         )
-        st.markdown(f"<div class='lab'>Punts per guanyar (validació, mitjana 3 plecs)</div><div class='pbxs'>{bars}</div>", unsafe_allow_html=True)
+    head = ("<thead><tr><th></th><th>Equip</th><th></th><th class='n'>CO₂ %</th><th class='n'>Factura %</th>"
+            "<th class='n'>Nota</th></tr></thead>")
+    st.markdown(f"<table class='lbt'>{head}<tbody>{body}</tbody></table>", unsafe_allow_html=True)

@@ -21,23 +21,27 @@ def render():
     if tr is None or not runs:
         st.info("Executeu `python dashboard/build_models.py` un cop per simular els agents hora a hora.")
         return
-    names = [n for n in runs if n != "optimum"]
+    names = sorted(n for n in runs if n != "optimum")
     lim = reg["limits"]
 
+    sub_of = {x["arena"]: x["id"] for x in reg["submissions"] if x.get("arena")}
+
     def lab(n):
-        return n if runs[n]["label"] == n else f"{n} · {runs[n]['label']}"
+        base = n if runs[n]["label"] == n else f"{n} · {runs[n]['label']}"
+        return f"{base} (= lliurament {sub_of[n]})" if n in sub_of and sub_of[n] != n else base
 
     def nm(m):
         return OPT_NAME if m == "optimum" else m
 
     idx = tr[tr["model"] == "optimum"].index
-    ui.intro("Dos agents, les mateixes hores",
+    ui.intro("Comparació de dos agents sobre les mateixes hores",
              f"Validació, plec 1: {fmt(len(idx))} hores que els models no han vist, amb el simulador oficial. "
-             "L'òptim és el pla que faria algú que conegués el futur.")
+             f"L'òptim és el pla amb previsió perfecta. Es pot triar qualsevol de les {len(names)} estratègies executades.",
+             src="val")
     c1, c2, _ = st.columns([3, 3, 4])
-    a = c1.selectbox("Agent A (verd)", names, index=names.index(models.REF) if models.REF in names else 0, format_func=lab)
+    a = c1.selectbox("Agent A", names, index=names.index(models.REF) if models.REF in names else 0, format_func=lab)
     rest = [n for n in names if n != a]
-    b = c2.selectbox("Agent B (taronja)", rest, index=0, format_func=lab)
+    b = c2.selectbox("Agent B", rest, index=0, format_func=lab)
     T = {m: tr[tr["model"] == m] for m in (a, b, "optimum")}
     col = {a: OURS, b: RIVAL, "optimum": OPT}
     w = models.score_weights(tr)
@@ -49,27 +53,21 @@ def render():
     # ------------------------------------------------------------------ marcador + on es perden els punts
     c1, c2 = st.columns([5, 6], gap="large")
     with c1:
-        secs = lambda r: r["ms"] * lim["test_hours"] / 1000 if r.get("ms") else None
         spec = [("Puntuació", lambda r: r["score"], 2), ("CO₂ evitat, %", lambda r: r["co2"], 2),
-                ("Factura estalviada, %", lambda r: r["cost"], 2), ("Infraccions", lambda r: r["infr"], 0),
-                (f"Temps de test, s (límit {lim['timeout_s']})", secs, 0)]
+                ("Factura estalviada, %", lambda r: r["cost"], 2), ("Infraccions", lambda r: r["infr"], 0)]
         rows_ = []
         for name, f, dec in spec:
             va, vb, vo = f(ra), f(rb), f(ro)
             rows_.append({"k": name, "a": fmt(va, dec), "b": fmt(vb, dec),
                           "d": fmt(va - vb, dec, True) if va is not None and vb is not None else "—", "o": fmt(vo, dec)})
-        win = a if ra["score"] >= rb["score"] else b
-        box = ui.panel(f"Guanya la {win} per {fmt(abs(ra['score'] - rb['score']), 2)} punts; a l'òptim n'hi falten "
-                       f"{fmt(ro['score'] - max(ra['score'], rb['score']), 2)}")
+        box = ui.panel(f"Marcador: {a} contra {b}", "Puntuació oficial, CO₂ evitat, factura estalviada i infraccions "
+                       "de cada agent al plec 1 de validació, i diferència A − B.", src="val")
         ui.table(pd.DataFrame(rows_), names={"k": "", "a": f"A · {a}", "b": f"B · {b}", "d": "A − B", "o": "Òptim"},
                  left=("k",), highlight=lambda r: r["k"] == "Puntuació", where=box)
-        ui.source("<br>El temps s'extrapola dels ms per pas mesurats en aquesta màquina: cal llegir-lo com una proporció "
-                  "entre agents, no com el temps del servidor.", box)
     with c2:
-        pk = int(lost[a].idxmax())
-        box = ui.panel(f"La {a} perd més punts cap a les {pk}:00",
+        box = ui.panel("Punts perduts respecte a l'òptim, per hora del dia",
                        "Punts perduts respecte a l'òptim per hora del dia, sumats a tot el plec. La suma de les barres és "
-                       "exactament la distància de puntuació.")
+                       "exactament la distància de puntuació.", src="val")
         fig = go.Figure()
         for m in (a, b):
             fig.add_bar(x=lost[m].index, y=lost[m].values, name=m, marker_color=col[m],
@@ -82,7 +80,7 @@ def render():
         ui.show(fig, box)
 
     # ------------------------------------------------------------------ una setmana
-    ui.section("Una setmana, hora a hora")
+    ui.section("Una setmana, hora a hora", src="val")
     gid = (pd.Series(idx).diff() != pd.Timedelta("1h")).cumsum().to_numpy()
     starts = {g: idx[gid == g][0] for g in np.unique(gid)}
     gap_w = pd.Series(runs["optimum"]["weeks"]) - pd.Series(runs[a]["weeks"])
@@ -93,10 +91,10 @@ def render():
     ctx = T["optimum"][m_]
     net = ctx["load_kw"] - ctx["pv_kw"]
     ws = {m: runs[m]["weeks"][str(starts[g_sel].date())] for m in (a, b, "optimum")}
-    box = ui.panel(f"Setmana del {ui.data(starts[g_sel])}: {a}, {fmt(ws[a], 2)} · {b}, {fmt(ws[b], 2)} · "
-                   f"òptim, {fmt(ws['optimum'], 2)}",
+    box = ui.panel(f"Setmana del {ui.data(starts[g_sel])}: {a} {fmt(ws[a], 2)} · {b} {fmt(ws[b], 2)} · "
+                   f"òptim {fmt(ws['optimum'], 2)}",
                    "A dalt, què costa en punts importar un kWh (1 = hora mitjana) i la demanda del campus neta de solar "
-                   "(groc: excedent solar). A baix, l'energia que cada agent té a la bateria.")
+                   "(groc: excedent solar). A baix, l'energia que cada agent té a la bateria.", src="val")
     fig = make_subplots(rows=3, cols=1, shared_xaxes=True, vertical_spacing=0.05, row_heights=[0.22, 0.28, 0.5])
     fig.add_scatter(x=ctx.index, y=w[m_] / w.mean(), mode="lines", line=dict(color=C_CO2, width=2, shape="hv"),
                     showlegend=False, hovertemplate="valor d'un kWh · %{y:.2f}×<extra></extra>", row=1, col=1)
@@ -121,16 +119,36 @@ def render():
     fig.update_layout(hovermode="x unified")
     ui.show(fig, box)
 
+    # ------------------------------------------------------------------ distribució setmanal (boxplot)
+    raw = models.arena_raw()
+    if raw:
+        _, Wk = models.arena_table(raw)
+        box = ui.panel("Distribució de la puntuació setmanal",
+                       f"Puntuació de cada setmana de validació dels 3 plecs ({Wk.shape[1]} setmanes): caixa del primer al "
+                       "tercer quartil, ratlla a la mediana, bigotis fins als valors no atípics i punts per a cada setmana.",
+                       src="val")
+        fig = go.Figure()
+        for m, nm_ in ((a, a), (b, b), ("optimum", OPT_NAME)):
+            if m not in Wk.index:
+                continue
+            v = Wk.loc[m].dropna()
+            fig.add_trace(go.Box(y=v.values, name=nm_, boxpoints="all", jitter=0.4, pointpos=0, boxmean=True,
+                                 marker=dict(color=col[m], size=5, opacity=0.65), line=dict(color=col[m], width=1.6),
+                                 fillcolor=ui.rgba(col[m], 0.12), showlegend=False,
+                                 hovertemplate=nm_ + " · %{y:.2f}<extra></extra>"))
+        fig = ui.style(fig, 320, legend=False)
+        fig.update_yaxes(title="puntuació setmanal", rangemode="tozero")
+        ui.show(fig, box)
+
     # ------------------------------------------------------------------ detall
     with ui.more("Més detall: totes les setmanes i el perfil mitjà del dia"):
         c1, c2 = st.columns(2, gap="large")
         with c1:
             wk = pd.DataFrame({m: runs[m]["weeks"] for m in (a, b, "optimum")})
             x = [pd.Timestamp(d).strftime("%d/%m/%y") for d in wk.index]
-            st.markdown(f"<p class='ct'>La bateria val {wk['optimum'].max() / max(wk['optimum'].min(), 0.1):.0f} vegades més a la "
-                        "millor setmana que a la pitjor</p><p class='cc'>Puntuació de cada setmana de validació. La ratlla "
-                        "és el pla òptim per al conjunt del plec; en una setmana concreta un agent el pot superar per poc.</p>",
-                        unsafe_allow_html=True)
+            ui.heading("Puntuació de cada setmana de validació",
+                       "La ratlla és el pla òptim de cada setmana; en una setmana concreta un agent el pot superar per poc.",
+                       "val")
             fig = go.Figure()
             for m in (a, b):
                 fig.add_scatter(x=x, y=wk[m], mode="markers", name=m, marker=dict(color=col[m], size=9),
@@ -143,9 +161,8 @@ def render():
             fig.update_layout(hovermode="x unified")
             ui.show(ui.style(fig, 290))
         with c2:
-            st.markdown("<p class='ct'>Tots carreguen amb l'excedent solar del migdia i descarreguen al matí i al vespre</p>"
-                        "<p class='cc'>Potència mitjana de la bateria a cada hora del dia; per sobre de zero, carrega.</p>",
-                        unsafe_allow_html=True)
+            ui.heading("Potència mitjana de la bateria per hora del dia",
+                       "Potència mitjana de la bateria a cada hora del dia; per sobre de zero, carrega.", "val")
             fig = go.Figure()
             for m, dash in ((a, None), (b, None), ("optimum", "dot")):
                 g = T[m]["bateria_kw"].groupby(hour).mean()

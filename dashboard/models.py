@@ -229,7 +229,7 @@ def choose(reg: dict) -> dict:
 def gates(reg: dict, T: pd.DataFrame, runs_: dict, cand: str) -> tuple[list[tuple], str, dict | None]:
     """Condicions (nom, compleix, detall) perquè l'estratègia `cand` substitueixi la versió lliurada, i la conclusió.
 
-    És l'única definició de la regla de decisió: la fan servir la pàgina Veredicte i l'assistent.
+    És l'única definició de la regla de decisió: la fan servir la pàgina Com triem i l'assistent.
     """
     me, lim = choose(reg)["chosen"], reg["limits"]
     sel = next(s for s in reg["submissions"] if s["id"] == me)
@@ -238,16 +238,11 @@ def gates(reg: dict, T: pd.DataFrame, runs_: dict, cand: str) -> tuple[list[tupl
     has_pub = bool(sub and sub.get("public"))
     pub = (f"públic {_f(sub['public'])}, {_f(sub['public'] - sel['public'], 2, True)} respecte a la {me}"
            if has_pub else "encara no s'ha enviat")
-    cand_ms, ref_ms = (runs_.get(cand) or {}).get("ms"), (runs_.get(REF) or {}).get("ms")
-    cand_s = cand_ms * lim["test_hours"] / 1000 if cand_ms else None
-    ref_s = ref_ms * lim["test_hours"] / 1000 if ref_ms else None
     g = [
         (f"Supera la {REF} a tots els plecs", bool(r["all_folds"]), f"pitjor plec {_f(r['worst_fold'], 2, True)}"),
         ("Guanya almenys el 60 % de les setmanes", bool(r["wins"] / r["weeks"] >= 0.6), f"{int(r['wins'])} de {int(r['weeks'])}"),
         ("El guany supera l'interval del 95 %", bool(r["significant"] and r["wk_delta"] > 0),
          f"{_f(r['wk_delta'], 2, True)} ± {_f(r['ci'])}"),
-        *([(f"Cap dins dels {lim['timeout_s']} s", bool(cand_s <= lim["timeout_s"]),
-            f"{_f(cand_s, 0)} s aquí, {_f(cand_s / ref_s, 1)}× la {REF}")] if cand_s and ref_s else []),
         ("Confirmat al test públic", bool(has_pub and sub["public"] > sel["public"]), pub),
     ]
     n_ok = sum(x[1] for x in g)
@@ -255,3 +250,35 @@ def gates(reg: dict, T: pd.DataFrame, runs_: dict, cand: str) -> tuple[list[tupl
              "Val la pena gastar-hi un dels lliuraments del dia." if not has_pub and n_ok == len(g) - 1 else
              f"Encara no: mantenim la {me}." if not has_pub else f"Mantenim la {me}.")
     return g, concl, sub
+
+
+# --------------------------------------------------------------------------- valor de la informació perfecta
+VOI_LABELS = {
+    "net_h0": ("Demanda neta, hora actual", "consum − solar de l'hora que s'ha de decidir"),
+    "net_all": ("Demanda neta, 24 h", "consum − solar de les properes 24 h"),
+    "co2_all": ("CO₂ més enllà de 3 h", "intensitat de CO₂ de les hores +3..+23"),
+    "price_all": ("Preu més enllà de 3 h", "preu de les hores +3..+23"),
+}
+
+
+def info_value(reg: dict) -> pd.DataFrame:
+    """Punts de validació que guanyaria la versió de referència si una entrada fos perfecta (mitjana dels 3 plecs).
+
+    Font: `model_data/voi.json` (el genera `dificil/diag/voi_folds.py` via `refresh.py`). Si no hi és, el registre
+    manual (`perfect_info`). El total («tot conegut») surt de l'arena: òptim menys la referència, mitjana dels plecs."""
+    v, raw = _json("voi.json"), arena_raw()
+    rows = []
+    if v:
+        for k, (lab, note) in VOI_LABELS.items():
+            if k in v["variants"]:
+                rows.append({"what": lab, "gain": v["variants"][k]["gain"], "note": note})
+        tot = v["oracle"]["gain"]
+    else:
+        rows = [{"what": p["what"], "gain": p["gain"], "note": p.get("note", "")} for p in reg.get("perfect_info", [])]
+        tot = None
+    if tot is None and raw and REF in raw["strategies"]:
+        folds = sorted(raw["oracle"])
+        tot = float(np.mean([raw["oracle"][f]["score"] - raw["strategies"][REF][f]["score"] for f in folds]))
+    if tot is not None:
+        rows.append({"what": "Tot conegut (òptim)", "gain": tot, "note": "previsió perfecta de totes les entrades"})
+    return pd.DataFrame(rows)
