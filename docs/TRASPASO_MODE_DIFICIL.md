@@ -57,6 +57,9 @@ Sobre la v9 (validación del equipo, ref. 20,52):
 
 Sobre la v12 (calibratge online del CO₂, públic **23,53**, validació 20,74):
 - **Constant de decaïment del calibratge**: 4 h 20,70 · 6 h 20,72 · 8 h (v12) 20,74 · 11 h 20,74 · 16 h 20,71; guany ×0,75 20,69 · ×1,5 20,65; límit 0,1 20,74. **11 h al públic: 23,49 (−0,04)** → es queda 8 h. Diferències de ±0,05 al públic són soroll d'ajust.
+- **Diagnòstic nou (bitàcola, `docs/bitacora_mode_dificil.html`)**: la v12 carrega de la xarxa de nit (21–7 h) ~26 % més que l'òptim (166 vs 132 MWh a la validació) i menys de dia; passa sobretot a les setmanes amb més pèrdua (17/04: 11,4 vs 1,3 MWh; 18/12, 18/03, 17/09).
+- **Llindar general de cicle** (sumar `wd` a tots els pesos, penalitza les pèrdues): 0,01 20,73 · 0,025 20,71 · 0,05 20,63 · 0,1 20,44. No.
+- **Penalització de les hores de nit** (`wn`, 21–7 h): 0,0025 20,73 · 0,0035 20,77 · 0,005 20,76 · 0,0075 20,61 · 0,01 20,48. +0,03 com a màxim i no monòton (soroll); puja CO₂ (+0,2) i baixa cost. No adoptat.
 
 Sobre el agente MPC antiguo (`submission_hard/`, 22,95 en el público), conclusiones que también aplican:
 - **Horizonte**: 8 h 16,16 · 12 h 16,94 · 16–24 h 17,00 · 30/36/48 h (modelos hasta 48 h) 16,90. 24 h es suficiente.
