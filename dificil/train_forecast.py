@@ -26,7 +26,14 @@ def full_hist(df):
 
 
 def make_cs(df):
-    return cs_table(df.index.dayofyear.values - 1, df.index.hour.values, df["pv_kw"].values)
+    # taula en hora estàndard (hivern): treu l'offset d'hora d'estiu abans de dia de l'any / hora
+    import feats as _f
+    eh = epoch_hours(df.index).values
+    es = np.array([_f.std_epoch(e) for e in eh], dtype=np.int64)
+    day = es.astype("int64") // 24; hr = es % 24
+    d64 = day.astype("datetime64[D]")
+    doy = (d64 - d64.astype("datetime64[Y]")).astype(np.int64)
+    return cs_table(doy, hr, df["pv_kw"].values)
 
 
 def build(df, step=1):
