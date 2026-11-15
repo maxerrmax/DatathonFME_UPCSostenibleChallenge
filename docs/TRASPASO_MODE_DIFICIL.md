@@ -227,3 +227,9 @@ escenario sin error da la misma acción que el LP anterior (200/200).
 | Solo cuantiles de la hora actual (`scen_q` 0,5 abs) | +0,03 | +0,07 | — | — |
 
 Zip: `dificil/lliuraments/hard_v15_v14_co2escenaris.zip` (v14 + `co2_sto` 3). Cuantiles (`scen_q`) desactivados.
+
+**Resultado público v15: 23,29** (CO₂ 22,07 % · coste 26,12 %; v12: 23,53 · 22,34 % · 26,31 %) → peor. Tercera vez
+(v10, v13, v15) que un cambio positivo en las dos particiones baja en el público más de lo que predice el ruido
+(peor caso con 6 semanas en validación: −0,07). No se sabe si la caída viene de los escenarios de CO₂ o de la regla de
+agosto: la regla solo actúa si el público incluye la semana de agosto. Diagnóstico propuesto: enviar la v14 sola
+(si sale 23,53 exacto, agosto no está en el público y toda la caída es de los escenarios).
