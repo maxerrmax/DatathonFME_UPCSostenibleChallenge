@@ -159,12 +159,79 @@ def _f(x, dec=2, sign=False):
     return t.replace(",", " ").replace(".", ",").replace(" ", ".").replace("-", "−")
 
 
+def choose(reg: dict) -> dict:
+    """Tria automàtica de la versió a lliurar. No hi ha cap camp 'selected' escrit a mà.
+
+    La classificació final es fa sobre la part PRIVADA del test, que el rànquing públic no mostra. Per això no
+    triem "la puntuació pública més alta" sinó la millor estimació de l'avantatge al test privat, combinant dues
+    evidències sorolloses de cada versió, totes dues mesurades respecte a una mateixa referència (l'àncora = la
+    versió amb més puntuació pública entre les que tenen validació):
+
+      1. La diferència al rànquing públic, amb soroll `public_noise_sd` (±0,35 per comparació).
+      2. La diferència a la validació, traduïda a punts de test amb el pendent `beta` (regressió per l'origen de
+         diferència pública sobre diferència de validació de tots els lliuraments anteriors) i amb la dispersió
+         dels residus com a soroll.
+
+    Es combinen ponderant per l'invers de la variància. Només són elegibles les versions amb puntuació pública.
+    En cas d'empat guanya la versió que n'amplia una altra ('extends'): és la mateixa al públic i només pot
+    canviar a la part privada. Per a les versions encara no enviades es calcula la puntuació pública que
+    necessitarien per passar al davant; mai per sota de la de la versió triada (el públic ha de confirmar).
+
+    És una heurística amb 6 punts de calibratge: serveix per ordenar i per fixar regles, no com a previsió fina.
+    """
+    subs = reg["submissions"]
+    sd_pub = float(reg.get("selection", {}).get("public_noise_sd", 0.35))
+    both = [s for s in subs if s.get("public") is not None and s.get("validation") is not None]
+    anchor = max(both, key=lambda s: s["public"])                      # el primer màxim: la versió més antiga
+    pts = [(s["id"], s["validation"] - anchor["validation"], s["public"] - anchor["public"]) for s in both
+           if s is not anchor and abs(s["validation"] - anchor["validation"]) > 1e-9]
+    sxx = sum(x * x for _, x, _ in pts)
+    beta = float(np.clip(sum(x * y for _, x, y in pts) / sxx, 0.0, 1.0)) if sxx else 0.0
+    res = [y - beta * x for _, x, y in pts]
+    sd_val = float(np.sqrt(sum(r * r for r in res) / max(len(res) - 1, 1))) if res else 1.0
+    wp, wv = 1 / sd_pub ** 2, 1 / sd_val ** 2
+    rows = []
+    for s in subs:
+        pub, val = s.get("public"), s.get("validation")
+        d_pub = pub - anchor["public"] if pub is not None else None
+        pred = beta * (val - anchor["validation"]) if val is not None else None
+        if s is anchor or (s.get("extends") == anchor["id"] and d_pub == 0):
+            est, sd = 0.0, 0.0
+        elif d_pub is not None and pred is not None:
+            est, sd = (wp * d_pub + wv * pred) / (wp + wv), (wp + wv) ** -0.5
+        elif d_pub is not None:
+            est, sd = d_pub, sd_pub
+        else:
+            est, sd = pred, sd_val
+        rows.append({"id": s["id"], "what": s["what"], "public": pub, "validation": val, "d_pub": d_pub, "pred": pred,
+                     "est": est, "sd": sd, "eligible": pub is not None, "extends": s.get("extends")})
+    tab = pd.DataFrame(rows).set_index("id")
+    el = tab[tab["eligible"]]
+    best = el["est"].idxmax()
+    tied = el[el["est"] > el.loc[best, "est"] - 0.005]
+    moved = True
+    while moved:                                                        # desempat: la versió que amplia la millor
+        nxt = tied[tied["extends"] == best]
+        moved = len(nxt) > 0
+        if moved:
+            best = nxt.index[-1]
+    pending = []
+    for i, r in tab[~tab["eligible"]].iterrows():
+        need = (tab.loc[best, "est"] * (wp + wv) - wv * r["pred"]) / wp if r["pred"] is not None else 0.0
+        floor = tab.loc[best, "public"]
+        pending.append({"id": i, "what": r["what"], "validation": r["validation"], "pred": r["pred"],
+                        "threshold": float(max(floor, anchor["public"] + need))})
+    return {"chosen": best, "anchor": anchor["id"], "beta": beta, "sd_val": sd_val, "sd_pub": sd_pub, "table": tab,
+            "fit": pts, "pending": pending, "tie": [i for i in tied.index if i != best],
+            "top_public": el["public"].idxmax()}
+
+
 def gates(reg: dict, T: pd.DataFrame, runs_: dict, cand: str) -> tuple[list[tuple], str, dict | None]:
     """Condicions (nom, compleix, detall) perquè l'estratègia `cand` substitueixi la versió lliurada, i la conclusió.
 
     És l'única definició de la regla de decisió: la fan servir la pàgina Veredicte i l'assistent.
     """
-    me, lim = reg["selected"], reg["limits"]
+    me, lim = choose(reg)["chosen"], reg["limits"]
     sel = next(s for s in reg["submissions"] if s["id"] == me)
     sub = next((s for s in reg["submissions"] if s.get("arena") == cand), None)
     r = T.loc[cand]

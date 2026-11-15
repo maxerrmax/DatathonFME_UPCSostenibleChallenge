@@ -73,6 +73,10 @@ Sobre la v9 (validación del equipo, ref. 20,52):
   y Navidad en precio/CO₂ −0,030 (+0,01/0,00/−0,10); temperatura del panel en consumo/neto de la hora actual 0,000
   (0,00/−0,02/+0,02). Todo dentro del redondeo: no subir. Horas del cambio de hora: no se puede validar (el train no
   contiene ningún cambio de hora) y afecta a 2 noches; no tocado.
+- **Reajuste de parámetros del planificador sobre v19 + hora solar** (15/11, `dificil/diag/sweep_params.py`, 3 pliegues,
+  un parámetro cada vez, base 19,380): ratio 0,5/0,57/0,68/0,75 → −0,027/−0,010/+0,013/−0,030; q_term 0,4–0,8 → 0,000..+0,010;
+  net0_mix 0,3/0,7/0,9 → −0,023/+0,007/−0,010; k_future 0,2/0,6 → −0,007/−0,013; load_tau 2/6 → −0,003/0,000;
+  scen_scale 0,8/1,25 → +0,007/−0,030. Meseta plana en todas las direcciones: los parámetros ya están en el óptimo.
 - **Ensemble de semillas de CO₂**: 2 semillas 20,54 (+0,02, ruido) a 21 ms/paso; 3 semillas 20,52 a 25 ms/paso
   (riesgo con el límite de 60 s). No adoptado.
 

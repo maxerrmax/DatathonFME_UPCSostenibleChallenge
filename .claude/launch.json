@@ -6,6 +6,12 @@
       "runtimeExecutable": "python",
       "runtimeArgs": ["-m", "streamlit", "run", "dashboard/app.py", "--server.port", "8511", "--server.headless", "true"],
       "port": 8511
+    },
+    {
+      "name": "dashboard-alt",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "streamlit", "run", "dashboard/app.py", "--server.port", "8513", "--server.headless", "true"],
+      "port": 8513
     }
   ]
 }

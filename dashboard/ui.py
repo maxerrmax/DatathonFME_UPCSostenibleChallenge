@@ -1,130 +1,431 @@
 """
 dashboard/ui.py
-Aspecte comú del dashboard: colors, CSS, estil dels gràfics i les poques peces HTML que es repeteixen.
-
-Decisions de disseny (totes triades, cap per defecte):
-  * Pàgina blanca i tinta negra, com una secció de dades d'un diari. Sense targetes, ombres, degradats ni
-    cantonades arrodonides: el que separa les coses és l'espai i un filet negre.
-  * Una sola família tipogràfica, Libre Franklin (la Franklin Gothic dels gràfics de premsa), amb contrast de pes.
-  * El color vol dir alguna cosa: blau UPC = l'agent que lliurem, vermell = l'aspirant o l'avís,
-    negre = l'òptim, gris = context.
-  * El títol de cada gràfic diu la conclusió; el subtítol diu com es llegeix.
+Sistema de disseny d'enginyeria d'alta precisió: jerarquia clara, separació visual nítida entre seccions i panells,
+descripcions micro-tipogràfiques (11 px) i xat compacte amb entrada sempre visible.
 """
 from __future__ import annotations
 
+import hashlib
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
-# Entitats (fixes a tot el dashboard)
-OURS, RIVAL, OPT = "#007bc0", "#d1352b", "#121212"       # blau corporatiu UPC · vermell · tinta
-C_CO2, C_COST, C_SOLAR = "#0f6b6b", "#b07a12", "#e0a100"
-GRAY, GRAY_LIGHT = "#8c8c8c", "#d4d4d4"
-GOOD, BAD = "#1d7a46", "#d1352b"
-INK, INK_2, INK_3 = "#121212", "#4a4a4a", "#8c8c8c"
-GRID, PAPER = "#e4e4e4", "#ffffff"
-SEQ = [[0.0, "#e6f2f9"], [0.25, "#a6d0e8"], [0.5, "#55a6d4"], [0.75, "#0f72ae"], [1.0, "#003f68"]]
-FONT = "'Libre Franklin', 'Franklin Gothic Medium', 'Arial Narrow', Arial, sans-serif"
-PFONT = "Libre Franklin, Franklin Gothic Medium, Arial"
+NAVY, SUN = "#0F172A", "#D97706"
+OURS, RIVAL, OPT = "#0284C7", "#D97706", "#0F172A"
+C_CO2, C_COST, C_SOLAR = "#0D9488", "#D97706", "#EAB308"
+GRAY, GRAY_LIGHT = "#94A3B8", "#CBD5E1"
+GOOD, BAD = "#0284C7", "#DC2626"
+INK, INK_2, INK_3 = "#0F172A", "#334155", "#64748B"
+GRID, PAPER, CARD, LINE = "#E2E8F0", "#F1F5F9", "#FFFFFF", "#CBD5E1"
 
+SEQ = [[0.0, "#E0F2FE"], [0.25, "#7DD3FC"], [0.5, "#0284C7"], [0.75, "#0369A1"], [1.0, "#0C4A6E"]]
+SEQ_CO2 = [[0.0, "#F0FDFA"], [0.25, "#99F6E4"], [0.5, "#14B8A6"], [0.75, "#0F766E"], [1.0, "#134E4A"]]
+
+FONT = HEAD = '-apple-system, BlinkMacSystemFont, "Inter", "Helvetica Neue", Arial, sans-serif'
+MONO = '"JetBrains Mono", "IBM Plex Mono", "SF Mono", ui-monospace, Consolas, monospace'
+PFONT = "Helvetica Neue, Helvetica, Arial"
 MESOS = ["gen.", "febr.", "març", "abr.", "maig", "juny", "jul.", "ag.", "set.", "oct.", "nov.", "des."]
 DIES = ["dl.", "dt.", "dc.", "dj.", "dv.", "ds.", "dg."]
 
-CSS = f"""
+LIGHT = dict(
+    bg="#F1F5F9", card="#FFFFFF", line="#CBD5E1", line_soft="#E2E8F0", ink="#0F172A", ink2="#334155", mute="#64748B",
+    acc="#0284C7", accbg="#E0F2FE", eco="#0D9488", ecobg="#CCFBF1", grid="#E2E8F0", track="#E2E8F0", dot="#94A3B8",
+    dash="#CBD5E1", rival="#D97706", up="#0369A1", upbg="#E0F2FE", upln="#BAE6FD", dn="#B45309", dnbg="#FEF3C7",
+    dnln="#FDE68A", verdict="#0F172A", bubble="#F1F5F9", seg="#E2E8F0", outline="#CBD5E1", onacc="#FFFFFF"
+)
+DARK = dict(
+    bg="#090D16", card="#111827", line="#334155", line_soft="#1E293B", ink="#F8FAFC", ink2="#CBD5E1", mute="#94A3B8",
+    acc="#38BDF8", accbg="#082F49", eco="#2DD4BF", ecobg="#115E59", grid="#1E293B", track="#1E293B", dot="#64748B",
+    dash="#334155", rival="#F59E0B", up="#7DD3FC", upbg="#082F49", upln="#0369A1", dn="#FBBF24", dnbg="#451A03",
+    dnln="#78350F", verdict="#1E293B", bubble="#1E293B", seg="#1E293B", outline="#334155", onacc="#090D16"
+)
+
+
+def is_explain() -> bool:
+    return bool(st.session_state.get("explain", True))
+
+
+def is_dark() -> bool:
+    return bool(st.session_state.get("dark", False))
+
+
+CSS_TEMPLATE = """
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@400;500;600;700;800;900&display=swap');
-html, body, .stApp, .stApp p, .stApp li, .stApp label, .stApp button, .stApp input, .stApp div {{ font-family: {FONT}; }}
-.stApp {{ background: {PAPER}; color: {INK}; }}
-header[data-testid="stHeader"] {{ background: transparent; }}
-.block-container {{ padding: 1.6rem 2.2rem 3rem; max-width: 1280px; }}
-.stApp * {{ font-variant-numeric: tabular-nums lining-nums; }}
+@import url("https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap");
+:root { __VARS__; --font: __FONT__; --mono: __MONO__; }
 
-.mast {{ border-top: 6px solid {INK}; padding-top: .55rem; margin-bottom: .5rem; }}
-.mast .dl {{ display: flex; justify-content: space-between; gap: 2rem; font-size: .8rem; color: {INK_2};
-            border-bottom: 1px solid {INK}; padding-bottom: .45rem; }}
-.mast .dl b {{ color: {INK}; font-weight: 700; }}
-.mast h1 {{ font-size: 2.9rem; line-height: 1.02; font-weight: 900; letter-spacing: -.03em; color: {INK};
-           margin: .7rem 0 .2rem; padding: 0; }}
-.mast .sub {{ font-size: 1.02rem; line-height: 1.45; color: {INK_2}; max-width: 70ch; margin: 0; }}
+html, body, .stApp, .stApp p, .stApp li, .stApp label, .stApp button, .stApp input, .stApp textarea,
+.stApp div, .stApp span, .stApp h1, .stApp h2, .stApp h3, [data-baseweb] *, [data-testid="stChatInput"] * {
+    font-family: var(--font);
+}
+[data-testid="stIconMaterial"], .material-symbols-rounded, [class*="material-symbols"] {
+    font-family: "Material Symbols Rounded", "Material Icons" !important;
+}
+.stApp { background: var(--bg); color: var(--ink); font-size: 14px; line-height: 1.45; }
+.stApp * { font-variant-numeric: tabular-nums lining-nums; }
+.stApp p, .stApp li, .stApp label, .stApp h1, .stApp h2, .stApp h3, .stApp h4, [data-testid="stMarkdownContainer"] {
+    color: var(--ink);
+}
+#MainMenu, header[data-testid="stHeader"], [data-testid="stToolbar"], [data-testid="stDecoration"],
+footer, [data-testid="stStatusWidget"], [data-testid="stAppDeployButton"], [data-testid="stHeaderActionElements"] {
+    display: none !important;
+}
 
-.stTabs [data-baseweb="tab-list"] {{ gap: 1.5rem; border-bottom: 1px solid {INK}; }}
-.stTabs [data-baseweb="tab"] {{ background: none; padding: .5rem 0 .45rem; height: auto; color: {INK_3}; }}
-.stTabs [data-baseweb="tab"] p {{ font-size: .95rem; font-weight: 600; }}
-.stTabs [aria-selected="true"] {{ color: {INK}; }}
-.stTabs [aria-selected="true"] p {{ font-weight: 800; }}
-.stTabs [data-baseweb="tab-highlight"] {{ background: {OURS}; height: 4px; }}
-.stTabs [data-baseweb="tab-border"] {{ display: none; }}
+.block-container { padding: 20px 28px 48px; max-width: 1260px; }
+[data-testid="stHorizontalBlock"] { gap: 20px; }
+[data-testid="stMain"] [data-testid="stVerticalBlock"] { gap: 14px; }
 
-.sec {{ border-top: 3px solid {INK}; margin: 2.6rem 0 1.1rem; padding-top: .5rem; }}
-[data-testid='stHeaderActionElements'] {{ display: none; }}
-.sec h2 {{ font-size: 1.55rem; font-weight: 800; letter-spacing: -.02em; color: {INK}; margin: 0; padding: 0; }}
-.sec p {{ font-size: .95rem; color: {INK_2}; margin: .2rem 0 0; max-width: 78ch; }}
+/* Tipografia tècnica i descripcions molt més petites */
+.num, .mono, .tile .v, table.t td { font-family: var(--mono); letter-spacing: -.015em; white-space: nowrap; }
+.lab, .tile .l { font: 600 10.5px/14px var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--mute); }
+.ct { font: 600 14.5px/19px var(--font); letter-spacing: -.01em; color: var(--ink); margin: 0 0 3px; }
+.cc {
+    font: 400 11px/15px var(--font); color: var(--mute) !important; margin: 0 0 8px;
+    padding-left: 7px; border-left: 2px solid var(--line); max-width: 78ch;
+}
+.src { font: 400 10.5px/14px var(--font); color: var(--mute) !important; margin: 2px 0 4px; }
+code, .stApp code { font-family: var(--mono); font-size: 11px; background: var(--grid); color: var(--ink); border-radius: 4px; padding: 1px 5px; }
 
-.ct {{ border-top: 1px solid {INK}; padding-top: .45rem; font-size: 1.06rem; line-height: 1.25; font-weight: 700;
-      color: {INK}; margin: 0 0 .2rem; }}
-.cc {{ font-size: .86rem; line-height: 1.4; color: {INK_2}; margin: 0 0 .3rem; max-width: 64ch; }}
-.src {{ font-size: .76rem; line-height: 1.4; color: {INK_3}; margin: -.3rem 0 .4rem; }}
+/* Capçalera + casella Explicacions + botó icona sol/lluna */
+.top { padding: 0 0 8px; }
+.top h1 { font: 700 22px/26px var(--font); letter-spacing: -.02em; margin: 0 0 2px; }
+.top .meta { font: 400 11.5px/16px var(--mono); color: var(--mute); }
+.live { display: inline; font: inherit; color: inherit; }
+.live i { width: 6px; height: 6px; border-radius: 50%; background: var(--eco); display: inline-block; margin-right: 5px; vertical-align: 1px; }
+.live.warn, .live.bad { color: var(--dn); }
+.live.warn i { background: var(--rival); }
+.live.bad i { background: var(--dn); border-radius: 1px; }
 
-.lead {{ display: flex; gap: 1.4rem; align-items: flex-start; margin-top: 1rem; }}
-.lead > div:first-child {{ flex: 0 0 auto; }}
-.lead .n {{ white-space: nowrap; font-size: 5.6rem; line-height: .86; font-weight: 900; letter-spacing: -.055em; color: {OURS}; }}
-.lead .u {{ font-size: .8rem; color: {INK_2}; margin-top: .55rem; }}
-.lead .h {{ font-size: 1.5rem; line-height: 1.2; font-weight: 800; letter-spacing: -.015em; margin: 0 0 .5rem; color: {INK}; }}
-.lead .t {{ font-size: 1rem; line-height: 1.5; color: {INK_2}; margin: 0; max-width: 46ch; }}
+div[data-testid="stCheckbox"] { display: flex; justify-content: flex-end; align-items: center; }
+div[data-testid="stCheckbox"] label { gap: 6px !important; cursor: pointer; }
+div[data-testid="stCheckbox"] label p { font: 500 12px/16px var(--font) !important; color: var(--ink2) !important; white-space: nowrap; }
+.st-key-dark_btn button {
+    min-height: 34px !important; width: 38px !important; padding: 0 !important; border-radius: 8px !important;
+    border: 1px solid var(--line) !important; background: var(--card) !important; color: var(--ink) !important;
+    display: flex; align-items: center; justify-content: center;
+}
+.st-key-dark_btn button:hover { border-color: var(--acc) !important; background: var(--accbg) !important; }
 
-.rows {{ border-top: 1px solid {INK}; margin-top: 1rem; }}
-.rows .r {{ display: flex; justify-content: space-between; align-items: baseline; gap: 1rem;
-           border-bottom: 1px solid {GRID}; padding: .42rem 0; }}
-.rows .l {{ font-size: .9rem; color: {INK}; }}
-.rows .l small {{ display: block; font-size: .77rem; color: {INK_3}; }}
-.rows .v {{ font-size: 1.25rem; font-weight: 800; letter-spacing: -.02em; white-space: nowrap; color: {INK}; }}
-.rows .v small {{ font-size: .8rem; font-weight: 500; color: {INK_2}; letter-spacing: 0; }}
-.rows .v.bad {{ color: {BAD}; }} .rows .v.good {{ color: {GOOD}; }}
+/* Pestanyes amb separació estructural clara */
+.stTabs [role="tablist"] {
+    gap: 4px; background: var(--card); padding: 4px; border-radius: 8px;
+    border: 1px solid var(--line) !important; width: fit-content; max-width: 100%; margin-bottom: 20px;
+    position: sticky; top: 8px; z-index: 60; box-shadow: 0 2px 6px rgba(15,23,42,.06); flex-wrap: wrap;
+}
+.stTabs [role="tablist"]::before, .stTabs [role="tablist"]::after, .stTabs .react-aria-SelectionIndicator { display: none !important; }
+.stTabs [data-testid="stTab"] {
+    min-height: 32px; padding: 0 12px; border: 0; border-radius: 6px; color: var(--mute); background: transparent;
+    transition: background .12s, color .12s; cursor: pointer;
+}
+.stTabs [data-testid="stTab"] p { font: 500 12.5px/16px var(--font); color: inherit; }
+.stTabs [data-testid="stTab"][aria-selected="false"]:hover { color: var(--ink); background: var(--bg); }
+.stTabs [data-testid="stTab"][aria-selected="true"] {
+    background: var(--ink); color: var(--card);
+}
+.stTabs [data-testid="stTab"][aria-selected="true"] p { font-weight: 600; color: var(--card) !important; }
 
-.facts {{ display: grid; grid-template-columns: repeat(var(--n, 4), minmax(0, 1fr)); gap: 0 1.8rem; margin-top: .6rem; }}
-.fact {{ border-top: 1px solid {INK}; padding: .45rem 0 .7rem; }}
-.fact .l {{ font-size: .84rem; color: {INK_2}; }}
-.fact .v {{ font-size: 2rem; line-height: 1.1; font-weight: 800; letter-spacing: -.03em; color: {INK}; }}
-.fact .v small {{ font-size: .85rem; font-weight: 500; color: {INK_2}; letter-spacing: 0; }}
-.fact .s {{ font-size: .78rem; line-height: 1.4; color: {INK_3}; }}
+/* Separació visual forta entre seccions i panells */
+.sec {
+    margin: 36px 0 12px; padding: 14px 0 6px;
+    border-top: 2px solid var(--line); border-bottom: 1px solid var(--line_soft);
+}
+.sec:first-of-type { margin-top: 16px; }
+.sec h2 { font: 700 15px/20px var(--font); letter-spacing: -.01em; text-transform: uppercase; color: var(--ink); margin: 0; }
+.sec p { font: 400 11.5px/16px var(--font); color: var(--mute) !important; margin: 2px 0 0; max-width: 80ch; }
 
-.note {{ font-size: .95rem; line-height: 1.55; color: {INK}; margin: .5rem 0 1rem; max-width: 92ch; }}
-.note b.h {{ font-weight: 800; }}
-.note ol, .note ul {{ margin: .3rem 0 0; padding-left: 1.15rem; }}
-.note li {{ margin: .25rem 0; }}
-.chk {{ list-style: none; padding: 0 !important; }}
-.chk li {{ display: flex; gap: .6rem; border-bottom: 1px solid {GRID}; padding: .32rem 0; margin: 0; font-size: .9rem; }}
-.chk .m {{ width: 1.9rem; font-weight: 800; }}
-.chk .d {{ margin-left: auto; color: {INK_3}; text-align: right; }}
+.intro {
+    margin: 4px 0 16px; padding: 12px 16px; background: var(--card);
+    border: 1px solid var(--line); border-left: 4px solid var(--ink); border-radius: 6px;
+}
+.intro h3 { font: 700 16px/20px var(--font); letter-spacing: -.01em; margin: 0 0 2px; }
+.intro p { font: 400 11.5px/16px var(--font); color: var(--mute) !important; margin: 0; max-width: 85ch; }
 
-table.t {{ width: 100%; border-collapse: collapse; font-size: .86rem; }}
-table.t, table.t th, table.t td {{ border-left: 0 !important; border-right: 0 !important; border-top: 0 !important; }}
-table.t th {{ text-align: right; font-weight: 600; color: {INK_2}; font-size: .78rem; border-bottom: 1px solid {INK};
-             padding: .3rem .5rem .3rem 0; vertical-align: bottom; position: sticky; top: 0; background: {PAPER}; }}
-table.t td {{ text-align: right; padding: .34rem .5rem .34rem 0; border-bottom: 1px solid {GRID}; white-space: nowrap; }}
-table.t th.L, table.t td.L {{ text-align: left; white-space: normal; }}
-table.t tr.hl td {{ font-weight: 800; }}
-table.t td.L:first-child {{ min-width: 13rem; }}
-table.t .bar {{ display: inline-block; width: 70px; height: 7px; background: #efefef; margin-right: .45rem; vertical-align: middle; }}
-table.t .bar i {{ display: block; height: 100%; background: {INK}; }}
-.tw {{ overflow: auto; }}
-.foot {{ font-size: .76rem; line-height: 1.5; color: {INK_3}; border-top: 1px solid {INK}; margin-top: 3rem; padding-top: .6rem; }}
-div[data-testid="stCaptionContainer"] p {{ font-size: .78rem; color: {INK_3}; }}
+div[data-testid="stVerticalBlock"][class*="st-key-card"], .box, .tiles, [data-testid="stExpander"] details {
+    background: var(--card); border: 1px solid var(--line) !important;
+    border-radius: 8px !important; box-shadow: 0 1px 2px rgba(15,23,42,.04) !important;
+}
+div[data-testid="stVerticalBlock"][class*="st-key-card"] { padding: 14px 18px 10px !important; }
+[data-testid="stPlotlyChart"], .stPlotlyChart { margin: 0; overflow: hidden; }
+
+/* Franja d'indicadors (tiles) amb divisors verticals nítids */
+.tiles { display: grid; grid-template-columns: repeat(var(--n, 4), minmax(0, 1fr)); margin: 6px 0 10px; }
+.tile { padding: 12px 16px; }
+.tile + .tile { border-left: 1px solid var(--line); }
+.tile .v { font: 600 22px/28px var(--mono); letter-spacing: -.03em; color: var(--ink); margin: 3px 0 2px; }
+.tile .v small { font: 400 11px var(--font); color: var(--mute); letter-spacing: 0; }
+.tile .s { font: 400 11px/14px var(--font); color: var(--mute) !important; }
+
+/* Notes de decisió i desplegables */
+.note {
+    background: var(--card); border: 1px solid var(--line) !important; border-left: 4px solid var(--acc) !important;
+    border-radius: 6px !important; padding: 12px 16px; font-size: 12.5px; line-height: 1.5; color: var(--ink2); margin: 8px 0 12px;
+}
+.note b { color: var(--ink); }
+.note ol, .note ul { margin: 4px 0 0; padding-left: 1.15rem; }
+.note li { margin: 2px 0; }
+.chk { list-style: none; padding: 0 !important; margin: 4px 0 !important; }
+.chk li { display: flex; gap: 8px; border-bottom: 1px solid var(--line_soft); padding: 7px 0; margin: 0; font-size: 12px; }
+.chk .m { width: 2rem; font: 600 11px var(--mono); text-transform: uppercase; }
+.chk .d { margin-left: auto; color: var(--mute); font: 11px var(--mono); text-align: right; }
+
+[data-testid="stExpander"] details { overflow: hidden; margin-top: 8px; }
+[data-testid="stExpander"] summary { padding: 10px 16px; background: color-mix(in srgb, var(--bg) 50%, var(--card)); }
+[data-testid="stExpander"] summary:hover { background: var(--accbg); }
+[data-testid="stExpander"] details[open] summary { border-bottom: 1px solid var(--line); }
+[data-testid="stExpander"] [data-testid="stExpanderDetails"] { padding: 14px 18px 16px; }
+[data-testid="stExpander"] summary p { font: 600 12.5px/18px var(--font); color: var(--ink); }
+
+/* Taules d'enginyeria denses */
+.tw { overflow-x: auto; border-radius: 6px; border: 1px solid var(--line_soft); }
+table.t { width: 100%; border-collapse: collapse; font-size: 12px; font-family: var(--mono); }
+table.t, table.t th, table.t td { border-left: 0 !important; border-right: 0 !important; border-top: 0 !important; }
+table.t th {
+    text-align: right; font: 600 10.5px var(--mono); letter-spacing: .05em; text-transform: uppercase; color: var(--mute);
+    border-bottom: 1px solid var(--line); padding: 8px 12px 8px 0; background: color-mix(in srgb, var(--bg) 55%, var(--card));
+    position: sticky; top: 0;
+}
+table.t td { text-align: right; padding: 7px 12px 7px 0; border-bottom: 1px solid var(--line_soft); color: var(--ink); }
+table.t th.L, table.t td.L { text-align: left; white-space: normal; font-family: var(--font); }
+table.t td.L:first-child, table.t th.L:first-child { min-width: 10rem; padding-left: 10px; }
+table.t tbody tr:hover td { background: color-mix(in srgb, var(--acc) 6%, transparent); }
+table.t tr.hl td { font-weight: 600; background: var(--accbg); }
+table.t .bar { display: inline-block; width: 60px; height: 4px; background: var(--grid); margin-right: 6px; vertical-align: middle; overflow: hidden; border-radius: 2px; }
+table.t .bar i { display: block; height: 100%; background: var(--acc); }
+
+/* Portada (p_front.py): panells ben delimitats */
+.d { font: 500 12px var(--mono); white-space: nowrap; }
+.d.up, .badge.up { color: var(--up); }
+.d.dn, .badge.dn { color: var(--dn); }
+.d.nt, .badge.nt { color: var(--mute); }
+.badge { font: 500 12px var(--mono); }
+
+.ed-hero { display: grid; grid-template-columns: 5fr 7fr; gap: 20px; align-items: stretch; margin-top: 4px; }
+.verdict {
+    background: var(--verdict); color: #F8FAFC; border: 1px solid var(--line); border-radius: 8px;
+    padding: 22px 24px; display: flex; flex-direction: column; min-height: 260px;
+}
+.verdict .lab { color: #94A3B8; }
+.verdict .ver { font: 600 72px/1 var(--mono); letter-spacing: -3px; margin: 12px 0 10px; color: #fff; }
+.verdict .line { font-size: 13px; color: #CBD5E1; }
+.verdict .line .d.dn { color: #FCD34D; }
+.verdict .line .d.up { color: #7DD3FC; }
+.verdict .cand { margin-top: auto; padding-top: 12px; border-top: 1px solid #334155; font-size: 12px; line-height: 18px; color: #CBD5E1; }
+.verdict .cand b { font-family: var(--mono); color: #fff; font-weight: 600; }
+
+.scoreblk {
+    background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 22px 24px;
+}
+.scoreblk .big { font: 600 64px/1 var(--mono); letter-spacing: -2.5px; color: var(--acc); margin: 10px 0 4px; display: flex; align-items: baseline; gap: 16px; }
+.scoreblk .big .sub { font-size: 13px; letter-spacing: 0; }
+.scoreblk .note2 { font: 11px/15px var(--mono); color: var(--mute); margin-top: 6px; }
+.scoreblk .note2 b { color: var(--ink); font-weight: 600; }
+svg.ch { width: 100%; height: auto; display: block; }
+svg.ch text { font-family: var(--mono); font-size: 10px; fill: var(--mute); }
+svg.ch text.hi { fill: var(--ink); font-weight: 600; }
+svg.ch text.rvl { fill: var(--rival); font-weight: 600; }
+svg.ch .rv { stroke: var(--rival); }
+svg.ch .acs { stroke: var(--acc); fill: none; }
+svg.ch .ac { fill: var(--acc); }
+svg.ch circle.mu { fill: var(--dot); }
+svg.trend { margin-top: 8px; }
+
+.ed-kpis {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 0; margin: 20px 0 24px;
+    background: var(--card); border: 1px solid var(--line); border-radius: 8px; overflow: hidden;
+}
+.ed-kpis > div { padding: 14px 20px; }
+.ed-kpis > div + div { border-left: 1px solid var(--line); }
+.kv { font: 600 32px/1.1 var(--mono); letter-spacing: -1px; margin-top: 4px; }
+.kv small { font: 500 12px var(--mono); color: var(--mute); margin-left: 4px; letter-spacing: 0; }
+.kb { display: flex; align-items: center; gap: 12px; margin-top: 10px; }
+.kb .cmp { flex: 1; }
+.kn { font: 11px/14px var(--font); color: var(--mute); margin-top: 6px; }
+.cmp { position: relative; height: 5px; border-radius: 2px; background: var(--grid); }
+.cmp b { position: absolute; left: 0; top: 0; bottom: 0; background: var(--acc); border-radius: 2px; }
+.cmp.eco b { background: var(--eco); }
+.cmp.slate b { background: var(--ink2); }
+.cmp .tick { position: absolute; top: -3px; bottom: -3px; width: 2px; background: var(--rival); }
+
+table.lbt { width: 100%; border-collapse: collapse; font-size: 12.5px; margin-top: 6px; background: var(--card); border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+table.lbt td { padding: 6px 10px; border-bottom: 1px solid var(--line_soft); color: var(--ink); }
+table.lbt td.r { width: 34px; text-align: right; font: 400 12px var(--mono); color: var(--mute); }
+table.lbt td.n { text-align: right; font: 600 13px var(--mono); width: 68px; }
+table.lbt td.g { width: 140px; font: 11.5px var(--mono); color: var(--mute); text-align: right; }
+table.lbt td.g .gwrap { display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
+table.lbt td.g i { display: inline-block; height: 4px; background: var(--dash); border-radius: 2px; max-width: 70px; }
+table.lbt td.g span { min-width: 42px; text-align: right; }
+table.lbt tr:not(.me):not(.sep):hover td { background: color-mix(in srgb, var(--ink) 4%, transparent); }
+table.lbt tr.me td { background: var(--accbg); font-weight: 600; }
+table.lbt tr.me td.r { color: var(--acc); }
+table.lbt tr.sep td { padding: 0; height: 8px; border-bottom: 1px dashed var(--dash); }
+
+.pbxs { margin-top: 8px; background: var(--card); border: 1px solid var(--line); border-radius: 6px; padding: 6px 14px; }
+.pbx { display: grid; grid-template-columns: 8.5rem 1fr 3.4rem; gap: 12px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--line_soft); font-size: 12px; color: var(--ink2); }
+.pbx:last-child { border-bottom: 0; }
+.pbx > div { height: 5px; background: var(--grid); border-radius: 2px; }
+.pbx b { display: block; height: 100%; background: var(--rival); border-radius: 2px; }
+.pbx b.full { background: var(--ink); }
+.pbx em { font: normal 12px var(--mono); text-align: right; color: var(--ink); }
+
+/* Controls i píndoles d'hores */
+[data-testid="stWidgetLabel"] p, .stApp label p { font: 600 11px/15px var(--font) !important; color: var(--mute) !important; }
+[data-testid="stButtonGroup"] [role="toolbar"] { flex-wrap: wrap !important; overflow: visible !important; row-gap: 4px; }
+[data-testid="stButtonGroup"] button {
+    border: 1px solid var(--line) !important; border-radius: 6px !important;
+    background: var(--card) !important; margin: 0 4px 0 0 !important; padding: 2px 10px !important;
+    min-height: 28px; color: var(--ink2) !important;
+}
+[data-testid="stButtonGroup"] button:hover { border-color: var(--ink) !important; color: var(--ink) !important; }
+[data-testid="stButtonGroup"] button p { color: inherit !important; font: 500 12px/16px var(--font) !important; }
+[data-testid="stButtonGroup"] button[kind="segmented_controlActive"],
+[data-testid="stButtonGroup"] button[aria-checked="true"] {
+    background: var(--accbg) !important; color: var(--acc) !important; border-color: var(--acc) !important;
+}
+
+.st-key-play_ch [data-testid="stButtonGroup"] button,
+.st-key-play_dis [data-testid="stButtonGroup"] button {
+    padding: 3px 9px !important; margin: 2px !important; min-height: 30px !important;
+}
+.st-key-play_ch [data-testid="stButtonGroup"] button p,
+.st-key-play_dis [data-testid="stButtonGroup"] button p { font-family: var(--mono) !important; font-size: 12px !important; }
+.st-key-play_ch [data-testid="stButtonGroup"] button[aria-checked="true"] {
+    background: var(--ecobg) !important; border-color: var(--eco) !important; color: var(--eco) !important;
+}
+.st-key-play_dis [data-testid="stButtonGroup"] button[aria-checked="true"] {
+    background: var(--dnbg) !important; border-color: var(--rival) !important; color: var(--dn) !important;
+}
+
+.stButton button, .stFormSubmitButton button {
+    min-height: 36px; border-radius: 6px; padding: 0 14px; border: 1px solid var(--outline) !important;
+    background: var(--card); color: var(--ink);
+}
+.stButton button:hover { border-color: var(--ink) !important; background: var(--bg); }
+.stButton button p { font: 500 12.5px/18px var(--font); }
+.stButton button[kind="primary"], .stFormSubmitButton button[kind="primary"] {
+    background: var(--acc) !important; border-color: var(--acc) !important; color: var(--onacc) !important;
+}
+.stButton button[kind="primary"] p { color: var(--onacc) !important; }
+.stButton button[kind="tertiary"] { min-height: 28px; border: 0 !important; background: transparent !important; color: var(--acc) !important; padding: 0; }
+.stButton button[kind="tertiary"] p { color: var(--acc) !important; font: 500 12.5px var(--font); }
+
+[data-baseweb="select"] > div, [data-baseweb="input"], [data-baseweb="textarea"], [data-testid="stDateInput"] > div > div {
+    min-height: 38px; background: var(--card) !important; border: 1px solid var(--outline) !important; border-radius: 6px !important; color: var(--ink);
+}
+[data-baseweb="select"] *, [data-baseweb="input"] input { color: var(--ink) !important; }
+[data-baseweb="popover"] ul, [data-baseweb="popover"] li, [data-baseweb="menu"] { background: var(--card) !important; color: var(--ink) !important; }
+
+/* ===== Xat de l'Assistent (Pregunta-li): sempre mostra la caixa de text + suggeriments compactes a baix ===== */
+.st-key-chat_fab { position: fixed; right: 24px; bottom: 24px; z-index: 1000; width: auto !important; }
+.st-key-chat_fab button {
+    min-height: 44px; padding: 0 18px; border-radius: 22px; background: var(--ink) !important; border: 1px solid var(--line) !important;
+    color: var(--card) !important; box-shadow: 0 4px 12px rgba(0,0,0,.22);
+}
+.st-key-chat_fab button p, .st-key-chat_fab button span { color: var(--card) !important; font: 600 13px/18px var(--font); }
+
+div[data-baseweb="popover"]:has([data-testid="stPopoverBody"]) {
+    position: fixed !important; top: auto !important; left: auto !important; right: 24px !important; bottom: 78px !important; transform: none !important;
+}
+[data-testid="stPopoverBody"] {
+    width: min(390px, calc(100vw - 32px)) !important; max-height: min(560px, calc(100vh - 110px)) !important;
+    padding: 0 !important; display: flex; flex-direction: column; border-radius: 12px !important; overflow: hidden !important;
+    background: var(--card) !important; border: 1px solid var(--line) !important; box-shadow: 0 12px 32px rgba(0,0,0,.25) !important;
+}
+[data-testid="stPopoverBody"] > div, [data-testid="stPopoverBody"] [data-testid="stVerticalBlock"]:first-child { gap: 0 !important; }
+[data-testid="stPopoverBody"] [data-testid="stHorizontalBlock"]:first-of-type {
+    padding: 10px 14px; border-bottom: 1px solid var(--line); align-items: center; gap: 8px; background: var(--card);
+}
+.chat-h { display: flex; flex-direction: row; align-items: center; gap: 10px; }
+.chat-h div { display: flex; flex-direction: column; }
+.chat-h .av { width: 30px; height: 30px; border-radius: 50%; background: var(--acc); color: #fff; font: 600 13px/30px var(--mono); text-align: center; font-style: normal; flex: none; }
+.chat-h b { font: 600 14px/17px var(--font); }
+.chat-h span { font: 11px/14px var(--font); color: var(--mute); }
+
+.st-key-chat_scroll { background: var(--bg); padding: 0 !important; border-radius: 0 !important; }
+.st-key-chat_scroll > div { display: flex; flex-direction: column; gap: 8px; padding: 12px 14px !important; }
+[class*="st-key-bu_"][class*="st-key-bu_"] {
+    align-self: flex-end; width: fit-content !important; max-width: 84%; margin-left: auto;
+    background: var(--acc); color: #fff; border-radius: 12px 12px 3px 12px; padding: 7px 11px !important;
+}
+[class*="st-key-bu_"] *, [class*="st-key-bu_"] p { color: #fff !important; margin: 0; font-size: 13px !important; line-height: 18px !important; }
+[class*="st-key-ba_"][class*="st-key-ba_"] {
+    width: fit-content !important; max-width: 90%; margin-right: auto;
+    background: var(--card); border: 1px solid var(--line_soft); border-radius: 12px 12px 12px 3px; padding: 8px 12px !important;
+}
+[class*="st-key-ba_"] p, [class*="st-key-ba_"] li { color: var(--ink) !important; margin: 0 0 3px; font-size: 13px !important; line-height: 18px !important; }
+[class*="st-key-ba_"] p:last-child { margin-bottom: 0; }
+[class*="st-key-ba_"] p.sim { font: 11px/14px var(--mono) !important; color: var(--mute) !important; margin-top: 4px; }
+
+/* Safata de suggeriments compacta just a sobre de la caixa de text */
+.st-key-chat_sugs {
+    padding: 6px 10px !important; background: var(--card); border-top: 1px solid var(--line_soft);
+}
+.st-key-chat_sugs > div {
+    display: flex !important; flex-direction: row !important; flex-wrap: wrap !important; gap: 4px !important;
+}
+.st-key-chat_sugs [data-testid="stElementContainer"] { width: auto !important; margin: 0 !important; }
+.st-key-chat_sugs .stButton button {
+    min-height: 24px !important; height: auto !important; padding: 3px 8px !important;
+    border-radius: 6px !important; border: 1px solid var(--line) !important;
+    background: var(--bg) !important; color: var(--ink2) !important; width: auto !important;
+}
+.st-key-chat_sugs .stButton button:hover {
+    border-color: var(--acc) !important; color: var(--acc) !important; background: var(--accbg) !important;
+}
+.st-key-chat_sugs .stButton button p {
+    font: 500 11px/14px var(--font) !important; color: inherit !important; text-align: left;
+}
+
+/* Caixa d'entrada sempre visible a baix */
+[data-testid="stPopoverBody"] [data-testid="stChatInput"] {
+    padding: 8px 10px 10px !important; border-top: 1px solid var(--line); background: var(--card) !important;
+}
+[data-testid="stChatInput"] > div {
+    border-radius: 8px !important; background: var(--bg) !important; border: 1px solid var(--line) !important; min-height: 38px !important;
+}
+[data-testid="stChatInput"] textarea { font-size: 13px !important; line-height: 18px !important; }
+[data-testid="stChatInput"] button { background: var(--acc) !important; border-radius: 6px !important; color: #fff !important; width: 28px; height: 28px; min-height: 0; }
+
+.typing { display: inline-flex; gap: 4px; background: var(--card); border: 1px solid var(--line_soft); border-radius: 10px; padding: 8px 12px; }
+.typing i { width: 6px; height: 6px; border-radius: 50%; background: var(--dot); animation: blink 1.2s infinite; }
+.typing i:nth-child(2) { animation-delay: .2s; }
+.typing i:nth-child(3) { animation-delay: .4s; }
+@keyframes blink { 0%, 60%, 100% { opacity: .3 } 30% { opacity: 1 } }
+
+.foot { font: 400 11px/15px var(--font); color: var(--mute); margin-top: 48px; padding-top: 12px; border-top: 1px solid var(--line); }
+
+@media (max-width: 900px) {
+    .ed-hero, .ed-kpis { grid-template-columns: 1fr; gap: 16px; }
+    .ed-kpis > div + div { border-left: 0; border-top: 1px solid var(--line); }
+    .verdict .ver, .scoreblk .big { font-size: 52px; }
+    .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+__HIDE__
 </style>
 """
+
+HIDE_RULES = """.cc, .src, .sec p, .intro p, .foot, div[data-testid="stCaptionContainer"] { display: none !important; }"""
+
+
+def _css(theme: dict) -> str:
+    vars_ = ";".join(f"--{k}:{v}" for k, v in theme.items())
+    return (
+        CSS_TEMPLATE.replace("__VARS__", vars_)
+        .replace("__FONT__", FONT)
+        .replace("__MONO__", MONO)
+        .replace("__HIDE__", "" if is_explain() else HIDE_RULES)
+    )
 
 
 def setup(title: str):
     st.set_page_config(page_title=title, page_icon=None, layout="wide", initial_sidebar_state="collapsed")
-    st.markdown(CSS, unsafe_allow_html=True)
+    st.markdown(_css(DARK if is_dark() else LIGHT), unsafe_allow_html=True)
 
 
 def fmt(x, dec: int = 0, sign: bool = False) -> str:
-    """Format català: 1.848,5 (coma decimal, punt de milers)."""
     if x is None or x != x:
         return "—"
     s = f"{x:+,.{dec}f}" if sign else f"{x:,.{dec}f}"
-    return s.replace(",", " ").replace(".", ",").replace(" ", ".").replace("-", "−")
+    return s.replace(",", " ").replace(".", ",").replace(" ", ".").replace("-", "−")
 
 
 def data(ts, any_: bool = True) -> str:
@@ -132,40 +433,68 @@ def data(ts, any_: bool = True) -> str:
     return f"{ts.day} {MESOS[ts.month - 1]}" + (f" {ts.year}" if any_ else "")
 
 
+def badge(text: str, kind: str = "nt") -> str:
+    arrow = {"up": "▲ ", "dn": "▼ "}.get(kind, "")
+    return f"<span class='badge {kind}'>{arrow}{text}</span>"
+
+
 def section(title: str, sub: str | None = None):
     st.markdown(f"<div class='sec'><h2>{title}</h2>" + (f"<p>{sub}</p>" if sub else "") + "</div>", unsafe_allow_html=True)
 
 
-def panel(title: str, caption: str | None = None):
-    box = st.container()
+def intro(title: str, text: str):
+    st.markdown(f"<div class='intro'><h3>{title}</h3><p>{text}</p></div>", unsafe_allow_html=True)
+
+
+def panel(title: str, caption: str | None = None, key: str | None = None):
+    box = st.container(border=True, key="card_" + (key or hashlib.md5(title.encode()).hexdigest()[:10]))
     box.markdown(f"<p class='ct'>{title}</p>" + (f"<p class='cc'>{caption}</p>" if caption else ""), unsafe_allow_html=True)
     return box
+
+
+def more(label: str):
+    return st.expander(label, expanded=False)
 
 
 def source(text: str, where=st):
     where.markdown(f"<p class='src'>{text}</p>", unsafe_allow_html=True)
 
 
-def facts(items: list[tuple], cols: int = 4, where=st):
-    cells = "".join(f"<div class='fact'><div class='l'>{l}</div><div class='v'>{v}</div><div class='s'>{s}</div></div>"
-                    for l, v, s in items)
-    where.markdown(f"<div class='facts' style='--n:{cols}'>{cells}</div>", unsafe_allow_html=True)
+def tiles(items: list[tuple], cols: int = 4, where=st):
+    cells = "".join(
+        f"<div class='tile'><div class='l'>{it[0]}</div>"
+        f"<div class='v'>{it[1]}</div><div class='s'>{it[2]}</div></div>"
+        for it in items
+    )
+    where.markdown(f"<div class='tiles' style='--n:{cols}'>{cells}</div>", unsafe_allow_html=True)
 
 
-def rows(items: list[tuple], where=st):
-    """Llista d'indicadors: (etiqueta, detall, valor_html, to) amb to en {'', 'good', 'bad'}."""
-    html = "".join(f"<div class='r'><div class='l'>{l}<small>{d}</small></div><div class='v {t}'>{v}</div></div>"
-                   for l, d, v, t in items)
-    where.markdown(f"<div class='rows'>{html}</div>", unsafe_allow_html=True)
+facts = tiles
 
 
 def note(head: str, body_html: str, where=st):
-    where.markdown(f"<div class='note'><b class='h'>{head}</b> {body_html}</div>", unsafe_allow_html=True)
+    where.markdown(f"<div class='note'><b>{head}</b> {body_html}</div>", unsafe_allow_html=True)
 
 
-def table(df: pd.DataFrame, names: dict, formats: dict | None = None, left: tuple = (), bars: dict | None = None,
-          highlight=None, height: int | None = None, where=st):
-    """Taula HTML: xifres a la dreta amb coma decimal, filets fins i, si es vol, una barra dins la cel·la."""
+def checklist(items: list[tuple], where=st):
+    lis = "".join(
+        f"<li><span class='m' style='color:{'var(--up)' if ok else 'var(--dn)'}'>{'sí' if ok else 'no'}</span>"
+        f"<span>{name}</span><span class='d'>{detail}</span></li>"
+        for name, ok, detail in items
+    )
+    where.markdown(f"<ul class='chk'>{lis}</ul>", unsafe_allow_html=True)
+
+
+def table(
+    df: pd.DataFrame,
+    names: dict,
+    formats: dict | None = None,
+    left: tuple = (),
+    bars: dict | None = None,
+    highlight=None,
+    height: int | None = None,
+    where=st,
+):
     formats, bars = formats or {}, bars or {}
     head = "".join(f"<th class='{'L' if c in left else ''}'>{names[c]}</th>" for c in names)
     body = []
@@ -179,23 +508,40 @@ def table(df: pd.DataFrame, names: dict, formats: dict | None = None, left: tupl
                 txt = f"<span class='bar'><i style='width:{w:.0f}%'></i></span>{txt}"
             tds.append(f"<td class='{'L' if c in left else ''}'>{txt}</td>")
         body.append(f"<tr class='{'hl' if highlight is not None and highlight(r) else ''}'>{''.join(tds)}</tr>")
-    style = f" style='max-height:{height}px'" if height else ""
-    where.markdown(f"<div class='tw'{style}><table class='t'><thead><tr>{head}</tr></thead><tbody>{''.join(body)}"
-                   "</tbody></table></div>", unsafe_allow_html=True)
+    style_ = f" style='max-height:{height}px'" if height else ""
+    where.markdown(
+        f"<div class='tw'{style_}><table class='t'><thead><tr>{head}</tr></thead><tbody>{''.join(body)}"
+        "</tbody></table></div>",
+        unsafe_allow_html=True,
+    )
 
 
 def style(fig: go.Figure, height: int = 320, legend: bool = True) -> go.Figure:
+    t = DARK if is_dark() else LIGHT
     fig.update_layout(
-        height=height, margin=dict(l=2, r=14, t=26 if legend else 10, b=2), separators=",.",
-        paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
-        font=dict(family=PFONT, size=12.5, color=INK_2), showlegend=legend,
-        legend=dict(orientation="h", yanchor="bottom", y=1.0, xanchor="left", x=0, title=None, font=dict(color=INK)),
-        hoverlabel=dict(bgcolor="#ffffff", font_color=INK, bordercolor=INK, font_family=PFONT),
-        bargap=0.22,
+        height=height,
+        margin=dict(l=2, r=14, t=24 if legend else 8, b=2),
+        separators=",.",
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+        font=dict(family=PFONT, size=11.5, color=t["ink2"]),
+        showlegend=legend,
+        legend=dict(
+            orientation="h", yanchor="bottom", y=1.0, xanchor="left", x=0,
+            title=None, font=dict(color=t["ink"], size=11)
+        ),
+        hoverlabel=dict(bgcolor=t["card"], font_color=t["ink"], bordercolor=t["line"], font_family=PFONT),
+        bargap=0.3,
     )
-    fig.update_xaxes(showgrid=False, linecolor=INK, linewidth=1, tickcolor=INK, zeroline=False, ticks="outside",
-                     ticklen=4, title_font=dict(size=12, color=INK_2))
-    fig.update_yaxes(gridcolor=GRID, zeroline=False, showline=False, title_font=dict(size=12, color=INK_2))
+    fig.update_xaxes(
+        showgrid=False, linecolor=t["line"], linewidth=1, tickcolor=t["line"],
+        zeroline=False, ticks="outside", ticklen=4,
+        title_font=dict(size=11, color=t["mute"]), tickfont=dict(color=t["ink2"], size=11),
+    )
+    fig.update_yaxes(
+        gridcolor=t["grid"], zeroline=False, showline=False,
+        title_font=dict(size=11, color=t["mute"]), tickfont=dict(color=t["ink2"], size=11),
+    )
     return fig
 
 

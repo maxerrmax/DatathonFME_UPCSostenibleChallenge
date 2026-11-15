@@ -1,11 +1,14 @@
 {
  "_readme": "Registre mantingut a mà del que l'equip ha lliurat al Mode Difícil. Afegiu una fila (o ompliu 'public') després de cada lliurament; el dashboard ho llegeix en recarregar. 'validation' és la puntuació a la validació de l'equip (plec 1, models entrenats sense aquestes setmanes). 'arena' és l'estratègia de dificil/arena que reprodueix la versió.",
- "selected": "v12",
+ "selection": {
+  "public_noise_sd": 0.35,
+  "note": "La versió recomanada NO s'escriu a mà: la calcula models.choose() amb aquest registre. 'public_noise_sd' és el soroll d'una comparació al rànquing públic (±0,35, mesurat per l'equip). 'extends' en un lliurament vol dir que és la versió indicada més un canvi que només pot actuar a la part privada del test; desfà els empats."
+ },
  "public_test": {
   "hours": 1008,
   "co2_base_kg": 60250,
   "cost_base_eur": 94975,
-  "note": "Totals base de la meitat pública del test, deduïts dels percentatges del rànquing (docs/TRASPASO_MODE_DIFICIL.md)."
+  "note": "El rànquing públic del Mode Difícil usa 1.008 hores (6 setmanes), segons la web del repte. Les bases de CO₂ i cost es dedueixen dels percentatges."
  },
  "limits": {
   "timeout_s": 60,
@@ -71,43 +74,237 @@
    "arena": "stoch8_nn_pre"
   },
   {
-   "id": "v14",
-   "what": "v12 + MPC estocàstic (12 escenaris), sense xarxes neuronals",
+   "id": "v15",
+   "what": "v12 + final del test conegut (deixa de reservar energia per a després de l'última hora)",
+   "validation": 20.74,
+   "public": 23.53,
+   "co2": 22.34,
+   "cost": 26.31,
+   "infr": 0,
+   "same_public_as": "v12",
+   "extends": "v12",
+   "note": "Mateixa puntuació pública que la v12: el guany del final conegut cau a la meitat privada del test. CO₂ i cost públics es prenen iguals que els de la v12."
+  },
+  {
+   "id": "v16",
+   "what": "v12 + MPC estocàstic amb escenaris LightGBM/xarxa + xarxes amb historial REE",
+   "validation": null,
+   "public": 22.97
+  },
+  {
+   "id": "v17",
+   "what": "v15 + MPC estocàstic de 12 escenaris, sense xarxes",
    "validation": 20.8,
+   "public": 23.29,
+   "arena": "stoch_s12"
+  },
+  {
+   "id": "v18",
+   "what": "Hipòtesi de reinici de la bateria cada setmana (falsa: el servidor fa un sol episodi)",
+   "validation": null,
+   "public": 23.13
+  },
+  {
+   "id": "v19",
+   "what": "v15 + previsions conscients del canvi de setmana",
+   "validation": 20.96,
    "public": null,
-   "arena": "stoch_s12",
-   "note": "El zip de la v14 porta una guarda de temps que baixa a 8 o 6 escenaris si va tard; aquests modes fan 19,11 i 19,07 de mitjana als tres plecs en lloc de 19,13, de manera que la major part de l'avantatge es perd."
+   "note": "Als plecs guanya +0,22 / +0,17 / +0,08. Regla: enviar-la un cop i quedar-s'hi només si fa més de 23,53."
   }
  ],
  "leaderboard": {
-  "as_of": "14 nov. 2026, 19:23",
+  "as_of": "15 nov. 2026",
   "announced_max": 25.0,
   "teams": [
    {
+    "team": "SSA Gourmet",
+    "score": 24.36,
+    "co2": 22.94,
+    "cost": 27.69
+   },
+   {
+    "team": "SSA Gourme",
+    "score": 24.32,
+    "co2": 22.87,
+    "cost": 27.69
+   },
+   {
+    "team": "Fanboy & Chum Chum",
+    "score": 24.25,
+    "co2": 22.98,
+    "cost": 27.23
+   },
+   {
+    "team": "SanHackobos",
+    "score": 24.15,
+    "co2": 22.92,
+    "cost": 27.02
+   },
+   {
+    "team": "SanHackobos_v7",
+    "score": 24.1,
+    "co2": 22.86,
+    "cost": 26.99
+   }
+  ],
+  "source": "https://repteupc.datathon.cat/ · Mode Difícil · rànquing públic (instantània)",
+  "n_teams": 51,
+  "n_submissions": 358,
+  "us": "JAMM",
+  "standings": [
+   {
+    "rank": 1,
+    "team": "SSA Gourmet",
+    "score": 24.36,
+    "co2": 22.94,
+    "cost": 27.69
+   },
+   {
+    "rank": 2,
+    "team": "SSA Gourme",
+    "score": 24.32,
+    "co2": 22.87,
+    "cost": 27.69
+   },
+   {
+    "rank": 3,
+    "team": "Fanboy & Chum Chum",
+    "score": 24.25,
+    "co2": 22.98,
+    "cost": 27.23
+   },
+   {
+    "rank": 4,
+    "team": "SanHackobos",
+    "score": 24.15,
+    "co2": 22.92,
+    "cost": 27.02
+   },
+   {
+    "rank": 5,
     "team": "SanHackobos_v7",
     "score": 24.1,
     "co2": 22.86,
     "cost": 26.99
    },
    {
+    "rank": 6,
+    "team": "SanHackobos_v9",
+    "score": 24.1,
+    "co2": 22.94,
+    "cost": 26.82
+   },
+   {
+    "rank": 7,
+    "team": "SanHackobos_v8",
+    "score": 24.06,
+    "co2": 22.88,
+    "cost": 26.79
+   },
+   {
+    "rank": 8,
+    "team": "manguets",
+    "score": 23.89,
+    "co2": 22.66,
+    "cost": 26.76
+   },
+   {
+    "rank": 9,
+    "team": "TeamName2",
+    "score": 23.84,
+    "co2": 23.06,
+    "cost": 25.65
+   },
+   {
+    "rank": 10,
+    "team": "HelloWorld",
+    "score": 23.84,
+    "co2": 23.06,
+    "cost": 25.65
+   },
+   {
+    "rank": 11,
+    "team": "Equip1",
+    "score": 23.84,
+    "co2": 23.06,
+    "cost": 25.65
+   },
+   {
+    "rank": 12,
+    "team": "AAAA",
+    "score": 23.75,
+    "co2": 22.99,
+    "cost": 25.53
+   },
+   {
+    "rank": 13,
+    "team": "Dos enginyers i mig",
+    "score": 23.73,
+    "co2": 22.62,
+    "cost": 26.34
+   },
+   {
+    "rank": 14,
     "team": "AAA",
-    "score": 23.71
+    "score": 23.71,
+    "co2": 22.89,
+    "cost": 25.63
    },
    {
+    "rank": 15,
     "team": "Sanhackobos_v6",
-    "score": 23.7
+    "score": 23.7,
+    "co2": 22.58,
+    "cost": 26.3
    },
    {
+    "rank": 16,
+    "team": "robertocarlos2",
+    "score": 23.63,
+    "co2": 22.38,
+    "cost": 26.55
+   },
+   {
+    "rank": 17,
     "team": "Ommetje",
-    "score": 23.57
+    "score": 23.59,
+    "co2": 22.17,
+    "cost": 26.9
    },
    {
-    "team": "SSA Gourmet",
-    "score": 23.5
+    "rank": 18,
+    "team": "TeamName3",
+    "score": 23.56,
+    "co2": 22.83,
+    "cost": 25.25
    },
    {
+    "rank": 19,
+    "team": "JAMM",
+    "score": 23.53,
+    "co2": 22.34,
+    "cost": 26.31
+   },
+   {
+    "rank": 20,
+    "team": "t1",
+    "score": 23.53,
+    "co2": 22.34,
+    "cost": 26.31
+   },
+   {
+    "rank": 21,
+    "team": "ASCII",
+    "score": 23.52,
+    "co2": 22.26,
+    "cost": 26.47
+   },
+   {
+    "rank": 22,
     "team": "Riviera Maya Boys",
-    "score": 23.45
+    "score": 23.45,
+    "co2": 22.47,
+    "cost": 25.73
    }
   ]
  },
@@ -151,19 +348,19 @@
  ],
  "perfect_info": [
   {
-   "what": "CO₂ de les properes 24 h",
-   "gain": 1.2,
-   "note": "la meitat (+0,6) és a les 5 hores que segueixen les 3 que ja ens donen"
+   "what": "Demanda neta (consum − solar) de les properes 24 h",
+   "gain": 0.63,
+   "note": "gairebé tot (+0,48) és a l'hora actual, que l'agent ha de decidir sense veure"
   },
   {
-   "what": "Consum i solar de l'hora actual",
-   "gain": 0.7,
-   "note": "l'agent només veu la telemetria de l'hora anterior"
+   "what": "CO₂ més enllà de les 3 h que ens donen",
+   "gain": 0.5,
+   "note": "tot el valor és entre 3 i 11 hores endavant; de 12 a 23 h no val res"
   },
   {
-   "what": "Preu de les properes 24 h",
-   "gain": 0.2,
-   "note": "el preu ja es prediu bé"
+   "what": "Preu més enllà de les 3 h",
+   "gain": 0.17,
+   "note": "el preu ja es prediu prou bé"
   }
  ],
  "ratio_sweep": [
@@ -186,22 +383,34 @@
  ],
  "dropped": [
   {
-   "idea": "Models per trams d'horitzó (v10, respecte a la v9)",
+   "idea": "Models per trams d'horitzó (v10)",
    "validation": "+0,33",
    "public": "−0,50",
    "verdict": "Sobreajust a la validació"
   },
   {
-   "idea": "Previsions neuronals de CO₂ i preu (v13, respecte a la v12)",
+   "idea": "Previsions neuronals de CO₂ i preu (v13)",
    "validation": "+0,14",
    "public": "−0,46",
    "verdict": "Sobreajust a la validació"
   },
   {
-   "idea": "Règims d'obertura del campus (tancat / reduït)",
-   "validation": "millor en dies especials",
-   "public": "més baix",
-   "verdict": "Revertit"
+   "idea": "MPC estocàstic + xarxes amb historial REE (v16)",
+   "validation": "millor als plecs",
+   "public": "−0,56",
+   "verdict": "No es trasllada al test"
+  },
+  {
+   "idea": "MPC estocàstic de 12 escenaris (v17)",
+   "validation": "+0,06",
+   "public": "−0,24",
+   "verdict": "No es trasllada al test"
+  },
+  {
+   "idea": "Reinici de la bateria cada setmana (v18)",
+   "validation": "—",
+   "public": "−0,40",
+   "verdict": "Hipòtesi falsa sobre el servidor"
   },
   {
    "idea": "Pes del CO₂ respecte al preu (0,45 a 0,70)",
@@ -210,40 +419,17 @@
    "verdict": "Només canvia CO₂ per cost"
   },
   {
-   "idea": "Variables de dinàmica solar per al CO₂",
-   "validation": "−0,03",
+   "idea": "Models de mercat només per a 3–11 h",
+   "validation": "+0,06",
    "public": "—",
-   "verdict": "Menys error, menys puntuació"
+   "verdict": "−14 % d'error, guany mínim"
   },
   {
-   "idea": "Ensemble de llavors per al CO₂ (2 i 3 llavors)",
-   "validation": "+0,02 / 0,00",
+   "idea": "Unes 40 estratègies de decisió (arena)",
+   "validation": "±0,25 com a molt",
    "public": "—",
-   "verdict": "Soroll, i 25 ms per pas"
-  },
-  {
-   "idea": "Horitzó més llarg (30 a 48 h)",
-   "validation": "−0,10",
-   "public": "—",
-   "verdict": "Amb 24 h n'hi ha prou"
-  },
-  {
-   "idea": "Objectiu residual per a preu i CO₂",
-   "validation": "−0,23",
-   "public": "—",
-   "verdict": "Aplana la forma del dia"
-  },
-  {
-   "idea": "Quantils per a consum i solar",
-   "validation": "0,00",
-   "public": "—",
-   "verdict": "Sense efecte"
-  },
-  {
-   "idea": "Barreja amb les previsions d'un altre agent",
-   "validation": "+0,07 com a molt",
-   "public": "—",
-   "verdict": "No compensa el temps de càlcul"
+   "verdict": "El planificador no és la palanca"
   }
- ]
+ ],
+ "perfect_info_note": "Mitjana dels 3 plecs sobre la v12 (dificil/diag/voi_folds.py); amb tot conegut alhora, +1,62."
 }

@@ -39,6 +39,7 @@ v19 (`dificil/arxiu/lliuraments/hard_v19.zip`, v15 + previsions conscients del c
 v19 + hora solar + llindars + onades de calor/fred (`dificil/arxiu/lliuraments/hard_v19dst_hvac_heat.zip`): validació 20,73 (= base), **públic 23,61 (−0,17)**. Descartat; no repetir. Depèn de conèixer el final del test (31/8/2026 23:00) i l'encadenament de setmanes; no s'ha seleccionat fins que els organitzadors confirmin que és vàlid (A i B són les finals nets).
 v19 + hora solar + CO₂ proper (h+3..+11) + correcció del canvi de setmana (`dificil/arxiu/v19_dst_near/`): validació +0,08, **públic 23,63 (−0,12)**. Descartat; no repetir.
 Features noves sobre v19 + hora solar (`dificil/diag/extra_feats.py`, 3 plecs): onades de calor −0,003, llindars 19/27 °C +0,003, alçada del sol +0,013, festius estatals/Nadal al mercat −0,030, temperatura del panell 0,000. Res a pujar; no repetir.
+Escombrat de paràmetres del planificador sobre v19 + hora solar (`dificil/diag/sweep_params.py`, 3 plecs, un paràmetre cada vegada): ratio, q_term, net0_mix, k_future, load_tau, scen_scale tots dins de ±0,03 (el millor, ratio 0,68, +0,013). Ja són a l'òptim; no repetir.
 
 **Servidor verificat** (sonda `dificil/probe/`, `dificil/probe/probe_diag.zip`): entrades idèntiques a `dificil/henv.py`; determinista;
 un sol episodi continu de 12 setmanes (SOC arrossegat; la hipòtesi de reinici per setmana, v18, és falsa).

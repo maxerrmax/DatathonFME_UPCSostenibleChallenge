@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="ca"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Front page options</title>
+<style>
+:root{--bg:#FAFAFA;--card:#fff;--line:#E4E4E7;--ink:#18181B;--mute:#71717A;--acc:#0F766E;--up:#15803D;--dn:#B91C1C;--upbg:#F0FDF4;--dnbg:#FEF2F2}
+*{box-sizing:border-box;margin:0}
+body{background:var(--bg);color:var(--ink);font:14px/1.45 Inter,-apple-system,"Segoe UI",sans-serif;padding:20px 24px 60px}
+.m,.num{font-family:ui-monospace,"JetBrains Mono",Consolas,monospace;font-variant-numeric:tabular-nums}
+.lab{font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:var(--mute);font-weight:500}
+.box{background:var(--card);border:1px solid var(--line)}
+.pad{padding:18px 20px}
+h1{font-size:15px;font-weight:600;letter-spacing:-.01em}
+h2{font-size:15px;font-weight:600;letter-spacing:-.01em;line-height:1.3}
+.sub{color:var(--mute);font-size:12.5px}
+.badge{display:inline-block;font:500 11px ui-monospace,Consolas,monospace;padding:1px 6px;border:1px solid;border-radius:3px}
+.up{color:var(--up);background:var(--upbg);border-color:#BBF7D0}.dn{color:var(--dn);background:var(--dnbg);border-color:#FECACA}
+.bar{display:flex;align-items:center;gap:14px;margin-bottom:16px;flex-wrap:wrap}
+.bar .opts{margin-left:auto;display:flex;gap:0;border:1px solid var(--line);background:#fff}
+.bar button{font:500 12px inherit;font-family:inherit;border:0;background:#fff;padding:6px 14px;cursor:pointer;color:var(--mute);border-right:1px solid var(--line)}
+.bar button:last-child{border:0}.bar button.on{background:var(--ink);color:#fff}
+.opt{display:none}.opt.on{display:block}
+.nav{display:flex;gap:22px;border-bottom:1px solid var(--line);margin:0 -24px 18px;padding:0 24px;font-size:13px;color:var(--mute)}
+.nav span{padding:9px 0}.nav .a{color:var(--ink);border-bottom:2px solid var(--ink)}
+.row{display:grid;gap:12px}
+.hair>*+*{border-top:1px solid var(--line)}
+.kv{display:flex;justify-content:space-between;align-items:baseline;padding:11px 0;gap:10px}
+.big{font-size:56px;line-height:1;letter-spacing:-.03em;font-weight:500}
+table{border-collapse:collapse;width:100%}td,th{padding:8px 0;border-top:1px solid var(--line);text-align:left;font-weight:400}
+th{border-top:0}td.r,th.r{text-align:right}
+.hl td{font-weight:600}
+svg text{font-family:ui-monospace,Consolas,monospace;font-size:10.5px;fill:var(--mute)}
+.num,.big{white-space:nowrap}
+.note{font-size:12px;color:var(--mute);margin-top:8px}
+@media(max-width:860px){.g2,.g3,.g4{grid-template-columns:1fr!important}}
+</style></head><body>
+
+<div class="bar">
+  <h1>Front page · three directions</h1><span class="sub">Same data (v15 chosen, public 23,53). Pick one, or mix.</span>
+  <div class="opts"><button class="on" data-o="A">A · Decision ledger</button><button data-o="B">B · Scoreboard</button><button data-o="C">C · Briefing</button></div>
+</div>
+
+<div class="nav"><span class="a">Veredicte</span><span>Cara a cara</span><span>On són els punts</span><span>Campus i xarxa</span><span>Prova-ho tu</span><span>Pregunta-li</span></div>
+
+<!-- ================= A ================= -->
+<section class="opt on" id="A">
+<div class="row g2" style="grid-template-columns:minmax(0,1.9fr) minmax(0,1fr)">
+  <div class="row">
+    <div class="box pad">
+      <div class="lab">Versió que lliurem · tria automàtica</div>
+      <div style="display:flex;align-items:flex-end;gap:28px;margin:14px 0 12px;flex-wrap:wrap">
+        <div class="big num">v15</div>
+        <div><div class="lab">Rànquing públic</div><div class="num" style="font-size:30px;letter-spacing:-.02em">23,53</div></div>
+        <div><div class="lab">vs líder</div><div class="num" style="font-size:30px;letter-spacing:-.02em;color:var(--dn)">−0,83</div></div>
+      </div>
+      <p style="max-width:58ch">Empata amb la v12 al públic i hi afegeix un canvi que només pot sumar a la part privada del test, que és la que decideix. <span class="sub">Estimació, no promesa: calibrada amb 6 lliuraments.</span></p>
+    </div>
+    <div class="box pad">
+      <div style="display:flex;justify-content:space-between"><h2>Estem a 0,83 punts del líder</h2><span class="lab">Rànquing públic</span></div>
+      <svg viewBox="0 0 640 150" width="100%" style="margin-top:8px">
+        <line x1="20" x2="620" y1="70" y2="70" stroke="#E4E4E7"/>
+        <g id="lbA"></g>
+      </svg>
+      <p class="note">Cada punt és un equip. Marcat: nosaltres. El públic són ~5 setmanes; el privat decideix.</p>
+    </div>
+  </div>
+  <div class="box pad" style="display:flex;flex-direction:column">
+    <div class="lab">Indicadors</div>
+    <div class="hair" style="margin-top:6px">
+      <div class="kv"><span>CO₂ evitat <span class="sub">· pes 70 %</span></span><span><span class="num" style="font-size:20px">22,34 %</span> &nbsp;<span class="badge dn">−0,60 vs líder</span></span></div>
+      <div class="kv"><span>Factura estalviada <span class="sub">· pes 30 %</span></span><span><span class="num" style="font-size:20px">26,31 %</span> &nbsp;<span class="badge dn">−1,38</span></span></div>
+      <div class="kv"><span>Validació</span><span><span class="num" style="font-size:20px">20,74</span> <span class="sub num">/ 22,34 òptim</span></span></div>
+      <div class="kv"><span>CO₂ evitat, absolut</span><span class="num" style="font-size:20px">13,5 t</span></div>
+      <div class="kv"><span>Factura estalviada</span><span class="num" style="font-size:20px">25,0 k€</span></div>
+      <div class="kv"><span>Infraccions · temps</span><span class="num" style="font-size:20px">0 · &lt;60 s</span></div>
+    </div>
+    <div style="margin-top:auto;border-top:1px solid var(--line);padding-top:14px">
+      <div class="lab">Següent acció</div>
+      <p style="margin-top:4px"><b>Enviar v19 un cop.</b> Quedar-s'hi només si fa <span class="num">&gt; 23,53</span> al públic.</p>
+    </div>
+  </div>
+</div>
+</section>
+
+<!-- ================= B ================= -->
+<section class="opt" id="B">
+<div class="box" style="display:grid;grid-template-columns:1.2fr 1fr 1fr 1fr 1fr 1fr">
+  <div class="pad" style="border-right:1px solid var(--line)"><div class="lab">Versió</div><div class="num" style="font-size:34px;margin-top:6px;letter-spacing:-.02em">v15</div><div class="sub">tria automàtica</div></div>
+  <div class="pad" style="border-right:1px solid var(--line)"><div class="lab">Nota pública</div><div class="num" style="font-size:34px;margin-top:6px;letter-spacing:-.02em">23,53</div><span class="badge up">+0,00 vs v12</span></div>
+  <div class="pad" style="border-right:1px solid var(--line)"><div class="lab">vs líder</div><div class="num" style="font-size:34px;margin-top:6px;letter-spacing:-.02em">−0,83</div><span class="badge dn">24,36</span></div>
+  <div class="pad" style="border-right:1px solid var(--line)"><div class="lab">CO₂ · 70 %</div><div class="num" style="font-size:34px;margin-top:6px;letter-spacing:-.02em">22,3 %</div><span class="sub num">13,5 t</span></div>
+  <div class="pad" style="border-right:1px solid var(--line)"><div class="lab">Cost · 30 %</div><div class="num" style="font-size:34px;margin-top:6px;letter-spacing:-.02em">26,3 %</div><span class="sub num">25,0 k€</span></div>
+  <div class="pad"><div class="lab">Validació</div><div class="num" style="font-size:34px;margin-top:6px;letter-spacing:-.02em">92,8 %</div><span class="sub num">de l'òptim</span></div>
+</div>
+<div class="row g2" style="grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);margin-top:12px">
+  <div class="box pad">
+    <div style="display:flex;justify-content:space-between"><h2>La nota va pujar de 18,17 a 23,53, però no sempre en línia recta</h2><span class="lab">Públic per versió</span></div>
+    <svg viewBox="0 0 640 210" width="100%" id="trendB" style="margin-top:6px"></svg>
+    <p class="note">Les versions v10, v13, v16–v18 van baixar al públic tot i millorar a la validació: la validació sola no mana.</p>
+  </div>
+  <div class="box pad">
+    <div style="display:flex;justify-content:space-between"><h2>On queden els 1,62 punts</h2><span class="lab">Info perfecta</span></div>
+    <div id="voiB" style="margin-top:14px"></div>
+    <p class="note">Guany mitjà en 3 plecs si coneguéssim tot això. El planificador no és la palanca; la previsió sí.</p>
+  </div>
+</div>
+</section>
+
+<!-- ================= C ================= -->
+<section class="opt" id="C">
+<div class="row g3" style="grid-template-columns:minmax(0,1.1fr) minmax(0,1.4fr) minmax(0,1fr)">
+  <div class="box pad" style="display:flex;flex-direction:column;gap:18px">
+    <div><div class="lab">Lliurem</div><div class="num" style="font-size:44px;letter-spacing:-.03em;margin-top:4px">v15</div></div>
+    <div><div class="lab">Nota al rànquing</div><div class="big num" style="font-size:64px;color:var(--acc)">23,53</div>
+      <div style="margin-top:8px"><span class="badge dn">−0,83 vs líder</span> <span class="badge up">+0,00 vs v12</span></div></div>
+    <p class="sub" style="margin-top:auto">Tria feta pel dashboard per al test privat: empata amb v12 i hi afegeix un canvi que només actua a la part privada.</p>
+  </div>
+  <div class="row">
+    <div class="box pad">
+      <div class="lab">D'on surt la nota</div>
+      <div style="display:flex;height:10px;margin:12px 0 8px;border:1px solid var(--line)"><div style="width:70%;background:var(--acc)"></div><div style="width:30%;background:#fff"></div></div>
+      <div style="display:flex;justify-content:space-between" class="m"><span>0,7 × 22,34 % CO₂ = <b>15,64</b></span><span>0,3 × 26,31 % cost = <b>7,89</b></span></div>
+    </div>
+    <div class="box pad">
+      <div style="display:flex;justify-content:space-between"><span class="lab">Equips</span><span class="lab">CO₂ · cost</span></div>
+      <table class="m" style="margin-top:6px;font-size:13px" id="tblC"></table>
+    </div>
+  </div>
+  <div class="box pad" style="display:flex;flex-direction:column;gap:14px">
+    <div class="lab">Decisió pendent</div>
+    <h2>Enviar v19 un cop</h2>
+    <p class="sub">v15 + previsions conscients del canvi de setmana. Plecs: +0,22 / +0,17 / +0,08.</p>
+    <div style="border:1px solid var(--line);padding:12px"><div class="lab">Regla</div><div style="margin-top:4px">Quedar-s'hi només si el públic és <span class="num"><b>&gt; 23,53</b></span>. Si no, ens quedem amb v15.</div></div>
+    <div class="lab" style="margin-top:4px">Validació · v15</div>
+    <div><div style="height:6px;background:#F4F4F5"><div style="width:92.8%;height:100%;background:var(--ink)"></div></div>
+      <div class="m" style="display:flex;justify-content:space-between;margin-top:6px;font-size:12px"><span>20,74</span><span class="sub">òptim 22,34</span></div></div>
+    <p class="note" style="margin-top:auto">No verificat: estimació amb 6 lliuraments, soroll ±0,35 per comparació.</p>
+  </div>
+</div>
+</section>
+
+<script>
+const $=s=>document.querySelector(s), NS='http://www.w3.org/2000/svg';
+document.querySelectorAll('[data-o]').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('.bar button').forEach(x=>x.classList.toggle('on',x===b));
+  document.querySelectorAll('.opt').forEach(s=>s.classList.toggle('on',s.id===b.dataset.o));});
+const f=n=>n.toFixed(2).replace('.',',');
+// A: leaderboard dot strip
+const teams=[['SSA Gourmet',24.36],['Fanboy & Chum Chum',24.25],['SanHackobos',24.15],['manguets',23.89],['TeamName2',23.84],['JAMM (v15)',23.53]];
+const x=v=>20+(v-23.4)/(24.5-23.4)*600; let h='';
+teams.forEach(([n,v],i)=>{const me=i==5,up=i%2==0;
+  h+=`<circle cx="${x(v)}" cy="70" r="${me?6:4}" fill="${me?'#0F766E':'#18181B'}"/><text x="${x(v)}" y="${up?50:98}" text-anchor="middle" style="${me?'fill:#18181B;font-weight:600':''}">${n}</text><text x="${x(v)}" y="${up?38:110}" text-anchor="middle" style="fill:#18181B">${f(v)}</text>`;});
+[23.5,24,24.5].forEach(t=>h+=`<text x="${x(t)}" y="140" text-anchor="middle">${t.toFixed(1).replace('.',',')}</text>`);
+$('#lbA').innerHTML=h;
+// B: trend
+const vs=[['v2',18.17],['v6',22.79],['v8',23.41],['v9',23.45],['v10',22.95],['v12',23.53],['v13',23.07],['v15',23.53],['v16',22.97],['v17',23.29],['v18',23.13]];
+const tx=i=>40+i*(570/(vs.length-1)), ty=v=>180-(v-22.6)/(23.8-22.6)*150;
+let t='<line x1="30" x2="620" y1="'+ty(24.36)+'" y2="'+ty(24.36)+'" stroke="#A1A1AA" stroke-dasharray="2 3"/><text x="620" y="'+(ty(24.36)-5)+'" text-anchor="end">líder 24,36</text>';
+let pts=vs.map(([n,v],i)=>[tx(i),Math.max(ty(v),ty(23.8)+0)]);
+t+=`<polyline fill="none" stroke="#0F766E" stroke-width="1.5" points="${vs.map(([n,v],i)=>tx(i)+','+Math.min(185,ty(Math.max(v,22.6)))).join(' ')}"/>`;
+vs.forEach(([n,v],i)=>{const y=ty(Math.max(v,22.6));const best=n=='v15'||n=='v12';
+ t+=`<circle cx="${tx(i)}" cy="${y}" r="${n=='v15'?5:3}" fill="${n=='v15'?'#0F766E':'#fff'}" stroke="#0F766E" stroke-width="1.5"/><text x="${tx(i)}" y="205" text-anchor="middle">${n}</text>`;
+ if(['v2','v8','v12','v15'].includes(n)||n=='v10')t+=`<text x="${tx(i)}" y="${y-9}" text-anchor="middle" style="fill:#18181B">${f(v)}</text>`;});
+$('#trendB').innerHTML=t+'<text x="620" y="205" text-anchor="end">eix truncat a 22,6</text>';
+// B: voi
+const voi=[['Consum−solar, hora actual',0.48],['Consum−solar, 24 h',0.63],['CO₂ més enllà de 3 h',0.50],['Preu més enllà de 3 h',0.17],['Tot conegut alhora',1.62]];
+$('#voiB').innerHTML=voi.map(([n,v],i)=>`<div style="display:grid;grid-template-columns:150px 1fr 44px;gap:10px;align-items:center;padding:7px 0;${i?'border-top:1px solid #E4E4E7':''}"><span style="font-size:12.5px">${n}</span><div style="height:6px;background:#F4F4F5"><div style="width:${v/1.62*100}%;height:100%;background:${i==4?'#18181B':'#0F766E'}"></div></div><span class="num" style="text-align:right">+${f(v)}</span></div>`).join('');
+// C: table
+const rows=[['SSA Gourmet','24,36','22,94 · 27,69'],['Fanboy & Chum Chum','24,25','—'],['SanHackobos','24,15','—'],['manguets','23,89','—'],['TeamName2','23,84','—'],['JAMM · v15','23,53','22,34 · 26,31']];
+$('#tblC').innerHTML=rows.map((r,i)=>`<tr class="${i==5?'hl':''}"><td style="color:var(--mute);width:22px">${i+1}</td><td style="font-family:Inter,sans-serif">${r[0]}</td><td class="r">${r[1]}</td><td class="r" style="color:var(--mute)">${r[2]}</td></tr>`).join('');
+</script>
+</body></html>
