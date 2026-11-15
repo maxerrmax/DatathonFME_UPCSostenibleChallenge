@@ -109,14 +109,14 @@ Sobre el agente MPC antiguo (`dificil/arxiu/submission_hard/`, 22,95 en el públ
 
 ## 6. Ideas pendientes (no probadas)
 
-**Factors externs pendents (15/11), de més a menys probabilitat de millora.** Base: solució B (+ `natcal` opcional). Adoptar només si la validació puja > +0,05 i no empitjora `scripts/eval_weeks.py` ni `scripts/eval_dst_emul.py`.
+**Factors externs pendents (15/11), de més a menys probabilitat de millora.** Base: v19 + hora solar (`dificil/arxiu/v19_dst/`, públic 23,75). Adoptar només si la validació puja > +0,05 i no empitjora `scripts/eval_weeks.py` ni `scripts/eval_dst_emul.py`.
 1. Onades de calor/fred: temperatura mitjana de 24/72 h i màxima d'ahir a les features de preu/CO₂ (`mkt_features2`) i consum.
-2. Nadal i Cap d'Any: demanda nacional baixa entre festes (laborables 22/12–6/1, vigílies 24 i 31/12) com a indicador de mercat.
-3. Llindars de climatització d'edificis públics (19 °C calefacció, 27 °C fred): graus-hora per sobre/sota al model de consum.
-4. Llum natural → il·luminació: elevació solar o hores des de la posta a `tau` al model de consum (`load_features2`).
-5. Hores del canvi d'hora: 25/10 té l'hora 02:00 repetida (`hist.put` la sobreescriu) i el 29/3 en falta una; blindar-ho.
-6. Temperatura del panell (`temp_panel_c`, ≈ −0,4 %/°C) a la previsió solar de l'hora actual.
-7. Vigílies i ponts nacionals al mercat (dia abans/després d'un festiu nacional).
+2. Llindars de climatització d'edificis públics (19 °C calefacció, 27 °C fred): graus-hora per sobre/sota al model de consum.
+3. Llum natural → il·luminació: elevació solar o hores des de la posta a `tau` al model de consum (`load_features2`).
+4. Hores del canvi d'hora: 25/10 té l'hora 02:00 repetida (`hist.put` la sobreescriu) i el 29/3 en falta una; blindar-ho.
+5. Temperatura del panell (`temp_panel_c`, ≈ −0,4 %/°C) a la previsió solar de l'hora actual.
+6. Vigílies i ponts nacionals al mercat (dia abans/després d'un festiu nacional).
+7. Nadal i Cap d'Any al mercat (laborables 26–31/12 amb demanda nacional baixa). El consum ja té els règims de Nadal i els festius nacionals ja són a `natcal`: només cobreix el que falta i afecta una sola setmana.
 
 - Mejorar el modelo de la hora actual (+0,7 de margen teórico): p. ej. usar más señales de corto plazo (meteo de la
   última hora, tendencia de las últimas 3 h) en `net0`, o ajustar la mezcla `net0_mix`.
