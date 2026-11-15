@@ -282,6 +282,28 @@ També hem après del que no ha funcionat: el calendari acadèmic gairebé no ca
 <aside>Així ha evolucionat la nostra puntuació pública. El gran salt ve de preveure bé la solar amb un model físic de cel clar. Després, cada versió suma dècimes: començar amb historial, un CO₂ millor previst, el calibratge del CO₂, l’hora solar, planificar el salt entre les setmanes del test i, finalment, els llindars de climatització dels edificis públics. De 18,17 a 23,78.</aside>
 </section>
 
+<section id="dash">
+<div class="head">
+<p class="eyebrow">Informació addicional</p>
+<h2>Un dashboard per veure on perdem punts</h2>
+</div>
+<div class="chips three">
+<p class="chip in" style="--i:0;"><span class="ck">Cara a cara:</span> el nostre agent contra l’òptim, hora a hora</p>
+<p class="chip in" style="--i:1;"><span class="ck">On són els punts:</span> quant val cada previsió perfecta</p>
+<p class="chip in" style="--i:2;"><span class="ck">El sol i el CO₂:</span> el CO₂ baixa quan hi ha sol</p>
+<p class="chip in" style="--i:3;"><span class="ck">Campus i xarxa:</span> quant val un kWh a cada hora</p>
+<p class="chip in" style="--i:4;"><span class="ck">Prova-ho tu:</span> programa la bateria i compara</p>
+<p class="chip in" style="--i:5;"><span class="ck">Com triem:</span> la versió final, amb el soroll en compte</p>
+</div>
+<p class="loop">Mirar les dades ens va donar les pistes: on s’allunyava l’agent de l’òptim, a quines hores i en quines setmanes.</p>
+<div class="foot"><p class="ft">JAMM · Mode Difícil · dashboard a dashboard/app.py</p><div class="pg"></div></div>
+<aside>Com a informació addicional: no hem treballat a cegues. Hem fet un dashboard per visualitzar les dades i el comportament de l’agent, i d’allà han sortit moltes de les millores.
+
+Per exemple, posant el nostre agent cara a cara amb l’òptim vam veure que carregava de la xarxa de nit força més que l’òptim, i que perdíem més punts a les setmanes de primavera i de Nadal. La pestanya «On són els punts» ens va dir que el marge era al CO₂ i a l’hora actual. I veure com el CO₂ baixa quan hi ha sol ens va portar a treballar la relació entre el sol i el CO₂.
+
+També hi ha una pestanya per triar la versió final tenint en compte el soroll del rànquing públic, perquè la nota pública més alta no és necessàriament el millor model per al test privat.</aside>
+</section>
+
 <section id="cierre" class="dark" style="justify-content:center; gap:56px;">
 <p class="eyebrow">Resultat</p>
 <h1>93 % de l’òptim teòric</h1>
