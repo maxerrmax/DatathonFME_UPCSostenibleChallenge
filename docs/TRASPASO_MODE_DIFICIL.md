@@ -233,3 +233,24 @@ Zip: `dificil/lliuraments/hard_v15_v14_co2escenaris.zip` (v14 + `co2_sto` 3). Cu
 (peor caso con 6 semanas en validación: −0,07). No se sabe si la caída viene de los escenarios de CO₂ o de la regla de
 agosto: la regla solo actúa si el público incluye la semana de agosto. Diagnóstico propuesto: enviar la v14 sola
 (si sale 23,53 exacto, agosto no está en el público y toda la caída es de los escenarios).
+
+## 14. Web oficial (repteupc.datathon.cat, pestañas Mode Difícil y FAQ) — CLAVE PARA LA ELECCIÓN FINAL
+
+- **El público es el 50 % de CADA semana de test** (1.008 h); **el otro 50 % es el ranking privado, que decide el podio.**
+- **Cada equipo debe marcar 2 entregas** en «🎯 Selecció Oficial per al Jurat» (pestaña de entrega, con nombre de equipo
+  y PIN) antes del cierre; si no, se cogen las 2 mejores del público. El jurado valora mucho la presentación y la
+  justificación técnica. Envíos del domingo: 10 desde las 08:00 hasta el cierre. Límite 60 s.
+- Confirmado: una sola instancia del agente, semanas encadenadas, el SOC no se reinicia entre semanas.
+
+Puntuar solo media semana es muy ruidoso, y las dos mitades se compensan (cambios que mueven energía entre horas):
+
+| Diferencia en validación (A / B) | Semana entera | 1.ª mitad (h 0–83) | 2.ª mitad (h 84–167) | Público real |
+|---|---|---|---|---|
+| v9 → v10 (tramos) | +0,33 / +0,31 | +0,85 / +0,44 | −0,25 / +0,20 | −0,50 |
+| v9 → v12 (calibración CO₂) | +0,22 / +0,45 | +0,57 / +0,42 | −0,14 / +0,48 | +0,08 |
+| v12 → v13 (salto) | +0,43 / +0,31 | +0,90 / +0,25 | −0,09 / +0,38 | −0,48 |
+| v12 → v15 (escenarios CO₂ + final) | +0,15 / +0,28 | −0,63 / +0,04 | +1,01 / +0,49 | −0,24 |
+
+Ningún reparto (mitades, días pares/impares) reproduce el público → no es que la validación esté mal: el público
+(media semana) es una medida muy ruidosa. Aproximación: nota privada ≈ 2 × nota de la semana entera − nota pública.
+Si las mejoras de validación son reales, un público malo implica un privado bueno.
