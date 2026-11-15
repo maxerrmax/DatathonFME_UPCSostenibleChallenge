@@ -7,6 +7,7 @@ Puntuació al rànquing públic (50 % de cada setmana de test; soroll entre llav
 
 | Fitxer | Públic | Observació |
 |---|---:|---|
+| `hard_v12B_natcal.zip` | pendent | Solució B + calendari nacional i període tarifari 2.0TD a preu i CO₂ (val 20,75; setmanes de festius 19,10 vs 18,99). Candidat |
 | `../../entrega_final/solucio_B_v12_hora_solar.zip` | **23,63** | v12 + taula de cel clar en hora estàndard (canvi d'hora). **Final B** |
 | `hard_v12_public_23.53.zip` | **23,53** | v12: calibratge causal en línia del CO₂. **Final A** |
 | `../arxiu/lliuraments/hard_v15.zip` | 23,53 | v12 + final del test conegut; el guany cau a la meitat privada. No seleccionat |

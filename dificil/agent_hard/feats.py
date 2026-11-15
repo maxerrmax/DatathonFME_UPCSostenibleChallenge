@@ -128,6 +128,38 @@ EXAMENS = _range("2025-10-30", "2025-11-05") | _range("2026-01-07", "2026-01-19"
 CLASSES = _range("2025-09-08", "2025-12-19") | _range("2026-02-09", "2026-05-29")
 
 
+# Mercat (preu PVPC 2.0TD i CO2 peninsular). El preu porta els peatges 2.0TD: vall tot el dia només els caps de
+# setmana i els festius NACIONALS de data fixa (Circular CNMC 3/2020); els festius catalans/locals, Divendres Sant i
+# les vacances UPC són laborables per a la tarifa (comprovat als salts de preu de les dades).
+NATCAL = 0         # 0: calendari local UPC (v12) · 2: calendari nacional + període tarifari a preu i CO2
+NAT_FEST = _days("2025-10-12", "2025-11-01", "2025-12-06", "2025-12-08", "2025-12-25", "2026-01-01", "2026-01-06",
+                 "2026-05-01", "2026-08-15", "2026-10-12", "2026-11-01", "2026-12-06", "2026-12-08", "2026-12-25")
+# demanda nacional baixa: festius nacionals + Dijous i Divendres Sant (festius a gairebé tota Espanya)
+NAT_DEM = NAT_FEST | _days("2026-04-02", "2026-04-03")
+
+
+def nat_off(hour_epoch):
+    d = int(hour_epoch // 24)
+    return float(d in NAT_FEST or (d + 3) % 7 >= 5)
+
+
+def nat_dem_off(hour_epoch):
+    d = int(hour_epoch // 24)
+    return float(d in NAT_DEM or (d + 3) % 7 >= 5)
+
+
+def tariff(hour_epoch):
+    """Període 2.0TD: 0 vall, 1 pla, 2 punta (hora de rellotge)."""
+    if nat_off(hour_epoch):
+        return 0.0
+    h = int(hour_epoch) % 24
+    if h < 8:
+        return 0.0
+    if 10 <= h < 14 or 18 <= h < 22:
+        return 2.0
+    return 1.0
+
+
 def day_flags(hour_epoch):
     d = int(hour_epoch // 24)
     dow = (d + 3) % 7
@@ -230,7 +262,7 @@ def mkt_features2(hist, key, t, hs):
         wko = _nanmean([go(tau - 24 * d, nan) for d in range(1, 8)])
         rows.append([h, hod, dow, s, c, k0, k1, k2, l24, g(tau - 48, nan), g(tau - 168, nan), wk,
                      shift, l24 + shift, m24, mn, mx, sd, l24 - m24, ok2, go(tau - 24, nan), oshift, om24,
-                     fl[6], fl[0], cs_value(tau), kt, irr, vent, temp, vm24, hist.get("irr", tau - 24),
+                     *((nat_dem_off(tau), tariff(tau)) if NATCAL else (fl[6], fl[0])), cs_value(tau), kt, irr, vent, temp, vm24, hist.get("irr", tau - 24),
                      t % 24, l24 - g(tau - 48, nan), wko, g(t - 1, nan), g(t - 2, nan), g(t - 3, nan), k2 - k0,
                      g(tau - 23, nan), g(tau - 25, nan), go(t, nan),
                      _nanmean([g(tau - 24 * d, nan) for d in range(1, 4)]), go(tau - 23, nan), go(tau - 25, nan)])

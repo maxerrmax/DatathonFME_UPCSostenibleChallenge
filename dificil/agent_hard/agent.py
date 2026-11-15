@@ -58,6 +58,11 @@ class BatteryAgent:
         if params:
             p.update(params)
         self.p = p
+        try:
+            import feats as _F
+            _F.NATCAL = int(p.get("natcal", 0))   # calendari nacional + tarifa a preu i CO2
+        except Exception:
+            pass
         self.m = {}
         self.mk2 = {}
         self.ld2 = []

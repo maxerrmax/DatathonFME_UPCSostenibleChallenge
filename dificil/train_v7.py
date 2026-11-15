@@ -55,6 +55,14 @@ if __name__ == "__main__":
     if which.startswith("f") and which[1:].isdigit():   # plec k de la validació multi-plec (folds.py)
         from folds import split_fold
         tr = split_fold(df, int(which[1:]))[0]
+    if which == "hol":            # fit sense les setmanes de prova de festius (scripts/eval_weeks.py)
+        HOL = [("2025-09-08", "2025-09-14"), ("2025-12-08", "2025-12-14"), ("2026-01-02", "2026-01-08"),
+               ("2026-03-30", "2026-04-06"), ("2026-08-03", "2026-08-09")]
+        m = np.zeros(len(fit), bool)
+        for a_, b_ in HOL:
+            m |= (fit.index >= pd.Timestamp(a_)) & (fit.index < pd.Timestamp(b_) + pd.Timedelta("1D"))
+        tr = fit[~m]
+    feats.NATCAL = 2 if "natcal" in sys.argv[2:] else 0   # calendari nacional + tarifa (cal "natcal": 2 a parametres)
     CS = make_cs(tr); feats.set_cs(CS); t0 = time.time()
     dump = {"pv_cs": CS, "mkt2": {}}
     REE = "ree" in sys.argv[2:]                      # + historial REE com a files extra (pes W_REE)
@@ -117,5 +125,6 @@ if __name__ == "__main__":
     eh = epoch_hours(tr.index).values
     dump["hist0"] = {k: (eh.astype(np.int64), tr[c].values.astype(float)) for k, c in COLS.items()}
     sfx = f"_s{seed}" if seed else ""
+    sfx += "nat" if feats.NATCAL else ""
     out = HERE / "agent_hard" / f"models_{which}7{'ree' if REE else ''}{sfx}.pkl"; joblib.dump(dump, out, compress=3)
     print("desat", out, f"{time.time()-t0:.0f}s", f"{out.stat().st_size/1e6:.1f} MB")
