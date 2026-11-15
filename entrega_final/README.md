@@ -42,6 +42,7 @@ construïda en **hora de rellotge**, de manera que a les setmanes de test del 25
 (canvi el 25/10) quedava desplaçada una hora la meitat dels dies. El train no pot mostrar aquest efecte, perquè exclou els
 últims 7 dies de cada mes (justament on cauen els canvis d'hora).
 
+La correcció la va identificar i implementar **Max Villalba** (commit `7a5ce8e`, «Hora solar: taula de cel clar en hora estàndard»).
 La solució B construeix la taula en **hora estàndard** (rellotge menys l'offset d'estiu, calculat només amb el calendari).
 `agent.py` i `parametres.json` són idèntics; canvien `feats.py` (33 línies) i els models (reentrenats amb la nova taula).
 No s'afegeix cap dada externa.
