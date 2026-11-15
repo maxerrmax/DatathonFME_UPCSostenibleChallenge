@@ -79,6 +79,7 @@ Línia hora solar / canvi d'hora (15/11, base v12 + taula de cel clar en hora es
 - **Banc de proves nou** `scripts/eval_dst_emul.py`: simula el canvi d'hora en 4 setmanes de validació (sol, meteo i mercat desplaçats 1 h; consum al rellotge; dst forçat). Detecta la millora del company: sense correcció 18,34 → amb correcció 18,69 (les mateixes setmanes sense canvi: 18,77). Queda ~0,08 de marge en aquesta línia.
 - **Hora solar a les features de preu, CO₂ i solar** (consum amb rellotge): validació 20,70 (base 20,72), simulació 18,67 (base 18,69). No.
 - **Calibratge en línia de la baixada del CO₂ amb el sol** (regressió de l'error h+3..+11 contra el sol relatiu): g 0,5 20,68 · g 1 20,54 · finestra 24 h 20,43. Empitjora i és més lent. No.
+- **Incertesa de l'hora actual segons l'estat del cel** (escenaris del net triats entre hores passades amb variabilitat de la claredat semblant, `scen_vq`, i/o errors normalitzats pel cel clar, `scen_cs`): vq 0,5 20,72 · vq 0,3 20,71 · cs 20,67 · vq+cs 20,69 · amb `scen_win` 3–6 entre 20,65 i 20,71 (base 20,72). No.
 - La durada del dia ja hi és: taula de cel clar 366×24 (per dia de l'any, ara en hora solar), `cs_tau` i `doy` a les features de CO₂/preu i solar.
 
 Sobre el agente MPC antiguo (`submission_hard/`, 22,95 en el público), conclusiones que también aplican:
