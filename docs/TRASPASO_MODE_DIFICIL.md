@@ -75,6 +75,12 @@ Sobre la v12 (calibratge online del CO₂, públic **23,53**, validació 20,74):
 - **Llindar general de cicle** (sumar `wd` a tots els pesos, penalitza les pèrdues): 0,01 20,73 · 0,025 20,71 · 0,05 20,63 · 0,1 20,44. No.
 - **Penalització de les hores de nit** (`wn`, 21–7 h): 0,0025 20,73 · 0,0035 20,77 · 0,005 20,76 · 0,0075 20,61 · 0,01 20,48. +0,03 com a màxim i no monòton (soroll); puja CO₂ (+0,2) i baixa cost. No adoptat.
 
+Línia hora solar / canvi d'hora (15/11, base v12 + taula de cel clar en hora estàndard del company, +0,1 al públic):
+- **Banc de proves nou** `scripts/eval_dst_emul.py`: simula el canvi d'hora en 4 setmanes de validació (sol, meteo i mercat desplaçats 1 h; consum al rellotge; dst forçat). Detecta la millora del company: sense correcció 18,34 → amb correcció 18,69 (les mateixes setmanes sense canvi: 18,77). Queda ~0,08 de marge en aquesta línia.
+- **Hora solar a les features de preu, CO₂ i solar** (consum amb rellotge): validació 20,70 (base 20,72), simulació 18,67 (base 18,69). No.
+- **Calibratge en línia de la baixada del CO₂ amb el sol** (regressió de l'error h+3..+11 contra el sol relatiu): g 0,5 20,68 · g 1 20,54 · finestra 24 h 20,43. Empitjora i és més lent. No.
+- La durada del dia ja hi és: taula de cel clar 366×24 (per dia de l'any, ara en hora solar), `cs_tau` i `doy` a les features de CO₂/preu i solar.
+
 Sobre el agente MPC antiguo (`submission_hard/`, 22,95 en el público), conclusiones que también aplican:
 - **Horizonte**: 8 h 16,16 · 12 h 16,94 · 16–24 h 17,00 · 30/36/48 h (modelos hasta 48 h) 16,90. 24 h es suficiente.
 - **Valor terminal**: no cambia la primera decisión (el LP llena la batería en las horas más baratas, normalmente más
