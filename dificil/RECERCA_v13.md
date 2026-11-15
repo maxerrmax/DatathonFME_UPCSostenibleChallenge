@@ -119,3 +119,19 @@ reinicia entre setmanes, el públic és "el 50 % de cada setmana de test" i el p
   que el total baixa ~0,7.
 - Les versions amb més puntuació total a validació (v10, v14) baixen una mica al públic en les màscares que
   encaixen (ràtios 0,97–0,99 simulats i reals): el públic sol no permet distingir-les de la v12.
+
+## Anàlisi de fallades de la v12 (15/11, 01:30)
+
+Soroll de llavor: la v12 reentrenada amb una altra llavor fa **23,34** al públic (23,53 l'original): ±0,2.
+
+v12 contra l'agent amb informació perfecta, hora a hora (validació, pèrdua total 1,16 punts):
+- **El moment de carregar i descarregar és gairebé el de l'agent perfecte.** Descarrega el mateix volum a hores de
+  pes 1,34× (perfecte 1,33×) i carrega de xarxa a 0,68× (perfecte 0,66×).
+- Descàrrega malgastada (més que el consum net): 4.644 kWh en 69 hores ≈ 0,37 punts, però 1.500 kWh són les dues
+  últimes hores de la simulació; la resta són 50–90 kWh per hora en hores punta on descarrega el 100 % del previst.
+  Fer-lo més prudent (`scen_scale` 1,2) baixa la puntuació.
+- Excedent solar no aprofitat: 1.179 kWh ≈ 0,08 punts.
+- Carrega una mica abans que el perfecte (1–2 h i 10–11 h en lloc de 3–5 h i 14–16 h). Regles que prohibeixen la
+  càrrega de xarxa en aquestes hores: 20,68 / 20,66 / 20,52 / 20,08 (pitjor): quan carrega aviat, sol tenir raó.
+- La pèrdua diària no correlaciona amb l'error del CO₂ (0,04) ni amb el del consum net (0,04): 25 dies de 77 perden
+  més de 0,03 i no tenen cap tret comú.

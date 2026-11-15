@@ -280,6 +280,8 @@ class BatteryAgent:
         cost = np.concatenate([np.zeros(2 * H), w, np.zeros(K)]) - v_term * Asoc[-1]
         bounds = [(0, pm)] * H + [(0, pm)] * H + [(0, None)] * (H + K)
         bounds[H] = (0, max(0.0, min(pm, dmax0)))
+        if getattr(self, "_cmax0", None) is not None:      # regla: límit a la càrrega de l'hora actual
+            bounds[0] = (0, max(0.0, min(pm, self._cmax0)))
         if K:
             # hora actual estocàstica: cost esperat de la importació sobre K escenaris del consum net
             # (el que es descarrega de més es perd; el que es carrega de més s'importa)
@@ -527,6 +529,10 @@ class BatteryAgent:
         net_plan = np.asarray(net, float).copy()
         if self.p.get("k_future", 0.0):
             net_plan[1:] = net_plan[1:] - self.p["k_future"] * sig * np.sqrt(np.arange(1, len(net_plan)))
+        self._cmax0 = None
+        ngh = self.p.get("no_grid_hours")
+        if ngh and (t % 24) in ngh:                     # en aquestes hores només es carrega amb excedent solar
+            self._cmax0 = max(0.0, -float(net[0])) + self.p.get("no_grid_margin", 0.0)
         P = None
         ms = self.p.get("_mkt_scen")
         if ms is not None and t in ms and len(w) > 3:
