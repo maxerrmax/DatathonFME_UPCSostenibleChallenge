@@ -35,6 +35,7 @@ Públic: **v12 + hora solar 23,63 (millor)** · v12 23,53 · v15 23,53 (v12 + fi
 v17 23,29 · v16 22,97 · v13 23,07 · v10 22,95. **LLIURAMENT FINAL (decisió del 15/11): dues solucions, `entrega_final/solucio_A_v12_original.zip` (23,53) i `entrega_final/solucio_B_v12_hora_solar.zip` (23,63).** Vegeu `entrega_final/README.md`. La v15 no es selecciona (el seu guany depèn de conèixer el final del test).
 v19 (`dificil/arxiu/lliuraments/hard_v19.zip`, v15 + previsions conscients del canvi de setmana, plecs +0,22/+0,17/+0,08): públic **23,64**.
 **v19 + hora solar (`dificil/arxiu/lliuraments/hard_v19_dst.zip`, codi a `dificil/arxiu/v19_dst/`): públic 23,75, el millor.** Depèn de conèixer el final del test (31/8/2026 23:00) i l'encadenament de setmanes; no s'ha seleccionat fins que els organitzadors confirmin que és vàlid (A i B són les finals nets).
+v19 + hora solar + CO₂ proper (h+3..+11) + correcció del canvi de setmana (`dificil/arxiu/v19_dst_near/`): validació +0,08, **públic 23,63 (−0,12)**. Descartat; no repetir.
 
 **Servidor verificat** (sonda `dificil/probe/`, `dificil/probe/probe_diag.zip`): entrades idèntiques a `dificil/henv.py`; determinista;
 un sol episodi continu de 12 setmanes (SOC arrossegat; la hipòtesi de reinici per setmana, v18, és falsa).
