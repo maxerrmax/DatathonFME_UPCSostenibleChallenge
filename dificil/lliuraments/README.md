@@ -3,7 +3,7 @@
 | Fitxer | Score públic | Observació |
 |---|---:|---|
 | `hard_v13_setmanes.zip` | 23,04 | v12 + calendari de setmanes de test: validació 21,12 però **baixa al públic**, no fer-lo servir |
-| `hard_v14_analegs.zip` | pendent | v12 + dies anàlegs CO₂ (A 20,79 · B 17,42 · C 17,42) — **primer a enviar** |
+| `hard_v14_analegs.zip` | **23,16** | v12 + dies anàlegs CO₂ (A 20,79 · B 17,42 · C 17,42): **baixa al públic**, descartat |
 | `hard_v15_setmanes_analegs.zip` | pendent | v13_rapid2 + anàlegs |
 | `hard_v13_nomes_final.zip` | pendent | v12 + només buidar al final de la simulació (A 20,93) |
 | `hard_v16_analegs_final.zip` | pendent | v14 + buidar al final (A 20,97) |
@@ -50,3 +50,5 @@ la hipòtesi del temps continua sense confirmar. Ms/pas a validació (mitjana / 
 v12 16,7 / 23,3 / 32,1 · v13 17,6 / 30,0 / 36,5 · v13_rapid 15,1 / 24,6 / 59,4 · v13_rapid2 14,5 / 20,3 / 27,7.
 
 Informe complet de la nit: [`docs/INFORME_NIT_15-11.md`](../../docs/INFORME_NIT_15-11.md).
+
+**Conclusió (15/11):** v13 (23,04) i v14 (23,16) milloraven la validació i van baixar ~0,4–0,5 al públic. La validació local no prediu el públic per a canvis en la previsió/planificació del CO₂. **Lliurament final: v12 (23,53).**

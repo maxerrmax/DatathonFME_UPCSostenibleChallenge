@@ -4,6 +4,8 @@ Base: v12 (23,53 en el público). Validación con **tres holdouts** (A = validac
 de cada bloque; B = los 7 días anteriores; C = días −21..−15), con modelos entrenados sin cada holdout.
 v12: A 20,75 · B 17,29 · C 17,46. Scripts: `dificil/v14/` (`splits.py`, `train_any.py`, `ev.py`, `smoke2.py`).
 
+> **Resultado público:** `hard_v14_analegs.zip` = **23,16** (v12 23,53). Descartado. Entrega final: v12.
+
 ## Candidatos (todos en `dificil/lliuraments/`, pasan `check_submission.py`, 0 infracciones)
 
 Todos llevan las optimizaciones de tiempo (mismas decisiones, ~15 % menos por paso) y son **más rápidos que el v12
