@@ -32,6 +32,14 @@ Cada pàgina ensenya la decisió i dos o tres gràfics; la resta és en desplega
 
 `p_sim.py` (simulador del Mode Estàndard) existeix però no és a les pestanyes. `app.py` munta capçalera, pestanyes i peu.
 
+## Pestanyes noves (15/11/2026)
+
+- **Veredicte** (`p_front.py`): portada lleugera i en directe. **Decidir** (`p_decide.py`): on perdem punts davant dels altres
+  (repartiment CO₂/factura vs líder i top 5/10, dispersió CO₂–factura amb la isolínia de la nostra nota), palanques per
+  prioritat, idees ja descartades, i **el sol i el CO₂** (perfil horari i CO₂ segons quartil de producció solar, 10–16 h; és
+  una correlació, no una prova de causalitat). **Com triem** (`p_verdict.py`): detall de la tria automàtica.
+- Tipografia: Helvetica a tot arreu, també a les xifres (tabulars).
+
 ## La tria automàtica (`models.choose`)
 
 **No hi ha cap camp «versió seleccionada» escrit a mà.** La classificació final es fa sobre la part privada del
