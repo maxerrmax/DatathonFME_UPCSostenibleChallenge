@@ -2,7 +2,7 @@
 
 | Fitxer | Score públic | Observació |
 |---|---:|---|
-| `hard_v13_setmanes.zip` | pendent | v12 + calendari de setmanes de test (validació 20,75 → **21,12**) |
+| `hard_v13_setmanes.zip` | 23,04 | v12 + calendari de setmanes de test: validació 21,12 però **baixa al públic**, no fer-lo servir |
 | **`hard_v12_public_23.53.zip`** | **23,53** | **Millor versió de JAMM (14/11/2026)**; calibratge online causal del CO₂ |
 | `hard_v9_public_23.45.zip` | 23,45 | Predictor directe de demanda neta |
 | `hard_v8_public_23.41.zip` | 23,41 | MPC i previsions LightGBM |
@@ -12,7 +12,9 @@ Consulteu [`JAMM_v12_RESUM.md`](JAMM_v12_RESUM.md) per l'explicació de v12 i le
 
 Els ZIP anteriors es conserven per traçabilitat. El directori `dificil/agent_hard/` conté la versió v12, amb `agent.py`, `feats.py`, `parametres.json` i `models_all7.pkl`.
 
-## v13 — salts entre setmanes de test (validació 21,12, v12 20,75)
+## v13 — salts entre setmanes de test (validació 21,12, v12 20,75) — PÚBLIC 23,04: DESCARTAT
+
+`dificil/agent_hard/agent.py` torna a ser el v12. El codi del v13 és dins de `hard_v13_setmanes.zip`.
 
 El test encadena 12 setmanes no contigües: els **últims 7 dies de cada mes** (set-2025 → ago-2026), que són
 exactament els forats del train (l'historial `hist0` no té cap hora d'aquestes setmanes). El v12 planificava les

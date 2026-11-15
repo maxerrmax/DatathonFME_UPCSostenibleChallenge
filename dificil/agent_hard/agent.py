@@ -34,17 +34,6 @@ def _num(x, default=float("nan")):
         return default
 
 
-def _test_weeks():
-    """Setmanes de test = últims 7 dies de cada mes (set-2025 .. ago-2026): els forats del train.
-    Retorna [(inici, final)] en hores des d'epoch (final inclòs), en ordre cronològic."""
-    out = []
-    for y, m in [(2025, 9), (2025, 10), (2025, 11), (2025, 12)] + [(2026, k) for k in range(1, 9)]:
-        nxt = np.datetime64(f"{y + (m == 12)}-{(m % 12) + 1:02d}-01T00", "h")
-        e = int(nxt.astype(np.int64)) - 1
-        out.append((e - 167, e))
-    return out
-
-
 def _epoch_hour(ts, fallback):
     try:
         if hasattr(ts, "value"):                       # pandas.Timestamp
@@ -100,16 +89,12 @@ class BatteryAgent:
         except Exception:
             pass
         self.t_prev = None
-        self.t_prev2 = None
         self.err = []                                   # errors recents de previsió de net (t-1)
         self.pred_net0 = None
         self.hist_w = []
         self.cap, self.pmax = 6000.0, 1500.0
         self.max_len = 0                                # llargada màxima vista de la finestra de mercat
         self._co2_raw_forecasts = {}                     # prediccions CAUSALS de mercat anteriors
-        wk = p.get("_weeks")
-        self.weeks = [tuple(map(int, x)) for x in wk] if wk is not None else (_test_weeks() if p.get("weeks", True) else [])
-        self.weeks_ok = bool(self.weeks)
 
 
     # ------------------------------------------------------------------ previsions
@@ -235,22 +220,6 @@ class BatteryAgent:
             pass
         return price, co2, load, pv
 
-    def _forecast_next(self, s0, n):
-        """Previsió de les n primeres hores de la setmana següent (inici s0) amb l'historial (dades de train)."""
-        hs = list(range(n))
-        tm = s0 - 3                                       # mercat: últim valor conegut = s0-1
-        price = self._pred_mkt2("price", tm, [h + 3 for h in hs]) if self.mk2 else np.full(n, np.nan)
-        co2 = self._pred_mkt2("co2", tm, [h + 3 for h in hs]) if self.mk2 else np.full(n, np.nan)
-        load = self._pred_load2(s0, hs) if self.ld2 else self._pred("load", meas_features(self.hist, "load", s0, hs), "res")
-        pv = self._pred("pv", meas_features(self.hist, "pv", s0, hs), "dir")
-        return [np.asarray(a, float) for a in (price, co2, load, pv)]
-
-    def _week_of(self, t):
-        for i, (a, b) in enumerate(self.weeks):
-            if a <= t <= b:
-                return i
-        return None
-
     # ------------------------------------------------------------------ optimització
     def _lp(self, w, net, soc0, v_term, dmax0, scen=None):
         H = len(w); cap, pm = self.cap, self.pmax
@@ -342,28 +311,6 @@ class BatteryAgent:
         fi = 0 < n_mkt < self.max_len
         if fi:
             Hh = max(1, n_mkt)
-        # salts entre setmanes de test: les hores posteriors al final de la setmana són les primeres de la següent
-        if self.weeks_ok and self.p.get("weeks", True):
-            try:
-                if self.t_prev2 is not None and t != self.t_prev2 + 1:   # salt observat: ha de ser l'inici d'una setmana
-                    if not any(t == a for a, _ in self.weeks):
-                        self.weeks_ok = False
-                wi = self._week_of(t)
-                if wi is not None and self.weeks_ok:
-                    e = self.weeks[wi][1]; n_in = e - t + 1
-                    if n_in < Hh:
-                        if wi + 1 < len(self.weeks):
-                            nx = self._forecast_next(self.weeks[wi + 1][0], Hh - n_in)
-                            arrs = []
-                            for a, b in zip((price, co2, load, pvf), nx):
-                                a = np.asarray(a[:Hh], float).copy(); b = np.where(np.isfinite(b), b, a[n_in:Hh])
-                                a[n_in:Hh] = b; arrs.append(a)
-                            price, co2, load, pvf = arrs
-                        elif self.p.get("week_end", True):
-                            Hh = max(1, n_in); fi = True
-            except Exception:
-                pass
-        self.t_prev2 = t
         price, co2, load, pvf = price[:Hh], co2[:Hh], load[:Hh], pvf[:Hh]
         self.pred_net0 = float(load[0] - pvf[0])        # error de previsió mesurat sense biaix
         # biaix deliberat: descarregar de més es perd del tot, descarregar de menys només ajorna
