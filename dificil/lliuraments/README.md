@@ -3,6 +3,8 @@
 | Fitxer | Score públic | Observació |
 |---|---:|---|
 | `hard_v13_setmanes.zip` | 23,04 | v12 + calendari de setmanes de test: validació 21,12 però **baixa al públic**, no fer-lo servir |
+| `hard_v13_rapid.zip` | pendent | v13 amb les optimitzacions de temps (mateixes accions que el v13) |
+| `hard_v12_rapid.zip` | pendent | v12 amb les optimitzacions de temps (**mateixes accions que el v12**, ~20 % més ràpid) |
 | **`hard_v12_public_23.53.zip`** | **23,53** | **Millor versió de JAMM (14/11/2026)**; calibratge online causal del CO₂ |
 | `hard_v9_public_23.45.zip` | 23,45 | Predictor directe de demanda neta |
 | `hard_v8_public_23.41.zip` | 23,41 | MPC i previsions LightGBM |
@@ -28,3 +30,12 @@ costava ~0,4 punts (MPC 24 h: 22,34 creuant bé els salts vs 21,96 sense saber q
   Amb un calendari que no coincideix (p. ex. a validació sense `_weeks`) dona exactament el v12 (20,75).
 - Mateixos models i fitxers que el v12; només canvia `agent.py`. Validació: `python dificil/v13/eval_setmanes.py <carpeta_agent>`
   (passa a l'agent el calendari de setmanes de la validació).
+
+## Versions ràpides (hipòtesi: límit de 60 s al servidor)
+
+Tres enviaments diferents de JAMM (22:23 → 23,03; 00:59 → 22,99; v13 01:02 → 23,04) cauen a ~23,0 amb CO₂ i cost
+baixant alhora i 0 infraccions: pèrdua equivalent a 1–2 dies sense bateria, compatible amb un tall per temps.
+Optimitzacions sense canviar cap decisió (accions idèntiques a validació, comprovat pas a pas):
+- `feats.py`: memòria cau de `cs_value` i `day_flags`; `_nanmean` sense numpy per a llistes curtes.
+- `agent.py`: la solar (`kind="dir"`) ja no calcula el model residual que després es descartava.
+Temps a validació: v12 18,6 → 14,3 ms/pas; v13 19,1 → 16,6 ms/pas (mesurat amb 2 processos alhora).
