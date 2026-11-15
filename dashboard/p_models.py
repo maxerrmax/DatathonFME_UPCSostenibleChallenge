@@ -7,6 +7,7 @@ import plotly.graph_objects as go
 import streamlit as st
 from plotly.subplots import make_subplots
 
+import live
 import models
 import ui
 from ui import C_CO2, C_SOLAR, GRAY, GRAY_LIGHT, INK, INK_2, OPT, OURS, RIVAL, fmt
@@ -16,7 +17,7 @@ OPT_NAME = "òptim"
 
 
 def render():
-    tr, runs, reg = models.traces(), models.runs(), models.registry()
+    tr, runs, reg = models.traces(), models.runs(), live.load().registry
     if tr is None or not runs:
         st.info("Executeu `python dashboard/build_models.py` un cop per simular els agents hora a hora.")
         return
@@ -34,7 +35,7 @@ def render():
              f"Validació, plec 1: {fmt(len(idx))} hores que els models no han vist, amb el simulador oficial. "
              "L'òptim és el pla que faria algú que conegués el futur.")
     c1, c2, _ = st.columns([3, 3, 4])
-    a = c1.selectbox("Agent A (blau)", names, index=names.index(models.REF) if models.REF in names else 0, format_func=lab)
+    a = c1.selectbox("Agent A (verd)", names, index=names.index(models.REF) if models.REF in names else 0, format_func=lab)
     rest = [n for n in names if n != a]
     b = c2.selectbox("Agent B (taronja)", rest, index=0, format_func=lab)
     T = {m: tr[tr["model"] == m] for m in (a, b, "optimum")}

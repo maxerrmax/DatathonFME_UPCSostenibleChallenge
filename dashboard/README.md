@@ -96,18 +96,44 @@ venen calculades, i es treu la línia «On mirar-ho» si anomena una pestanya qu
 
 ## Disseny (`ui.py`)
 
-Història: la primera versió es va rebutjar per «semblar feta per una IA» (tipografia i colors per defecte); la segona,
-d'estil diari en blanc i negre, per «massa minimalista» i per tenir «massa informació a cada pàgina». L'actual:
+Història: la primera versió es va rebutjar per «semblar feta per una IA»; la segona (diari en blanc i negre) per «massa
+minimalista»; la tercera (blau/groc, Bricolage + Plex) es va substituir el 15/11/2026 per l'actual, a petició de l'equip:
 
-- Paleta d'instal·lació elèctrica: marí `#0a2540`, blau UPC `#007bc0`, groc `#ffc233`, fons `#eef2f6`.
-  El color vol dir sempre el mateix: **blau = la versió que lliurem, taronja = aspirant o rival, marí = òptim, gris = context**;
-  verd = CO₂, ocre = factura.
-- Bricolage Grotesque (títols i xifres) + IBM Plex Sans (text). Format català amb `ui.fmt` (coma decimal).
-- Peces: `ui.hero` (bloc blau de la decisió, amb `ui.battery`), `ui.tiles`, `ui.panel` (targeta blanca per a un
-  gràfic), `ui.note` (groc), `ui.more` (desplegable), `ui.table`, `ui.checklist`, `ui.intro`, `ui.section`.
-- El títol de cada gràfic és la conclusió i es calcula amb les dades (no escriure xifres ni versions fixes als textos);
-  el subtítol diu com es llegeix.
+- Estil Linear / Stripe / editorial suís: llenç `#FAFAFA`, contenidors `#FFFFFF`, vora d'1 px `#E4E4E7`, **cap ombra**.
+  **Mode fosc** amb el commutador de la capçalera (`st.toggle(key="dark")`); els colors són variables CSS (`ui.LIGHT`/`ui.DARK`)
+  i els gràfics de Plotly s'inverteixen amb un filtre CSS (`invert + hue-rotate`), així que no cal duplicar colors als gràfics.
+- Helvetica per al text; xifres, percentatges i taules en monoespaiat (`.num`, `tabular-nums`). Etiquetes (`.lab`) de 11 px
+  en majúscules, 0,05 em, grises. Sense reixetes ni degradats; un sol color de dades (verd blavós `#0F766E`, `#2DD4BF` en fosc).
+  Vermell/verd **només** a les insígnies de tendència (`ui.badge`).
+- Ordre de la portada (Veredicte), de més a menys important: decisió (versió + nota + posició) → franja d'indicadors →
+  posició al rànquing + què fem ara → trajectòria per versions → «Com tria el dashboard» → desplegables.
+  Els gràfics de la portada són SVG en línia (`svg.ch`) que hereten el tema; la resta, Plotly.
+- Peces: `ui.tiles` (franja d'una peça), `ui.panel`, `ui.note`, `ui.more`, `ui.table`, `ui.checklist`, `ui.intro`,
+  `ui.section`, `ui.badge`. Format català amb `ui.fmt`.
+- El títol de cada gràfic és la conclusió i es calcula amb les dades; el subtítol diu com es llegeix.
 - Abans d'afegir res a una pàgina: si no canvia una decisió, va a un desplegable o no hi va.
+
+## Dades en directe (`live.py`) — la porta
+
+Tot el que canvia durant el datathon entra per `live.load()`; les pàgines no llegeixen mai `submissions.json` directament
+per a això. Fonts, per ordre: **HTTP** (`DASHBOARD_FEED_URL` o `[live] url` a `.streamlit/secrets.toml`, opcional `token`)
+→ **fitxer** `dashboard/live_feed.json` → còpia estàtica de `submissions.json` (marcada «antiga»). Per connectar una font
+nova: una funció a `live.SOURCES`. L'esquema del JSON és a la capçalera de `live.py`; el connector només ha de cridar
+`live.write_feed(...)` (escriptura atòmica) o servir el mateix JSON per HTTP.
+
+- La portada es refresca sola cada 30 s (`st.fragment(run_every=live.REFRESH_EVERY)`) i mostra «En directe / Dades antigues
+  (>15 min) / Sense connexió».
+- El camp `submissions` del feed fusiona `public`/`co2`/`cost` dels nostres lliuraments amb el registre: en omplir-hi la
+  nota pública d'una versió, `models.choose` recalcula la tria i les regles sola (comprovat amb una v19 de 23,70).
+- `live_feed.json` conté ara una **instantània** de https://repteupc.datathon.cat/ (Mode Difícil, públic, 1.008 h = 6
+  setmanes, 15/11/2026). La web és una app Streamlit sense API (`/_stcore/agent` desactivat): llegir-la automàticament
+  demana un navegador o un client de websocket; no s'ha fet. Les files 13–22 es van llegir d'una captura.
+
+## Menys text
+
+Els subtítols, notes i peus (`.cc`, `.src`, `.note`, `.foot`, introduccions) s'amaguen per defecte; el commutador
+**Explicacions** de la capçalera els mostra. Colors: paleta Okabe-Ito (blau `#0072B2` = nosaltres, ambre `#E69F00` = líder/rival)
+i les insígnies de tendència duen ▲/▼ perquè no depenguin només del color.
 
 Detalls de Streamlit (1.67) que costen de trobar: les targetes es pinten amb la classe `st-key-card_…` que posa
 `ui.panel` (clau derivada del títol; passeu `key=` si dos panells poden compartir títol); les pestanyes són

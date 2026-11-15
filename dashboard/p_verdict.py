@@ -1,4 +1,4 @@
-"""Pàgina 1 - Quin agent lliurem? La tria és automàtica (models.choose) i pensa en el test privat."""
+"""Pàgina «Com triem»: el detall de la tria automàtica (models.choose). La portada és p_front.py."""
 from __future__ import annotations
 
 import numpy as np
@@ -6,6 +6,7 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
+import live
 import models
 import ui
 from ui import GRAY, GRAY_LIGHT, INK, INK_2, OURS, RIVAL, fmt
@@ -19,7 +20,7 @@ def _label(name: str, reg: dict) -> str:
 
 
 def render():
-    reg = models.registry()
+    reg = live.load().registry
     ch = models.choose(reg)
     me, anchor, tab = ch["chosen"], ch["anchor"], ch["table"]
     subs = pd.DataFrame(reg["submissions"])
@@ -34,30 +35,9 @@ def render():
     opt1 = raw["oracle"]["1"]["score"] if raw else None
     fooled = tab[(tab["pred"] > 0) & (tab["d_pub"] < 0)]
 
-    # ------------------------------------------------------------------ la decisió
-    if ch["tie"]:
-        other = ch["tie"][0]
-        head = (f"Empata amb la {other} al rànquing públic ({fmt(sel['public'], 2)}) i hi afegeix un canvi que "
-                "només pot sumar a la part privada del test, que és la que decideix.")
-    else:
-        head = f"És la versió amb la millor estimació per al test privat, amb {fmt(sel['public'], 2)} punts al públic."
-    text = ("La tria la fa el dashboard, no nosaltres: per a cada versió estima l'avantatge al test privat combinant la "
-            f"nota pública i la validació. <b>{len(fooled)} versions amb millor validació que la {anchor} van puntuar "
-            "menys</b> un cop enviades, i per això cap de les dues evidències mana sola.")
-    right = ui.battery(100 * sel["validation"] / opt1, f"de l'òptim amb previsió perfecta a la validació "
-                       f"({fmt(sel['validation'], 2)} de {fmt(opt1, 2)} punts)") if opt1 else ""
-    ui.hero(me, "versió que lliurem", "Tria automàtica", head, text, right)
-
-    co2_t = pt["co2_base_kg"] * sel["co2"] / 100 / 1000
-    eur_k = pt["cost_base_eur"] * sel["cost"] / 100 / 1000
     wks = pt["hours"] // 168
-    ui.tiles([
-        ("Rànquing públic", fmt(sel["public"], 2), f"sobre unes {wks} setmanes de test; la resta és privada", "navy"),
-        ("CO₂ evitat · 70 % de la nota", f"{fmt(sel['co2'], 2)} <small>%</small>", f"{fmt(co2_t, 1)} t en {wks} setmanes", "green"),
-        ("Factura estalviada · 30 %", f"{fmt(sel['cost'], 2)} <small>%</small>", f"{fmt(eur_k, 1)} k€ en {wks} setmanes", "ocre"),
-        ("Distància al líder", fmt(sel["public"] - lead["score"], 2, True),
-         f"{lead['team']}, {fmt(lead['score'], 2)} ({reg['leaderboard']['as_of']})", "sun"),
-    ])
+    lb = reg["leaderboard"]
+
     src = me if me in runs else sel.get("extends") if isinstance(sel.get("extends"), str) else None
     ms = (runs.get(src) or {}).get("ms") if src else None
     if ms:
@@ -77,7 +57,7 @@ def render():
         box = ui.panel((f"Cap versió enviada supera la {anchor}" if n_better == 0 else
                         f"{n_better} versions superen la {anchor}") + f"; triem la {me}",
                        f"Avantatge estimat al test privat respecte a la {anchor}, en punts. La barra és l'interval del 95 %. "
-                       "Blau: la versió triada. Taronja buit: encara no enviada (només validació, no és elegible).")
+                       "Verd: la versió triada. Taronja buit: encara no enviada (només validació, no és elegible).")
         fig = go.Figure()
         fig.add_scatter(x=el["est"], y=el.index, mode="markers", showlegend=False,
                         marker=dict(color=[OURS if i == me else GRAY for i in el.index],
@@ -101,7 +81,7 @@ def render():
         fit = pd.DataFrame(ch["fit"], columns=["id", "dv", "dp"])
         box = ui.panel(f"Un punt guanyat a la validació n'ha valgut {fmt(ch['beta'], 2)} al test, amb ±{fmt(ch['sd_val'], 2)} de soroll",
                        f"Cada punt és un lliurament: quant guanyava a la {anchor} a la validació (horitzontal) i quant li "
-                       "va guanyar al rànquing (vertical). Línia blava: la relació que fem servir. Grisa: si la "
+                       "va guanyar al rànquing (vertical). Línia verda: la relació que fem servir. Grisa: si la "
                        "validació es complís al peu de la lletra.")
         lo, hi = fit["dv"].min() - 0.1, fit["dv"].max() + 0.15
         fig = go.Figure()

@@ -5,10 +5,10 @@
   "note": "La versió recomanada NO s'escriu a mà: la calcula models.choose() amb aquest registre. 'public_noise_sd' és el soroll d'una comparació al rànquing públic (±0,35, mesurat per l'equip). 'extends' en un lliurament vol dir que és la versió indicada més un canvi que només pot actuar a la part privada del test; desfà els empats."
  },
  "public_test": {
-  "hours": 840,
+  "hours": 1008,
   "co2_base_kg": 60250,
   "cost_base_eur": 94975,
-  "note": "Totals base de la part pública del test, deduïts dels percentatges del rànquing; equivalen a unes 5 setmanes."
+  "note": "El rànquing públic del Mode Difícil usa 1.008 hores (6 setmanes), segons la web del repte. Les bases de CO₂ i cost es dedueixen dels percentatges."
  },
  "limits": {
   "timeout_s": 60,
@@ -123,20 +123,188 @@
     "cost": 27.69
    },
    {
+    "team": "SSA Gourme",
+    "score": 24.32,
+    "co2": 22.87,
+    "cost": 27.69
+   },
+   {
     "team": "Fanboy & Chum Chum",
-    "score": 24.25
+    "score": 24.25,
+    "co2": 22.98,
+    "cost": 27.23
    },
    {
     "team": "SanHackobos",
-    "score": 24.15
+    "score": 24.15,
+    "co2": 22.92,
+    "cost": 27.02
    },
    {
+    "team": "SanHackobos_v7",
+    "score": 24.1,
+    "co2": 22.86,
+    "cost": 26.99
+   }
+  ],
+  "source": "https://repteupc.datathon.cat/ · Mode Difícil · rànquing públic (instantània)",
+  "n_teams": 51,
+  "n_submissions": 358,
+  "us": "JAMM",
+  "standings": [
+   {
+    "rank": 1,
+    "team": "SSA Gourmet",
+    "score": 24.36,
+    "co2": 22.94,
+    "cost": 27.69
+   },
+   {
+    "rank": 2,
+    "team": "SSA Gourme",
+    "score": 24.32,
+    "co2": 22.87,
+    "cost": 27.69
+   },
+   {
+    "rank": 3,
+    "team": "Fanboy & Chum Chum",
+    "score": 24.25,
+    "co2": 22.98,
+    "cost": 27.23
+   },
+   {
+    "rank": 4,
+    "team": "SanHackobos",
+    "score": 24.15,
+    "co2": 22.92,
+    "cost": 27.02
+   },
+   {
+    "rank": 5,
+    "team": "SanHackobos_v7",
+    "score": 24.1,
+    "co2": 22.86,
+    "cost": 26.99
+   },
+   {
+    "rank": 6,
+    "team": "SanHackobos_v9",
+    "score": 24.1,
+    "co2": 22.94,
+    "cost": 26.82
+   },
+   {
+    "rank": 7,
+    "team": "SanHackobos_v8",
+    "score": 24.06,
+    "co2": 22.88,
+    "cost": 26.79
+   },
+   {
+    "rank": 8,
     "team": "manguets",
-    "score": 23.89
+    "score": 23.89,
+    "co2": 22.66,
+    "cost": 26.76
    },
    {
+    "rank": 9,
     "team": "TeamName2",
-    "score": 23.84
+    "score": 23.84,
+    "co2": 23.06,
+    "cost": 25.65
+   },
+   {
+    "rank": 10,
+    "team": "HelloWorld",
+    "score": 23.84,
+    "co2": 23.06,
+    "cost": 25.65
+   },
+   {
+    "rank": 11,
+    "team": "Equip1",
+    "score": 23.84,
+    "co2": 23.06,
+    "cost": 25.65
+   },
+   {
+    "rank": 12,
+    "team": "AAAA",
+    "score": 23.75,
+    "co2": 22.99,
+    "cost": 25.53
+   },
+   {
+    "rank": 13,
+    "team": "Dos enginyers i mig",
+    "score": 23.73,
+    "co2": 22.62,
+    "cost": 26.34
+   },
+   {
+    "rank": 14,
+    "team": "AAA",
+    "score": 23.71,
+    "co2": 22.89,
+    "cost": 25.63
+   },
+   {
+    "rank": 15,
+    "team": "Sanhackobos_v6",
+    "score": 23.7,
+    "co2": 22.58,
+    "cost": 26.3
+   },
+   {
+    "rank": 16,
+    "team": "robertocarlos2",
+    "score": 23.63,
+    "co2": 22.38,
+    "cost": 26.55
+   },
+   {
+    "rank": 17,
+    "team": "Ommetje",
+    "score": 23.59,
+    "co2": 22.17,
+    "cost": 26.9
+   },
+   {
+    "rank": 18,
+    "team": "TeamName3",
+    "score": 23.56,
+    "co2": 22.83,
+    "cost": 25.25
+   },
+   {
+    "rank": 19,
+    "team": "JAMM",
+    "score": 23.53,
+    "co2": 22.34,
+    "cost": 26.31
+   },
+   {
+    "rank": 20,
+    "team": "t1",
+    "score": 23.53,
+    "co2": 22.34,
+    "cost": 26.31
+   },
+   {
+    "rank": 21,
+    "team": "ASCII",
+    "score": 23.52,
+    "co2": 22.26,
+    "cost": 26.47
+   },
+   {
+    "rank": 22,
+    "team": "Riviera Maya Boys",
+    "score": 23.45,
+    "co2": 22.47,
+    "cost": 25.73
    }
   ]
  },

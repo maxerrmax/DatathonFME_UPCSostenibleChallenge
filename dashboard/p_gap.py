@@ -5,13 +5,14 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
+import live
 import models
 import ui
 from ui import GRAY, GRAY_LIGHT, INK, NAVY, OURS, fmt
 
 
 def render():
-    reg, raw = models.registry(), models.arena_raw()
+    reg, raw = live.load().registry, models.arena_raw()
     ch = models.choose(reg)
     opt = raw["oracle"]["1"]["score"] if raw else 22.34
     lad = pd.DataFrame(reg["ladder"])

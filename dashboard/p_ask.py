@@ -15,6 +15,7 @@ import re
 import requests
 import streamlit as st
 
+import live
 import models
 import p_play
 import ui
@@ -25,7 +26,7 @@ TABS = ("Veredicte", "Cara a cara", "On són els punts", "Campus i xarxa", "Prov
 
 
 def suggested() -> list[str]:
-    ch = models.choose(models.registry())
+    ch = models.choose(live.load().registry)
     me, pend = ch["chosen"], ch["pending"]
     fooled = ch["table"][(ch["table"]["pred"] > 0) & (ch["table"]["d_pub"] < 0)]
     other = fooled.index[0] if len(fooled) else ch["anchor"]
@@ -55,7 +56,7 @@ TOOLS = [{
 @st.cache_data(show_spinner=False)
 def fact_pack() -> str:
     """Tot el que l'assistent pot saber: exactament les mateixes xifres que mostren les altres pàgines."""
-    reg, raw, runs, sz = models.registry(), models.arena_raw(), models.runs(), models.sizing()
+    reg, raw, runs, sz = live.load().registry, models.arena_raw(), models.runs(), models.sizing()
     T, _ = models.arena_table(raw)
     r2 = lambda v: round(float(v), 2)
     bc, bd, best = p_play.best_timetable()
