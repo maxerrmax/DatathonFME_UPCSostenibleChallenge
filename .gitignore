@@ -21,3 +21,8 @@ dificil/results/*.pkl
 submission_hard/val_model_*.txt
 
 submission_hard/val_solar*.json
+.kaggle_stage/
+data/external/
+
+# Claus d API locals (no versionar)
+.streamlit/secrets.toml

@@ -1,64 +1,51 @@
-# 🔋 Explorador de datos · Campus Nord UPC
+# Dashboard de decisió · Bateria del Campus Nord
 
-Visualizador interactivo estilo Power BI para entender los datos del reto
-UPC Sostenible (Datathon 2026) antes de diseñar el `BatteryAgent`.
+Tot el dashboard respon una pregunta: **quin agent de bateria lliurem, i per què?**
+Compara totes les versions del Mode Difícil, mostra què ha confirmat el rànquing públic
+i què ha desmentit, i assenyala on són els punts que queden.
 
-## Cómo arrancarlo
+## Com s'engega
 
-Desde la raíz del repo:
+Des de l'arrel del repositori:
 
 ```bash
 pip install -r requirements.txt
 streamlit run dashboard/app.py
 ```
 
-Se abre en <http://localhost:8501>. La primera carga agrega los CSV de
-`data/train/` (~2 s) y guarda una caché en `data/processed/hourly.parquet`.
-La caché se regenera sola si cambia algún CSV.
+## Pàgines
 
-## Qué hay en cada pestaña
+| Pàgina | Decisió que ajuda a prendre | Evidència principal |
+|---|---|---|
+| **Veredicte** | Quina versió va com a lliurament final | Puntuació pública de cada lliurament, validació contra públic, 34 aspirants contra la v12 en 29 setmanes aparellades, condicions (sí/no) per a cada aspirant |
+| **Cara a cara** | Què fan diferent dos agents | Marcador, puntuació per setmana, punts perduts respecte a l'òptim per hora del dia, explorador d'una setmana |
+| **On són els punts** | En què treballar i què deixar de provar | Guany de cada canvi, valor de la informació perfecta per entrada, idees descartades |
+| **Campus i xarxa** | Quan carregar, com de gran ha de ser la bateria, fins on refiar-se de les dades | Cost horari d'un kWh en punts, corba de dimensionament, mapa de cobertura del comptador |
+| **Simulador** | Comprovar qualsevol `agent.py` del Mode Estàndard | Simulador oficial contra un programa lineal amb previsió perfecta |
 
-| Pestaña | Para qué sirve |
-|---|---|
-| **📊 Resumen** | KPIs del periodo (consumo, pico, solar, coste y CO₂ sin batería), consumo diario, conclusiones automáticas y matriz mensual. |
-| **🏫 Demanda** | Mapas de calor hora × día y mes × hora, perfil laborable/fin de semana, consumo frente a temperatura, curva monótona y serie temporal. |
-| **💶 Precio y CO₂** | Perfiles horarios, **señal combinada del score** (cuándo cargar y cuándo descargar), mapas de calor, correlación, hora más limpia/sucia de cada día, margen diario de un ciclo y mix de generación. |
-| **☀️ Solar y meteo** | FV frente a irradiancia, producción por inversor, temperatura de panel. |
-| **🔋 Simulador de batería** | Ejecuta cualquier `agent.py` del repo con el simulador oficial y lo compara con el **óptimo teórico** (LP con previsión perfecta). Incluye explorador semanal, estrategia media por hora y puntos por mes. |
-| **🧪 Calidad de datos** | Mapa de cobertura día × hora, completitud por sensor y lista de problemas detectados. |
+## D'on surten les xifres
 
-Los filtros de la barra lateral (periodo, meses, tipo de día) afectan a todas
-las pestañas. El simulador solo usa el rango de fechas, porque el agente
-necesita horas consecutivas.
+- `submissions.json` es manté **a mà**: una fila per lliurament amb la puntuació pública, la foto del
+  rànquing i els experiments descartats. Cal editar-lo després de cada lliurament.
+- `model_data/` el genera `python dashboard/build_models.py` (uns 5 minuts, un sol procés):
+  - `arena.json`: resultats de `dificil/arena/results/store*.json` i l'òptim per plec i per setmana
+  - `traces.parquet`, `runs.json`: execucions hora a hora de la v9, la v12 i els nuclis de la v13 i la v14 (plec 1)
+  - `sizing.json`: puntuació amb previsió perfecta per a sis mides de bateria, amb la solar real i la ×12
+- Les pàgines del campus llegeixen `data/train/` a través de `data.py` (memòria cau a `data/processed/hourly.parquet`).
 
-## Hallazgos principales (train)
+Dues comprovacions mantenen les pàgines coherents entre si: les execucions hora a hora reprodueixen
+exactament les puntuacions de l'arena (v9 20,52; v12 20,74), i els punts perduts per hora del dia sumen
+la distància de puntuació fins a l'òptim (22,34).
 
-- **Contador congelado cada noche (~22:05–06:00):** el 33 % de las horas de
-  consumo repiten la última lectura. El consumo nocturno del simulador es plano.
-- **Noviembre de 2025 no tiene datos** de contador, FV ni meteo.
-- **La FV es pequeña:** máximo de ~144 kW, ~2 % del consumo. Nunca hay
-  excedente, así que todo lo que se carga sale de la red.
-- **El consumo nunca baja de ~590 kW:** descargar a 500 kW nunca exporta.
-- **CO₂ más bajo de 12 a 14 h** (valle solar) y más alto de 6 a 7 h y de 20 a
-  21 h. **Precio más bajo de 14 a 16 h** y más alto de 19 a 21 h.
-  Correlación precio–CO₂: 0,58.
-- **Agente plantilla:** score 0, con 46 infracciones por redondeo de
-  `0.9487` frente a `0.9 ** 0.5`. **Óptimo teórico: ~5,8 puntos**, con unos
-  dos ciclos al día.
+## Disseny
 
-## Archivos
+Pàgina blanca i tinta negra, com una secció de dades d'un diari: sense targetes, ombres ni degradats.
+Una sola tipografia (Libre Franklin). El color té significat fix: blau UPC = l'agent que lliurem,
+vermell = l'aspirant o l'avís, negre = l'òptim, gris = context. Cada títol de gràfic diu la conclusió.
 
-- `data.py`: carga, limpieza y agregación horaria (`load_hourly()`, `sim_frame()`).
-- `sim.py`: ejecución de agentes con `starter_kit/environment.py`, LP óptimo
-  (`optimal_lp()`) y análisis de ciclos diarios.
-- `app.py`: interfaz Streamlit + Plotly.
+## Fitxers
 
-`data.py` y `sim.py` también se pueden usar desde un notebook:
-
-```python
-import sys; sys.path.insert(0, "dashboard")
-from data import load_hourly, sim_frame
-import sim
-df = load_hourly()
-res, traza = sim.optimal_lp(sim_frame(df))
-```
+- `app.py` estructura de la pàgina · `ui.py` colors, CSS, taules i estil dels gràfics
+- `p_verdict.py`, `p_models.py`, `p_gap.py`, `p_campus.py`, `p_sim.py` un fitxer per pàgina
+- `models.py` càrrega de la comparació de models · `build_models.py` precàlcul
+- `data.py` taula horària a partir dels CSV · `sim.py` simulador i òptim del Mode Estàndard

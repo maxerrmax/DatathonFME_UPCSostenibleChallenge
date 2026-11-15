@@ -1,0 +1,249 @@
+{
+ "_readme": "Registre mantingut a mà del que l'equip ha lliurat al Mode Difícil. Afegiu una fila (o ompliu 'public') després de cada lliurament; el dashboard ho llegeix en recarregar. 'validation' és la puntuació a la validació de l'equip (plec 1, models entrenats sense aquestes setmanes). 'arena' és l'estratègia de dificil/arena que reprodueix la versió.",
+ "selected": "v12",
+ "public_test": {
+  "hours": 1008,
+  "co2_base_kg": 60250,
+  "cost_base_eur": 94975,
+  "note": "Totals base de la meitat pública del test, deduïts dels percentatges del rànquing (docs/TRASPASO_MODE_DIFICIL.md)."
+ },
+ "limits": {
+  "timeout_s": 60,
+  "test_hours": 2016,
+  "zip_mb": 25
+ },
+ "submissions": [
+  {
+   "id": "v2",
+   "what": "MPC + previsions LightGBM, prudència ajustada",
+   "validation": null,
+   "public": 18.17
+  },
+  {
+   "id": "v6",
+   "what": "+ model de cel clar per a la solar",
+   "validation": 19.8,
+   "public": 22.79
+  },
+  {
+   "id": "MPC",
+   "what": "Agent MPC d'un company (mateixa arquitectura)",
+   "validation": null,
+   "public": 22.95
+  },
+  {
+   "id": "v8",
+   "what": "+ CO₂ amb ensemble de log-quocient, historial inicial, hora actual estocàstica",
+   "validation": 20.44,
+   "public": 23.41
+  },
+  {
+   "id": "v9",
+   "what": "+ model directe de la demanda neta de l'hora actual",
+   "validation": 20.52,
+   "public": 23.45,
+   "co2": 22.25,
+   "cost": 26.25,
+   "infr": 0,
+   "arena": "v9"
+  },
+  {
+   "id": "v10",
+   "what": "Models separats per trams d'horitzó",
+   "validation": 20.85,
+   "public": 22.95
+  },
+  {
+   "id": "v12",
+   "what": "+ calibratge en línia del biaix del CO₂",
+   "validation": 20.74,
+   "public": 23.53,
+   "co2": 22.34,
+   "cost": 26.31,
+   "infr": 0,
+   "arena": "v12"
+  },
+  {
+   "id": "v13",
+   "what": "v12 + MPC estocàstic + previsions neuronals de CO₂ i preu",
+   "validation": 20.88,
+   "public": 23.07,
+   "arena": "stoch8_nn_pre"
+  },
+  {
+   "id": "v14",
+   "what": "v12 + MPC estocàstic (12 escenaris), sense xarxes neuronals",
+   "validation": 20.8,
+   "public": null,
+   "arena": "stoch_s12",
+   "note": "El zip de la v14 porta una guarda de temps que baixa a 8 o 6 escenaris si va tard; aquests modes fan 19,11 i 19,07 de mitjana als tres plecs en lloc de 19,13, de manera que la major part de l'avantatge es perd."
+  }
+ ],
+ "leaderboard": {
+  "as_of": "14 nov. 2026, 19:23",
+  "announced_max": 25.0,
+  "teams": [
+   {
+    "team": "SanHackobos_v7",
+    "score": 24.1,
+    "co2": 22.86,
+    "cost": 26.99
+   },
+   {
+    "team": "AAA",
+    "score": 23.71
+   },
+   {
+    "team": "Sanhackobos_v6",
+    "score": 23.7
+   },
+   {
+    "team": "Ommetje",
+    "score": 23.57
+   },
+   {
+    "team": "SSA Gourmet",
+    "score": 23.5
+   },
+   {
+    "team": "Riviera Maya Boys",
+    "score": 23.45
+   }
+  ]
+ },
+ "ladder": [
+  {
+   "step": "Previsió ingènua (mateixa hora d'ahir)",
+   "score": 16.02
+  },
+  {
+   "step": "Previsions LightGBM de preu, CO₂, consum i solar",
+   "score": 19.04
+  },
+  {
+   "step": "Prudència de la decisió ajustada (60 configuracions)",
+   "score": 19.19
+  },
+  {
+   "step": "Calendari de festius i exàmens al model de consum",
+   "score": 19.42
+  },
+  {
+   "step": "Model de cel clar per a la solar (v6)",
+   "score": 19.8
+  },
+  {
+   "step": "Noves variables de CO₂ i historial inicial (v7)",
+   "score": 20.12
+  },
+  {
+   "step": "CO₂ log-quocient i hora actual estocàstica (v8)",
+   "score": 20.44
+  },
+  {
+   "step": "Model directe de la demanda neta de l'hora actual (v9)",
+   "score": 20.52
+  },
+  {
+   "step": "Calibratge en línia del CO₂ (v12)",
+   "score": 20.74
+  }
+ ],
+ "perfect_info": [
+  {
+   "what": "CO₂ de les properes 24 h",
+   "gain": 1.2,
+   "note": "la meitat (+0,6) és a les 5 hores que segueixen les 3 que ja ens donen"
+  },
+  {
+   "what": "Consum i solar de l'hora actual",
+   "gain": 0.7,
+   "note": "l'agent només veu la telemetria de l'hora anterior"
+  },
+  {
+   "what": "Preu de les properes 24 h",
+   "gain": 0.2,
+   "note": "el preu ja es prediu bé"
+  }
+ ],
+ "ratio_sweep": [
+  [
+   0.45,
+   20.47
+  ],
+  [
+   0.53,
+   20.51
+  ],
+  [
+   0.62,
+   20.52
+  ],
+  [
+   0.7,
+   20.46
+  ]
+ ],
+ "dropped": [
+  {
+   "idea": "Models per trams d'horitzó (v10, respecte a la v9)",
+   "validation": "+0,33",
+   "public": "−0,50",
+   "verdict": "Sobreajust a la validació"
+  },
+  {
+   "idea": "Previsions neuronals de CO₂ i preu (v13, respecte a la v12)",
+   "validation": "+0,14",
+   "public": "−0,46",
+   "verdict": "Sobreajust a la validació"
+  },
+  {
+   "idea": "Règims d'obertura del campus (tancat / reduït)",
+   "validation": "millor en dies especials",
+   "public": "més baix",
+   "verdict": "Revertit"
+  },
+  {
+   "idea": "Pes del CO₂ respecte al preu (0,45 a 0,70)",
+   "validation": "−0,06 a 0,00",
+   "public": "—",
+   "verdict": "Només canvia CO₂ per cost"
+  },
+  {
+   "idea": "Variables de dinàmica solar per al CO₂",
+   "validation": "−0,03",
+   "public": "—",
+   "verdict": "Menys error, menys puntuació"
+  },
+  {
+   "idea": "Ensemble de llavors per al CO₂ (2 i 3 llavors)",
+   "validation": "+0,02 / 0,00",
+   "public": "—",
+   "verdict": "Soroll, i 25 ms per pas"
+  },
+  {
+   "idea": "Horitzó més llarg (30 a 48 h)",
+   "validation": "−0,10",
+   "public": "—",
+   "verdict": "Amb 24 h n'hi ha prou"
+  },
+  {
+   "idea": "Objectiu residual per a preu i CO₂",
+   "validation": "−0,23",
+   "public": "—",
+   "verdict": "Aplana la forma del dia"
+  },
+  {
+   "idea": "Quantils per a consum i solar",
+   "validation": "0,00",
+   "public": "—",
+   "verdict": "Sense efecte"
+  },
+  {
+   "idea": "Barreja amb les previsions d'un altre agent",
+   "validation": "+0,07 com a molt",
+   "public": "—",
+   "verdict": "No compensa el temps de càlcul"
+  }
+ ]
+}

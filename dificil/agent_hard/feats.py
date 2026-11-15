@@ -50,12 +50,41 @@ def set_cs(table):
     _CS = None if table is None else np.asarray(table, dtype=float)
 
 
+from functools import lru_cache
+
+
+def _last_sunday(year, month):
+    """Dia (des d'epoch) de l'últim diumenge del mes (març=3, octubre=10)."""
+    d = int(np.datetime64(f"{year:04d}-{month:02d}-31", "D").astype(np.int64))
+    dow = (d + 3) % 7                          # dilluns=0 ... diumenge=6
+    return d - (dow + 1) % 7
+
+
+@lru_cache(maxsize=None)
+def _dst_bounds(year):
+    return _last_sunday(year, 3) * 24 + 2, _last_sunday(year, 10) * 24 + 3
+
+
+def dst(hour_epoch):
+    """1 si l'hora de rellotge (local, naive) és hora d'estiu (CEST), 0 si hivern (CET). Només amb el calendari."""
+    e = int(hour_epoch)
+    year = int(np.datetime64(e // 24, "D").astype("datetime64[Y]").astype(np.int64)) + 1970
+    a, b = _dst_bounds(year)
+    return 1 if a <= e < b else 0
+
+
+def std_epoch(hour_epoch):
+    """Hora des d'epoch en hora ESTÀNDARD (hivern): el sol hi és sempre a la mateixa hora per a un dia de l'any."""
+    return int(hour_epoch) - dst(hour_epoch)
+
+
 def cs_value(hour_epoch):
     if _CS is None:
         return np.nan
-    day = np.datetime64(int(hour_epoch // 24), "D")
+    es = std_epoch(hour_epoch)
+    day = np.datetime64(int(es // 24), "D")
     doy = int((day - day.astype("datetime64[Y]")).astype(np.int64))
-    return float(_CS[min(doy, 365), int(hour_epoch % 24)])
+    return float(_CS[min(doy, 365), int(es % 24)])
 
 
 def cs_table(day_of_year, hour, pv, win=12, q=0.95):

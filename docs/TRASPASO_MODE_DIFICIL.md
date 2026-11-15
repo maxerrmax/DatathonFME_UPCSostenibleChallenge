@@ -52,6 +52,20 @@ Sobre la v9 (validación del equipo, ref. 20,52):
 - **Peso CO₂/precio (`ratio`)**: 0,45 → 20,47 · 0,53 → 20,51 · 0,62 → 20,52 · 0,70 → 20,46. Solo desplaza CO₂↔coste.
 - **Variables de dinámica solar para el CO₂** (cambio de cielo despejado entre t+2 y τ, claridad última hora, claridad
   de ayer a esa hora, solar esperada): MAE CO₂ −1,1 % (h+3..+7 −2,5 %) pero puntuación 20,49. Revertido.
+- **`net0` entrenado con ventanas horarias desplazadas cada 5 min** (15/11, `dificil/diag/net0_aug.py`, sobre v12 en
+  los 3 pliegues): ×12 filas, pero MAE de la hora actual peor en los 3 pliegues (±25 min: +1,4/+2,2/+7,3 kW sobre el
+  control; ±10 min: +0,6/−0,3/+4,5; con el desfase como variable: +2,1/+1,0/+6,9), sobre todo de 9 a 16 h (la solar
+  depende mucho de la hora exacta). Puntuación ±10 min: 19,023 vs 19,02 (ruido). Las ventanas desplazadas comparten
+  casi todas las muestras con las oficiales: no aportan información nueva.
+- **Modelos de mercado especializados en h+3..+11** (15/11, `dificil/diag/mkt_near.py`, sobre v12, 3 pliegues; el valor
+  de la información de mercado está todo en 3..11): MAE CO₂ −13/−15/−13 % (h+3 −31..−36 %), precio −7/−5/−8 %.
+  Puntuación: CO₂ y precio 19,073 (+0,05; +0,01/+0,13/+0,02); solo CO₂ **19,083 (+0,06; +0,04/+0,11/+0,04)**.
+  Positivo en los 3 pliegues pero pequeño: el calibrado en línia del v12 ya recoge buena parte del error de h+3..+5.
+  No subido al público (el ruido del público, ±0,35, no permite confirmar +0,06).
+  Variantes (`dificil/diag/strats_near.py`, Δ sobre v12 por pliegue): sin el calibrado en línea −0,07
+  (−0,04/−0,11/−0,06: el calibrado sigue haciendo falta); media proper/original +0,02; modelos por franjas
+  (3-5, 6-8, 9-11) +0,02. **v19 + CO₂ proper: 19,230 (+0,21; +0,30/+0,24/+0,09)** frente a v19 solo 19,177
+  (+0,16): los dos cambios se suman. Candidato a subir una vez (cambiar solo si supera 23,53).
 - **Ensemble de semillas de CO₂**: 2 semillas 20,54 (+0,02, ruido) a 21 ms/paso; 3 semillas 20,52 a 25 ms/paso
   (riesgo con el límite de 60 s). No adoptado.
 
