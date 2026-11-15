@@ -39,9 +39,9 @@ L'objectiu dels participants és programar una política de control (`BatteryAge
 
 ---
 
-### Explorador de dades (dashboard)
+### Dashboard de decisió
 
-Visualitzador interactiu estil Power BI per entendre les dades i comparar agents amb l'òptim teòric:
+Dashboard de decisió: quin agent lliurem i per què (comparació de totes les versions, validació contra rànquing públic, marge fins a l'òptim, dimensionament de la bateria i qualitat de les dades):
 
 ```bash
 pip install -r requirements.txt
