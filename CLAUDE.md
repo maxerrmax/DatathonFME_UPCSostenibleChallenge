@@ -29,3 +29,41 @@
   params `{"load_bias": -50, "pv_bias": 1.2, "pv_mix": 0.5}`). Es genera amb `scripts/build_agent.py`
   (editar `agent_core.py` i `src/forecast.py`, no `agent.py`); validació `scripts/tune_hard.py`, zip `scripts/package_hard.py`.
 - La v2 d'aquest agent amb règims d'obertura (tancat/reduït) va empitjorar al test i es va revertir.
+
+## Estat del Mode Difícil i memòria de la sessió (15/11/2026)
+Públic: v12 23,53 (millor) · v15 23,53 (v12 + final conegut del test; el guany cau a la meitat privada) · v18 23,13 ·
+v17 23,29 · v16 22,97 · v13 23,07 · v10 22,95. **Lliurament final recomanat: v15** (`dificil/lliuraments/hard_v15.zip`).
+v19 (`hard_v19.zip`, v15 + previsions conscients del canvi de setmana, plecs +0,22/+0,17/+0,08) no s'ha provat al públic:
+pujar-lo un cop i quedar-s'hi només si fa **> 23,53**.
+
+**Servidor verificat** (sonda `dificil/probe/`, `probe_diag.zip`): entrades idèntiques a `dificil/henv.py`; determinista;
+un sol episodi continu de 12 setmanes (SOC arrossegat; la hipòtesi de reinici per setmana, v18, és falsa).
+`ultim_consum_kw` i `ultima_solar_kw` són l'hora anterior (mesurat píxel a píxel). El moment de les dades meteo no importa
+(v12 igual amb t, t-1, t-2). No cal fer més sondes de format.
+
+**Bretxa amb els líders** (~0,8): SSA Gourmet 24,36 (CO2 22,94 % / cost 27,69 %), Fanboy & Chum Chum 24,25, SanHackobos 24,15,
+manguets 23,89, TeamName2 23,84; nosaltres 23,53 (22,34 / 26,31). Ens guanyen en CO2 i en cost alhora: és sistemàtic.
+Valor de la informació perfecta sobre v12 als 3 plecs (`dificil/diag/voi_folds.py`, mitjana 19,02): net (consum−solar) de
+l'hora actual +0,48, net 24 h +0,63, CO2 més enllà de 3 h +0,50, preu +0,17, òptim +1,62. Tot el valor de mercat és a
+h+3..+11; h+12..23 val 0. El planificador no és la palanca (MPC 24 h amb previsió perfecta = 20,24 vs òptim 20,64).
+Les idees noves han d'atacar la previsió del net de l'hora actual o del CO2 a h+3..+11. Grans millores de MAE s'han traduït
+sempre en guanys de puntuació minúsculs.
+
+**Ja provat sense guany (no repetir)**: ~40 estratègies de `dificil/arena/` (funció de valor `vf_adp`, MPC estocàstic 6/8/12
+escenaris, xarxes neuronals, dies anàlegs, horitzó curt, greedy, regles `regime_switch` ≈12); v18; v20 (consum nocturn exacte,
+±0,01); v21 (àncora de CO2 amb el dia posterior a la setmana, +0,00/+0,00/+0,01, esborrat); net0 amb finestres de 5 min
+desplaçades (`dificil/diag/net0_aug.py`); models de mercat només h+3..+11 (`dificil/diag/mkt_near.py`, MAE CO2 −13..−15 %,
+puntuació +0,06, no pujat).
+
+**Altres fets**: el públic són ~5 setmanes (no 6) segons els totals de referència; les setmanes van de 3 a 41 punts als plecs
+(campus tancat ≈ 40), així que una setmana especial mou molt el públic. El train no té dades de novembre 2025. Timestamps en hora
+local; els dos canvis d'hora cauen dins de setmanes de test. Error menor: al canvi de setmana l'agent sobreescriu hist[t-1]
+(valor real del train) amb l'última hora de la setmana anterior.
+Ni els plecs ni el pseudo-test van predir cap de les pèrdues al públic (biaix de selecció, soroll ±0,35 per comparació).
+
+**Pseudo-test privat**: les dades del període de test (REE, PVPC) i qualsevol pseudo-test **mai dins del repo**
+(són a `D:\Git\DatathonFME_pseudo_test_private`). Només per validar, mai per entrenar.
+
+**Forma de treballar**: ser crític i no excessivament confiat; donar guanys com a rangs amb l'evidència, dir què no està
+verificat i proposar regles de decisió ("canviar només si el públic > X"), no promeses. D'altres equips, només inspiració, sense
+copiar. Els notebooks d'entrenament s'executen a Kaggle (autocontinguts), mai en local.

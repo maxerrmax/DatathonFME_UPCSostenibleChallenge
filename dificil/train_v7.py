@@ -24,8 +24,21 @@ def base_of(X, kind):
     return np.where(np.isfinite(X[:, N.index("x_shift")]), X[:, N.index("x_shift")], k2) if kind == "xs" else k2
 
 
-def mkt2_matrix(tr, key):
-    hist, eh = full_hist(tr); present = set(eh.tolist()); X, y = [], []
+def ree_hist():
+    """Historial públic de REE (preu i CO2, < 2025-09-01) com a Hist; la resta de sèries hi manquen (NaN)."""
+    from feats import Hist
+    from train_forecast import epoch_hours
+    r = pd.read_csv(HERE.parent / "data" / "external" / "ree_hourly.csv", parse_dates=["Fecha"], index_col="Fecha")
+    assert r.index.max() < pd.Timestamp("2025-09-01")
+    h = Hist(); eh = epoch_hours(r.index)
+    for k, c in (("price", "precio_eur_per_kwh"), ("co2", "co2_kg_per_kwh")):
+        for e, v in zip(eh, r[c].values):
+            h.put(k, e, v)
+    return h, np.asarray(eh)
+
+
+def mkt2_matrix(tr, key, src=None):
+    hist, eh = src if src is not None else full_hist(tr); present = set(np.asarray(eh).tolist()); X, y = [], []
     for t in eh:
         hs = [h for h in range(3, 24) if t + h in present]
         if hs:
@@ -35,20 +48,31 @@ def mkt2_matrix(tr, key):
 
 if __name__ == "__main__":
     which = sys.argv[1] if len(sys.argv) > 1 else "fit"
-    seed = int(sys.argv[2]) if len(sys.argv) > 2 else 0
+    seed = int(sys.argv[2]) if len(sys.argv) > 2 and sys.argv[2].isdigit() else 0
     if seed:
         P["random_state"] = seed
     df = load_hard(); fit, val = split_val(df); tr = fit if which == "fit" else df
+    if which.startswith("f") and which[1:].isdigit():   # plec k de la validació multi-plec (folds.py)
+        from folds import split_fold
+        tr = split_fold(df, int(which[1:]))[0]
     CS = make_cs(tr); feats.set_cs(CS); t0 = time.time()
     dump = {"pv_cs": CS, "mkt2": {}}
+    REE = "ree" in sys.argv[2:]                      # + historial REE com a files extra (pes W_REE)
+    W_REE = 0.5
+    RH = ree_hist() if REE else None
     for key in ("price", "co2"):
         X, y = mkt2_matrix(tr, key); ms = []
+        wt = np.ones(len(y))
+        if REE:
+            Xr, yr = mkt2_matrix(None, key, RH)
+            X = np.vstack([X, Xr]); y = np.concatenate([y, yr]); wt = np.concatenate([wt, np.full(len(yr), W_REE)])
+            print(key, "files repte", len(wt) - len(yr), "+ REE", len(yr), flush=True)
         if key == "price":                               # preu: residu additiu
             for fs, names in FS.items():
                 cols = [N.index(n) for n in names]
                 for kind in ("k2", "xs"):
                     b = base_of(X, kind); ok = np.isfinite(b)
-                    m = lgb.LGBMRegressor(**P).fit(X[ok][:, cols], (y - b)[ok])
+                    m = lgb.LGBMRegressor(**P).fit(X[ok][:, cols], (y - b)[ok], sample_weight=wt[ok])
                     ms.append((m.booster_.model_to_string(), cols, kind))
         else:                                            # CO2: logaritme del quocient (millor MAE i score)
             k2 = X[:, N.index("k2")]; a = X[:, N.index("x_shift")]
@@ -58,7 +82,7 @@ if __name__ == "__main__":
                 cols = [N.index(n) for n in names]
                 for kind, b in bases.items():
                     ok = np.isfinite(b) & (b > 0) & (y > 0)
-                    m = lgb.LGBMRegressor(**P).fit(X[ok][:, cols], np.log(y[ok] / b[ok]))
+                    m = lgb.LGBMRegressor(**P).fit(X[ok][:, cols], np.log(y[ok] / b[ok]), sample_weight=wt[ok])
                     ms.append((m.booster_.model_to_string(), cols, kind))
         dump["mkt2"][key] = ms
     # consum v2: residu respecte a lag24 i respecte al perfil d'ahir desplaçat
@@ -92,5 +116,6 @@ if __name__ == "__main__":
         dump[k + "_res"] = lgb.LGBMRegressor(**P).fit(X[ok], (y - lag)[ok]).booster_.model_to_string()
     eh = epoch_hours(tr.index).values
     dump["hist0"] = {k: (eh.astype(np.int64), tr[c].values.astype(float)) for k, c in COLS.items()}
-    out = HERE / "agent_hard" / (f"models_{which}7.pkl" if not seed else f"models_{which}7_s{seed}.pkl"); joblib.dump(dump, out, compress=3)
+    sfx = f"_s{seed}" if seed else ""
+    out = HERE / "agent_hard" / f"models_{which}7{'ree' if REE else ''}{sfx}.pkl"; joblib.dump(dump, out, compress=3)
     print("desat", out, f"{time.time()-t0:.0f}s", f"{out.stat().st_size/1e6:.1f} MB")
