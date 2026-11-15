@@ -7,7 +7,7 @@ Resumen para continuar en una sesión nueva sin repetir pruebas. Las instruccion
 | | |
 |---|---|
 | **Mejor entrega (base)** | v9 con historial inicial completo: **23,45** en el ranking público (7.º) |
-| Zip exacto | `dificil/lliuraments/hard_v9_public_23.45.zip` (= `submissions_hard_diag/hard_v9_hist0ext.zip`) |
+| Zip exacto | `dificil/lliuraments/hard_v9_public_23.45.zip` (= `dificil/arxiu/submissions_hard_diag/hard_v9_hist0ext.zip`) |
 | Validación de referencia | **20,52** (modelos `fit`, validación del equipo; óptimo con previsión perfecta 22,34) |
 | Tiempo | ~16–18 ms/paso en local → ~35 s para las 2.016 h (**límite del servidor: 60 s**) |
 | Líder | SanHackobos_v7 **24,10** (CO₂ 22,86 %, coste 26,99 %); máximo anunciado ~25 |
@@ -82,7 +82,7 @@ Línia hora solar / canvi d'hora (15/11, base v12 + taula de cel clar en hora es
 - **Incertesa de l'hora actual segons l'estat del cel** (escenaris del net triats entre hores passades amb variabilitat de la claredat semblant, `scen_vq`, i/o errors normalitzats pel cel clar, `scen_cs`): vq 0,5 20,72 · vq 0,3 20,71 · cs 20,67 · vq+cs 20,69 · amb `scen_win` 3–6 entre 20,65 i 20,71 (base 20,72). No.
 - La durada del dia ja hi és: taula de cel clar 366×24 (per dia de l'any, ara en hora solar), `cs_tau` i `doy` a les features de CO₂/preu i solar.
 
-Sobre el agente MPC antiguo (`submission_hard/`, 22,95 en el público), conclusiones que también aplican:
+Sobre el agente MPC antiguo (`dificil/arxiu/submission_hard/`, 22,95 en el público), conclusiones que también aplican:
 - **Horizonte**: 8 h 16,16 · 12 h 16,94 · 16–24 h 17,00 · 30/36/48 h (modelos hasta 48 h) 16,90. 24 h es suficiente.
 - **Valor terminal**: no cambia la primera decisión (el LP llena la batería en las horas más baratas, normalmente más
   tarde). No es un bug.

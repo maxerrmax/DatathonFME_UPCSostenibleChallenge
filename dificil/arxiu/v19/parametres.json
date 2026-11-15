@@ -1,0 +1,16 @@
+{
+ "ratio": 0.6213,
+ "q_term": 0.6,
+ "term_scale": 1.0,
+ "k_dis": 1.0,
+ "sigma_mode": "hod",
+ "k_future": 0.4,
+ "horizon": 24,
+ "pv_blend": 0.15,
+ "pv_cs": true,
+ "cs_tau": 3.0,
+ "models": "models_all7.pkl",
+ "no168": true,
+ "scen": 15,
+ "scen_win": 2
+}
