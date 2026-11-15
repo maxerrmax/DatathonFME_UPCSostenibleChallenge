@@ -4,7 +4,7 @@
 |---|---:|---|
 | `hard_v13_setmanes.zip` | 23,04 | v12 + calendari de setmanes de test: validació 21,12 però **baixa al públic**, no fer-lo servir |
 | `hard_v13_rapid2.zip` | pendent | v13 amb la previsió de l'inici de cada setmana precalculada (cap pas més lent que el v12 original) |
-| `hard_v13_rapid.zip` | 23,42 | v13 amb les optimitzacions de temps (mateixes accions que el v13) |
+| `hard_v13_rapid.zip` | no enviat | v13 amb les optimitzacions de temps (mateixes accions que el v13) |
 | `hard_v12_rapid.zip` | 23,53 | v12 amb les optimitzacions de temps (**mateixes accions que el v12**, ~20 % més ràpid) |
 | **`hard_v12_public_23.53.zip`** | **23,53** | **Millor versió de JAMM (14/11/2026)**; calibratge online causal del CO₂ |
 | `hard_v9_public_23.45.zip` | 23,45 | Predictor directe de demanda neta |
@@ -41,6 +41,6 @@ Optimitzacions sense canviar cap decisió (accions idèntiques a validació, com
 - `agent.py`: la solar (`kind="dir"`) ja no calcula el model residual que després es descartava.
 Temps a validació: v12 18,6 → 14,3 ms/pas; v13 19,1 → 16,6 ms/pas (mesurat amb 2 processos alhora).
 
-**Resultat:** v12_rapid 23,53 (igual que el v12) i v13_rapid **23,42** (el v13 original 23,04) amb **les mateixes decisions**
-que el v13: el resultat del servidor depèn del temps d'execució. Ms/pas a validació (mitjana / p99 / màx):
-v12 16,7 / 23,3 / 32,1 (mai tallat) · v13 17,6 / 30,0 / 36,5 · v13_rapid 15,1 / 24,6 / 59,4 · **v13_rapid2 14,5 / 20,3 / 27,7**.
+**Resultat:** v12_rapid 23,53 (igual que el v12, com s'esperava). Les versions ràpides del v13 no s'han enviat:
+la hipòtesi del temps continua sense confirmar. Ms/pas a validació (mitjana / p99 / màx):
+v12 16,7 / 23,3 / 32,1 · v13 17,6 / 30,0 / 36,5 · v13_rapid 15,1 / 24,6 / 59,4 · v13_rapid2 14,5 / 20,3 / 27,7.
