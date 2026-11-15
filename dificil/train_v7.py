@@ -12,9 +12,13 @@ import feats
 from train_forecast import full_hist, epoch_hours, make_cs, build, COLS
 
 N = feats.MKT2_NAMES
+if "pan" in feats.EXTRA:                                  # temperatura del panell a l'historial (només amb JAMM_EXTRA=pan)
+    COLS["tpan"] = "temp_panel_c"
 FS = {"no168": [n for n in N[:35] if n not in ("lag168", "wk7", "wk7_o")],
       "core": ["h", "hod", "dow", "doy_s", "doy_c", "k0", "k1", "k2", "lag24", "lag48", "shift", "x_shift", "m24",
                "mn24", "mx24", "sd24", "rel24", "o_k2", "o_lag24", "o_shift", "o_m24", "hod_t"]}
+for _v in FS.values():                                   # features opcionals de mercat (JAMM_EXTRA)
+    _v += N[len(feats._MKT2_BASE):]
 P = dict(n_estimators=500, learning_rate=0.04, num_leaves=63, min_child_samples=20,
          subsample=0.8, subsample_freq=1, colsample_bytree=0.9, verbose=-1)
 
@@ -117,5 +121,7 @@ if __name__ == "__main__":
     eh = epoch_hours(tr.index).values
     dump["hist0"] = {k: (eh.astype(np.int64), tr[c].values.astype(float)) for k, c in COLS.items()}
     sfx = f"_s{seed}" if seed else ""
+    if feats.EXTRA:
+        dump["extra"] = sorted(feats.EXTRA); sfx += "_x" + "-".join(sorted(feats.EXTRA))
     out = HERE / "agent_hard" / f"models_{which}7{'ree' if REE else ''}{sfx}.pkl"; joblib.dump(dump, out, compress=3)
     print("desat", out, f"{time.time()-t0:.0f}s", f"{out.stat().st_size/1e6:.1f} MB")
