@@ -1,6 +1,6 @@
 # Diagnostic probe: how to read the results page
 
-Upload `dificil/lliuraments/probe_diag.zip` (only `agent.py`). The score is meaningless; read the **Infraccions** card and
+Upload `dificil/probe/probe_diag.zip` (only `agent.py`). The score is meaningless; read the **Infraccions** card and
 the **Consigna Bateria (kW)** line in the 72-hour chart. Read the **size** of each setpoint; the sign carries no
 information (the probe always pushes the charge back toward 50 %).
 

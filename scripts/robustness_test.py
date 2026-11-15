@@ -10,7 +10,7 @@ from src.hard_env import run, SPEC_STD
 
 A = load_agent_cls()
 val = validation_weeks(load_hourly(pv_scale=12))
-md = ROOT / "submission_hard"
+md = ROOT / "dificil/arxiu/submission_hard"
 
 # 1) obs patològiques directes (agent nou a cada cas)
 ts = pd.Timestamp("2026-03-25 10:00")

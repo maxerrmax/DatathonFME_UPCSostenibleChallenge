@@ -7,7 +7,7 @@ Resumen para continuar en una sesión nueva sin repetir pruebas. Las instruccion
 | | |
 |---|---|
 | **Mejor entrega (base)** | v9 con historial inicial completo: **23,45** en el ranking público (7.º) |
-| Zip exacto | `dificil/lliuraments/hard_v9_public_23.45.zip` (= `submissions_hard_diag/hard_v9_hist0ext.zip`) |
+| Zip exacto | `dificil/lliuraments/hard_v9_public_23.45.zip` (= `dificil/arxiu/submissions_hard_diag/hard_v9_hist0ext.zip`) |
 | Validación de referencia | **20,52** (modelos `fit`, validación del equipo; óptimo con previsión perfecta 22,34) |
 | Tiempo | ~16–18 ms/paso en local → ~35 s para las 2.016 h (**límite del servidor: 60 s**) |
 | Líder | SanHackobos_v7 **24,10** (CO₂ 22,86 %, coste 26,99 %); máximo anunciado ~25 |
@@ -69,7 +69,7 @@ Sobre la v9 (validación del equipo, ref. 20,52):
 - **Ensemble de semillas de CO₂**: 2 semillas 20,54 (+0,02, ruido) a 21 ms/paso; 3 semillas 20,52 a 25 ms/paso
   (riesgo con el límite de 60 s). No adoptado.
 
-Sobre el agente MPC antiguo (`submission_hard/`, 22,95 en el público), conclusiones que también aplican:
+Sobre el agente MPC antiguo (`dificil/arxiu/submission_hard/`, 22,95 en el público), conclusiones que también aplican:
 - **Horizonte**: 8 h 16,16 · 12 h 16,94 · 16–24 h 17,00 · 30/36/48 h (modelos hasta 48 h) 16,90. 24 h es suficiente.
 - **Valor terminal**: no cambia la primera decisión (el LP llena la batería en las horas más baratas, normalmente más
   tarde). No es un bug.

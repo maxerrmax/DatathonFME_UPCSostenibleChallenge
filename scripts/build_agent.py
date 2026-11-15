@@ -1,6 +1,6 @@
 """
-Genera submission_hard/agent.py autocontingut (sense imports locals) a partir de:
-  src/forecast.py  +  src/optim.py (solve_dispatch)  +  submission_hard/agent_core.py
+Genera dificil/arxiu/submission_hard/agent.py autocontingut (sense imports locals) a partir de:
+  src/forecast.py  +  src/optim.py (solve_dispatch)  +  dificil/arxiu/submission_hard/agent_core.py
 """
 import re
 from pathlib import Path
@@ -19,7 +19,7 @@ def main():
     forecast = strip_header((ROOT / "src/forecast.py").read_text())
     optim = strip_header((ROOT / "src/optim.py").read_text())
     optim = optim.split("def score_weights")[0]
-    core = strip_header((ROOT / "submission_hard/agent_core.py").read_text())
+    core = strip_header((ROOT / "dificil/arxiu/submission_hard/agent_core.py").read_text())
     header = '''"""
 agent.py — Mode Difícil (Repte UPC Sostenible, Datathon 2026)
 MPC de 24 h amb previsions LightGBM de preu, CO2, consum i solar + blindatge de dades.
@@ -40,8 +40,8 @@ except Exception:
     lgb = None
 '''
     out = header + "\n\n" + forecast + "\n\n" + optim + "\n\n" + core
-    (ROOT / "submission_hard/agent.py").write_text(out)
-    print("escrit submission_hard/agent.py", len(out), "bytes")
+    (ROOT / "dificil/arxiu/submission_hard/agent.py").write_text(out)
+    print("escrit dificil/arxiu/submission_hard/agent.py", len(out), "bytes")
 
 
 if __name__ == "__main__":
