@@ -122,6 +122,25 @@ section.accent .pg { color: var(--dark); }
 .tier.hot .lvl { color: var(--amber-ink); }
 .tier .fl { font-size: 28px; line-height: 1.35; color: var(--ink); padding-left: 32px; }
 
+/* recorregut en tres nivells */
+.steps { display: flex; gap: 16px; }
+.stp { font-size: 24px; font-weight: 600; padding: 8px 20px; border-radius: 999px; border: 2px solid var(--line); color: var(--body); background: var(--card); }
+.stp.on { background: var(--dark); border-color: var(--dark); color: #EEF2EC; }
+section.accent .stp { background: #F6D49E; border-color: #F6D49E; color: var(--dark); }
+section.accent .stp.on { background: var(--dark); border-color: var(--dark); color: #EEF2EC; }
+.chips { display: grid; grid-template-columns: repeat(2, 1fr); gap: 24px; }
+.chips.three { grid-template-columns: repeat(3, 1fr); }
+.chip { background: var(--card); border: 2px solid var(--line); border-radius: 16px; padding: 24px 28px; font-size: 28px; line-height: 1.3; color: var(--ink); }
+.chip .ck { font-weight: 600; color: var(--teal); }
+section.accent .chip { border-color: #F6D49E; }
+section.accent .chip .ck { color: var(--amber-ink); }
+.keys { display: flex; gap: 64px; }
+.key { display: flex; flex-direction: column; gap: 4px; }
+.key .kn { font-family: 'Space Grotesk', Arial, sans-serif; font-size: 64px; font-weight: 700; line-height: 1.05; color: var(--amber-ink); }
+.key .kl { font-size: 24px; line-height: 1.35; color: var(--body); max-width: 420px; }
+section.accent .key .kn { color: var(--dark); }
+section.accent .key .kl { color: var(--dark); }
+
 /* cierre */
 .words { display: flex; gap: 24px; }
 .word { font-family: 'Space Grotesk', Arial, sans-serif; font-size: 40px; font-weight: 600; padding: 16px 32px; border-radius: 999px; border: 3px solid var(--amber); color: #EEF2EC; }
@@ -142,50 +161,82 @@ section.accent .pg { color: var(--dark); }
 <aside>Bon dia. Som l’equip JAMM. El nostre repte era controlar la bateria del campus hora a hora per estalviar el màxim de CO₂ i de diners. La dificultat: només veiem 3 hores del mercat. En aquests minuts us expliquem com ho hem resolt i, sobretot, què hem après d’unes dades que són reals.</aside>
 </section>
 
-<section id="factors">
+<section id="f1">
+<div class="steps"><p class="stp on">1 · El més evident</p><p class="stp">2 · La física</p><p class="stp">3 · El món real</p></div>
 <div class="head">
-<p class="eyebrow">Els factors que hem tingut en compte</p>
-<h2>Del més evident al més concret</h2>
-<p class="sub">Primer, les dades que veu l’agent; després, el sol i el temps; finalment, els hàbits del campus i el calendari.</p>
+<p class="eyebrow">Factors · nivell 1</p>
+<h2>Primer, el que l’agent veu</h2>
 </div>
-<div class="tiers">
-<div class="tier in" style="--i:0;">
-<p class="lvl">1 · El més evident</p>
-<h3>Les dades de l’agent</h3>
-<ul class="fl">
-<li>Preu i CO₂ de 3 hores</li>
-<li>Consum i solar d’ara</li>
-<li>Límits de la bateria</li>
-<li>Hora i dia de la setmana</li>
-</ul>
+<div class="chips">
+<p class="chip in" style="--i:0;"><span class="ck">Mercat:</span> preu i CO₂ de les properes 3 h</p>
+<p class="chip in" style="--i:1;"><span class="ck">Campus:</span> consum i solar de l’hora anterior</p>
+<p class="chip in" style="--i:2;"><span class="ck">Bateria:</span> 6.000 kWh i ±1.500 kW</p>
+<p class="chip in" style="--i:3;"><span class="ck">Rellotge:</span> hora i dia de la setmana</p>
 </div>
-<div class="tier in" style="--i:1;">
-<p class="lvl">2 · La física</p>
-<h3>El sol i el temps</h3>
-<ul class="fl">
-<li>Corba de sol de cel clar</li>
-<li>Claredat del cel</li>
-<li>Temperatura i vent</li>
-<li>Estació de l’any</li>
-<li>Historial dels dies previs</li>
-</ul>
+<div class="keys">
+<div class="key"><p class="kn">6,43</p><p class="kl">Mode Estàndard: amb 24 h conegudes, òptim exacte i tothom empata</p></div>
+<div class="key"><p class="kn">+1,2</p><p class="kl">punts si sabéssim el CO₂: el repte és preveure</p></div>
 </div>
-<div class="tier hot in" style="--i:2;">
-<p class="lvl">3 · El món real</p>
-<h3>Hàbits i calendari</h3>
-<ul class="fl">
-<li>Festius i caps de setmana</li>
-<li>Calendari acadèmic</li>
-<li>Tancament del campus</li>
-<li>Canvi d’hora</li>
-<li>Calefacció i aire condicionat</li>
-<li>Tarifa: punta i vall</li>
-<li>Setmanes del test</li>
-</ul>
+<div class="foot"><p class="ft">JAMM · Mode Difícil</p><div class="pg"></div></div>
+<aside>Vam començar pel més evident: el que l’agent veu directament. El preu i el CO₂ de les tres hores següents, el consum i la solar de l’hora anterior, els límits de la bateria i l’hora del dia.
+
+Una primera reflexió: al Mode Estàndard, amb 24 hores de mercat conegudes, això ja n’hi havia prou. Un programa lineal donava l’òptim exacte, 6,43, i per això gairebé tots els equips hi vam empatar. El problema estava resolt i no hi havia res a guanyar.
+
+Al Mode Difícil tot canvia: només veiem tres hores. Així que, abans de provar idees a cegues, vam mesurar on eren els punts. Vam donar a l’agent les dades reals, una a una. Saber el CO₂ valia 1,2 punts; saber el consum i la solar de l’hora actual, 0,7; el preu, només 0,2. Conclusió: el repte no és optimitzar, és preveure, i sobretot preveure el CO₂.</aside>
+</section>
+
+<section id="f2">
+<div class="steps"><p class="stp">1 · El més evident</p><p class="stp on">2 · La física</p><p class="stp">3 · El món real</p></div>
+<div class="head">
+<p class="eyebrow">Factors · nivell 2</p>
+<h2>Després, el sol i el temps</h2>
 </div>
+<div class="chips">
+<p class="chip in" style="--i:0;"><span class="ck">Cel clar:</span> el sol màxim per a cada dia i hora</p>
+<p class="chip in" style="--i:1;"><span class="ck">Claredat:</span> com de núvol està el cel ara</p>
+<p class="chip in" style="--i:2;"><span class="ck">Temps:</span> temperatura, vent i estació</p>
+<p class="chip in" style="--i:3;"><span class="ck">CO₂:</span> corregit amb el seu propi error</p>
 </div>
-<div class="foot"><p class="ft">JAMM · Mode Difícil · les últimes millores han vingut del nivell 3</p><div class="pg"></div></div>
-<aside>Aquest és el camí que hem seguit. Primer, el més evident: les dades que veu l’agent, el preu, el CO₂, el consum i la solar. Després, la física: la corba del sol, la claredat del cel, la temperatura i l’estació. I finalment, el que fa que aquestes dades siguin reals: els hàbits del campus i el calendari. Festius, vacances, el canvi d’hora, la calefacció i l’aire condicionat segons la temporada, i la tarifa elèctrica. Les últimes millores han vingut d’aquí.</aside>
+<div class="keys">
+<div class="key"><p class="kn">148 → 76 kW</p><p class="kl">error de la solar de l’hora actual</p></div>
+<div class="key"><p class="kn">18,17 → 22,79</p><p class="kl">el salt més gran al rànquing</p></div>
+</div>
+<div class="foot"><p class="ft">JAMM · Mode Difícil</p><div class="pg"></div></div>
+<aside>El segon nivell va ser la física. Amb la solar multiplicada per 12, al migdia les plaques poden cobrir tot el consum del campus, així que preveure el sol és clau.
+
+En lloc de demanar a un model que endevinés la solar, la vam separar en dues parts: quant sol hi hauria amb el cel clar, que depèn només del dia de l’any i de l’hora, i com de núvol està el cel, que es manté força d’una hora a la següent. El model ja no ha d’aprendre astronomia, només el temps que fa. L’error de la solar de l’hora actual va baixar a la meitat, i va ser el salt més gran al rànquing.
+
+Una altra reflexió: el CO₂ de la xarxa també depèn del sol, però del de tota Espanya. Per això el corregim cada hora amb el seu propi error: comparem el que havíem previst fa tres hores amb el que ha passat de veritat. La lliçó: entendre el fenomen funciona millor que un model més complicat.</aside>
+</section>
+
+<section id="f3" class="accent">
+<div class="steps"><p class="stp">1 · El més evident</p><p class="stp">2 · La física</p><p class="stp on">3 · El món real</p></div>
+<div class="head">
+<p class="eyebrow">Factors · nivell 3</p>
+<h2>Finalment, com viu el campus</h2>
+</div>
+<div class="chips three">
+<p class="chip in" style="--i:0;"><span class="ck">El rellotge:</span> el sol no canvia d’hora</p>
+<p class="chip in" style="--i:1;"><span class="ck">La llei:</span> calefacció fins a 19 °C, fred des de 27 °C</p>
+<p class="chip in" style="--i:2;"><span class="ck">La tarifa:</span> hores punta i hores vall</p>
+<p class="chip in" style="--i:3;"><span class="ck">El calendari:</span> festius, vacances, tancament</p>
+<p class="chip in" style="--i:4;"><span class="ck">El test:</span> setmanes encadenades</p>
+</div>
+<div class="keys">
+<div class="key"><p class="kn">+0,10</p><p class="kl">hora solar</p></div>
+<div class="key"><p class="kn">+0,12</p><p class="kl">setmanes encadenades</p></div>
+<div class="key"><p class="kn">+0,03</p><p class="kl">llindars de climatització</p></div>
+</div>
+<div class="foot"><p class="ft">JAMM · Mode Difícil · les dades són reals i el món real hi deixa empremta</p><div class="pg"></div></div>
+<aside>L’últim nivell és el que més ens ha ensenyat: les dades són reals, i la vida real hi deixa empremta.
+
+El rellotge: el sol no canvia d’hora, però el rellotge sí. Dues setmanes del test tenen canvi d’hora i l’entrenament no en té cap, perquè justament aquells dies en queden fora. Vam passar el model del sol a hora solar.
+
+La llei: els edificis públics no poden escalfar per sobre de 19 graus ni refredar per sota de 27. El consum del campus respon a aquests llindars, i afegir-los ens va donar la millor puntuació. I la tarifa: el preu porta peatges, amb hores punta i hores vall, i per a la tarifa la Diada és un dia laborable.
+
+El calendari i el test: festius, vacances i tancament del campus; i el test és un sol episodi amb l’última setmana de cada mes, així que l’agent planifica el salt d’una setmana a la següent.
+
+També hem après del que no ha funcionat: el calendari acadèmic gairebé no canvia el consum, i les onades de calor van baixar la puntuació. Per això decidim amb proves, no per intuïció.</aside>
 </section>
 
 <section id="evolucion">
