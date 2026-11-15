@@ -22,12 +22,20 @@ from ui import INK_3, fmt
 
 DEFAULT_MODEL = "qwen3.6"
 TABS = ("Veredicte", "Cara a cara", "On són els punts", "Campus i xarxa", "Prova-ho tu")
-SUGGESTED = [
-    "Per què lliurem la v12 i no la v13, que tenia millor validació?",
-    "Val la pena enviar la v14?",
-    "Prova un horari que carregui d'11 a 16 h i descarregui de 19 a 23 h",
-    "Quanta CO₂ evitaria una bateria de 8 MWh en lloc de la de 6?",
-]
+
+
+def suggested() -> list[str]:
+    ch = models.choose(models.registry())
+    me, pend = ch["chosen"], ch["pending"]
+    fooled = ch["table"][(ch["table"]["pred"] > 0) & (ch["table"]["d_pub"] < 0)]
+    other = fooled.index[0] if len(fooled) else ch["anchor"]
+    return [
+        f"Per què lliurem la {me} i no la {other}, que tenia millor validació?",
+        f"Val la pena enviar la {pend[0]['id']}?" if pend else "Quina informació ens faria guanyar més punts?",
+        "Prova un horari que carregui d'11 a 16 h i descarregui de 19 a 23 h",
+        "Quanta CO₂ evitaria una bateria de 8 MWh en lloc de la de 6?",
+    ]
+
 
 TOOLS = [{
     "type": "function",
@@ -51,23 +59,38 @@ def fact_pack() -> str:
     T, _ = models.arena_table(raw)
     r2 = lambda v: round(float(v), 2)
     bc, bd, best = p_play.best_timetable()
-    mine = next(x["public"] for x in reg["submissions"] if x["id"] == reg["selected"])
+    ch = models.choose(reg)
+    me = ch["chosen"]
+    mine = next(x["public"] for x in reg["submissions"] if x["id"] == me)
     pack = {
         "repte": {"mode": "Difícil", "bateria_kwh": 6000, "potencia_kw": 1500, "rendiment_cicle": 0.9, "solar": "x12",
                   "mercat_conegut_h": 3, "nota": "0,7 x CO2 evitat % + 0,3 x factura estalviada % - 1 per infraccio",
                   "limit_temps_s": reg["limits"]["timeout_s"], "hores_test": reg["limits"]["test_hours"]},
-        "versio_recomanada": reg["selected"],
+        "versio_recomanada": me,
+        "com_es_tria_la_versio": {
+            "nota": "Tria automatica del dashboard. La classificacio final es fa al test PRIVAT, que el ranquing public no "
+                    "mostra; per aixo no es tria la nota publica mes alta sino la millor estimacio de l'avantatge al test "
+                    "privat, combinant la nota publica (soroll sd_public) i la validacio traduida a punts de test "
+                    "(pendent beta, soroll sd_validacio). Nomes son elegibles versions amb nota publica. En cas d'empat "
+                    "guanya la versio que n'amplia una altra amb un canvi que nomes actua a la part privada.",
+            "referencia": ch["anchor"], "beta": r2(ch["beta"]), "sd_validacio": r2(ch["sd_val"]), "sd_public": ch["sd_pub"],
+            "empata_amb": ch["tie"],
+            "avantatge_estimat_al_test_privat": {i: {"estimacio": r2(r["est"]), "interval95": r2(1.96 * r["sd"]),
+                                                     "elegible": bool(r["eligible"])} for i, r in ch["table"].iterrows()},
+            "versions_no_enviades": [{"id": p["id"], "estimacio_nomes_validacio": r2(p["pred"]),
+                                      "regla": f"enviar-la un cop i substituir la {me} nomes si fa mes de {p['threshold']:.2f} al public"}
+                                     for p in ch["pending"]]},
         "lliuraments": [{**{k: s.get(k) for k in ("id", "what", "validation", "co2", "cost", "infr", "arena", "note")
                             if s.get(k) is not None},
                          "public": s["public"] if s.get("public") is not None else "ENCARA NO ENVIADA: no te puntuacio publica"}
                         for s in reg["submissions"]],
         "regla_de_decisio_per_aspirant": {
             s["id"]: {"condicions": [{"condicio": n, "compleix": ok, "detall": d} for n, ok, d in g], "conclusio": c}
-            for s in reg["submissions"] if s.get("arena") in T.index and s["id"] != reg["selected"]
+            for s in reg["submissions"] if s.get("arena") in T.index and s["id"] != me
             for g, c, _ in [models.gates(reg, T, runs, s["arena"])]},
         "ranquing_rivals": reg["leaderboard"],
         "posicio_al_ranquing": {
-            "nota": "Foto del ranquing anterior al lliurament de la v12; els rivals poden haver millorat despres.",
+            "nota": f"Ranquing public a {reg['leaderboard']['as_of']}; la classificacio final es fara amb la part privada.",
             "la_nostra_puntuacio": mine,
             "equips_per_sobre": [{"equip": t["team"], "puntuacio": t["score"], "distancia": r2(t["score"] - mine)}
                                  for t in reg["leaderboard"]["teams"] if t["score"] > mine],
@@ -103,10 +126,11 @@ Regles:
 - Respon només amb les DADES de sota o amb resultats de l'eina simula_horari. Si la resposta no hi és, digues que el \
 dashboard no té aquesta dada; no inventis xifres ni facis servir coneixement extern per a xifres.
 - Respon en català, en 2 a 5 frases, començant per la conclusió. Dona les xifres exactes amb coma decimal (23,53).
-- Si et demanen provar o proposar un horari de càrrega i descàrrega, crida simula_horari i compara el resultat amb la v12 \
-(20,74) i l'òptim (22,34) del plec 1.
-- Per a "val la pena enviar / substituir per la versió X", fes servir regla_de_decisio_per_aspirant[X]: cita les condicions que falla i la conclusió. No atribueixis a una versió la puntuació d'una altra.
-- "validation" és la validació del plec 1; "public" és el rànquing públic real. Quan es contradiuen, mana el públic.
+- Si et demanen provar o proposar un horari de càrrega i descàrrega, crida simula_horari i compara el resultat amb \
+l'agent v12 i amb l'òptim del plec 1 (les seves puntuacions són a execucions_plec1).
+- Per a "quina versió lliurem / per què aquesta", fes servir com_es_tria_la_versio: la tria és automàtica i pensa en el test privat; la nota pública més alta no és necessàriament el millor model.
+- Per a "val la pena enviar / substituir per la versió X": si X és a versions_no_enviades, cita la seva regla; si no, fes servir regla_de_decisio_per_aspirant[X] (condicions que falla i conclusió). No atribueixis a una versió la puntuació d'una altra.
+- "validation" és la validació del plec 1; "public" és el rànquing públic real (només una part del test). Cap de les dues mana sola: digues sempre el grau d'incertesa.
 - No facis càlculs propis si la xifra ja és a les dades (distàncies, recomptes, conclusions).
 - Acaba amb una línia "On mirar-ho:" i el nom d'una d'aquestes pestanyes, cap altra: Veredicte, Cara a cara, On són els punts, Campus i xarxa \
 o Prova-ho tu.
@@ -173,11 +197,9 @@ def _ask(q: str):
 
 def render():
     cfg = _cfg()
-    st.markdown(
-        "<div class='lead' style='margin-top:.8rem'><div><p class='h'>Pregunta-li al dashboard</p>"
-        "<p class='t' style='max-width:74ch'>Un assistent que només coneix les xifres d'aquestes pàgines: lliuraments, "
-        "validació, aspirants, marge fins a l'òptim i dimensionament. També pot simular un horari de càrrega amb el "
-        "mateix simulador de “Prova-ho tu”. Si una dada no hi és, ho diu.</p></div></div>", unsafe_allow_html=True)
+    ui.intro("Pregunta-li al dashboard",
+             "Un assistent que només coneix les xifres d'aquestes pàgines i que pot simular un horari de càrrega amb el "
+             "mateix simulador de “Prova-ho tu”. Si una dada no hi és, ho diu.")
     if cfg is None:
         st.info("Falta la clau de l'API. Afegiu a `.streamlit/secrets.toml` la secció `[helmcode]` amb `api_key` "
                 "(vegeu la capçalera de `dashboard/p_ask.py`).")
@@ -193,8 +215,9 @@ def render():
                           label_visibility="collapsed")
         if c2.form_submit_button("Pregunta", type="primary", width="stretch") and q.strip():
             _ask(q.strip())
-    cols = st.columns(len(SUGGESTED))
-    for c, s in zip(cols, SUGGESTED):
+    sug = suggested()
+    cols = st.columns(len(sug))
+    for c, s in zip(cols, sug):
         c.button(s, on_click=_ask, args=(s,), width="stretch", key=f"sug_{hash(s)}")
 
     pending = st.session_state.pop("ask_pending", None)
@@ -206,12 +229,12 @@ def render():
                 text, sims = f"No he pogut contactar amb el model ({type(e).__name__}: {e}).", []
         hist.append({"q": pending, "a": text, "sims": sims})
 
-    for h in reversed(hist):
-        st.markdown(f"<p class='ct' style='margin-top:1.4rem'>{h['q']}</p>", unsafe_allow_html=True)
-        st.markdown(h["a"])
+    for i, h in reversed(list(enumerate(hist))):
+        box = ui.panel(h["q"], key=f"ask{i}")
+        box.markdown(h["a"])
         for s in h["sims"]:
-            ui.source(f"Simulació feta: càrrega a les {', '.join(map(str, s['ch'])) or '—'} h; descàrrega a les "
-                      f"{', '.join(map(str, s['dis'])) or '—'} h → {fmt(s['score'], 2)} punts.")
+            box.markdown("<p class='src'>" + (f"Simulació feta: càrrega a les {', '.join(map(str, s['ch'])) or '—'} h; descàrrega a les "
+                      f"{', '.join(map(str, s['dis'])) or '—'} h → {fmt(s['score'], 2)} punts.") + "</p>", unsafe_allow_html=True)
     if hist:
         st.button("Esborra la conversa", on_click=lambda: st.session_state.update(ask_hist=[]))
     st.markdown(f"<p class='src' style='margin-top:1.6rem'>Model: {cfg.get('model', DEFAULT_MODEL)} via Helmcode. "

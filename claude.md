@@ -8,6 +8,11 @@
 - Abans de llançar res llarg, comprovar que no n'hi ha cap altre en marxa (`ps aux | grep python`).
 - Els sub-agents comparteixen aquests nuclis: no fer-los servir per a experiments de càlcul en paral·lel.
 
+## Dashboard
+- Abans de tocar `dashboard/`, llegir `dashboard/README.md` (traspàs: pàgines, dades, disseny i com comprovar canvis).
+- La versió recomanada **no s'escriu a mà**: la calcula `models.choose()` a partir de `dashboard/submissions.json`
+  pensant en el test privat. Després de cada lliurament només cal omplir `public` al registre.
+
 ## Git
 - Fer `git pull` abans de cada `push` (treball col·laboratiu).
 

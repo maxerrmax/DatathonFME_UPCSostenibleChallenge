@@ -32,12 +32,12 @@ reg = models.registry()
 
 st.markdown(
     """<div class='mast'>
-      <div class='dl'><span><b>Equip JAMM</b> · Repte UPC Sostenible · Datathon FME 2026</span>
-        <span>Mode Difícil: bateria de <b>6.000 kWh</b> i <b>±1.500 kW</b>, solar ×12, mercat conegut amb 3 h</span></div>
+      <div class='who'>Equip JAMM · Repte UPC Sostenible · Datathon FME 2026</div>
       <h1>Quin agent de bateria lliurem?</h1>
       <p class='sub'>La bateria del Campus Nord ha de carregar quan l'electricitat és neta i barata i descarregar quan
-        és bruta i cara. La nota és 0,7 × el CO₂ evitat (%) més 0,3 × la factura estalviada (%),
-        menys un punt per infracció.</p>
+        és bruta i cara. La classificació final es decideix en setmanes de test que ningú no veu.</p>
+      <div class='chips'><span>Bateria <b>6.000 kWh</b> · <b>±1.500 kW</b></span><span>Solar <b>×12</b></span>
+        <span>Mercat conegut amb <b>3 h</b></span><span>Nota = <b>0,7</b> × CO₂ evitat + <b>0,3</b> × factura estalviada</span></div>
     </div>""",
     unsafe_allow_html=True,
 )

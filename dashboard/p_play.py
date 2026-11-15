@@ -69,12 +69,10 @@ def render():
     st.session_state.setdefault("play_ch", [12, 13, 14, 15])
     st.session_state.setdefault("play_dis", [19, 20, 21, 22])
 
-    st.markdown(
-        f"<div class='lead' style='margin-top:.8rem'><div><p class='h'>Creus que un simple temporitzador ho faria igual de bé?</p>"
-        f"<p class='t' style='max-width:74ch'>Tria a quines hores carrega i a quines descarrega la bateria, cada dia igual. "
-        f"El simulem sobre les mateixes {fmt(len(ctx))} hores de validació que l'agent i amb les regles oficials. "
-        f"Et donem avantatge: el teu horari no comet mai infraccions ni malbarata energia exportant-la.</p></div></div>",
-        unsafe_allow_html=True)
+    ui.intro("Creus que un simple temporitzador ho faria igual de bé?",
+             f"Tria a quines hores carrega i a quines descarrega la bateria, cada dia igual. El simulem sobre les mateixes "
+             f"{fmt(len(ctx))} hores de validació que l'agent, amb les regles oficials i amb avantatge: el teu horari no "
+             "comet mai infraccions ni malbarata energia.")
 
     c1, c2 = st.columns([7, 5], gap="large")
     with c1:
@@ -84,9 +82,9 @@ def render():
                  key="play_dis", format_func=lambda h: f"{h}")
         b1, b2, b3, _ = st.columns([2, 3, 3, 2])
         b1.button("Buida", on_click=_set, args=((), ()), width="stretch")
-        b2.button("Copia l'hora mitjana de l'òptim", on_click=_set, args=_optimum_profile(), width="stretch")
+        b2.button("Com l'òptim, de mitjana", on_click=_set, args=_optimum_profile(), width="stretch")
         bc, bd, _ = best_timetable()
-        b3.button("El millor horari que hem trobat", on_click=_set, args=(bc, bd), width="stretch")
+        b3.button("El millor que hem trobat", on_click=_set, args=(bc, bd), width="stretch")
     ch = tuple(sorted(set(st.session_state["play_ch"]) - set(st.session_state["play_dis"])))
     dis = tuple(sorted(set(st.session_state["play_dis"]) - set(st.session_state["play_ch"])))
     both = sorted(set(st.session_state["play_ch"]) & set(st.session_state["play_dis"]))
@@ -109,36 +107,44 @@ def render():
                   f"{fmt(me['cost'], 2)} % (la {models.REF}, {fmt(ref['cost'], 2)} %). Cicles complets de bateria: {fmt(me['cycles'], 0)}."
                   + (f" Hores marcades als dos llocs i ignorades: {', '.join(map(str, both))}." if both else ""), box)
 
-    c1, c2 = st.columns([7, 5], gap="large")
-    with c1:
-        g = (ctx["w"] / ctx["w"].mean()).groupby(ctx.index.hour)
-        prof, q = g.mean(), g.quantile([0.1, 0.9]).unstack()
-        box = ui.panel("El teu horari sobre el valor d'un kWh al llarg del dia",
-                       "Línia: quant costa en punts importar un kWh a cada hora, de mitjana (1 = hora mitjana); banda: "
-                       "del percentil 10 al 90. Franges: verd, carregues; ocre, descarregues. Un bon horari carrega a la vall "
-                       "i descarrega als cims, però la banda diu que la vall no cau cada dia a la mateixa hora.")
-        fig = go.Figure()
-        for h in ch:
-            fig.add_vrect(x0=h - 0.5, x1=h + 0.5, fillcolor=C_CH, opacity=0.28, line_width=0)
-        for h in dis:
-            fig.add_vrect(x0=h - 0.5, x1=h + 0.5, fillcolor=C_DIS, opacity=0.32, line_width=0)
-        fig.add_scatter(x=q.index, y=q[0.9], mode="lines", line=dict(width=0), showlegend=False, hoverinfo="skip")
-        fig.add_scatter(x=q.index, y=q[0.1], fill="tonexty", fillcolor="rgba(18,18,18,0.10)", mode="lines",
-                        line=dict(width=0), showlegend=False, hoverinfo="skip")
-        fig.add_scatter(x=prof.index, y=prof.values, mode="lines", line=dict(color=INK, width=2.5), showlegend=False,
-                        hovertemplate="%{x}:00 · %{y:.2f}<extra></extra>")
-        fig.add_hline(y=1, line=dict(color=GRAY, width=1, dash="dot"))
-        fig = ui.style(fig, 280, legend=False)
-        fig.update_xaxes(title="hora del dia", dtick=1, range=[-0.5, 23.5], tickfont=dict(size=11))
-        fig.update_yaxes(side="right")
-        ui.show(fig, box)
-    with c2:
+    g = (ctx["w"] / ctx["w"].mean()).groupby(ctx.index.hour)
+    prof, q = g.mean(), g.quantile([0.1, 0.9]).unstack()
+    box = ui.panel("El teu horari sobre el valor d'un kWh al llarg del dia",
+                   "Línia: quant costa en punts importar un kWh a cada hora (1 = hora mitjana); banda: del percentil "
+                   "10 al 90. Franges: verd, carregues; ocre, descarregues.")
+    fig = go.Figure()
+    for h in ch:
+        fig.add_vrect(x0=h - 0.5, x1=h + 0.5, fillcolor=C_CH, opacity=0.28, line_width=0)
+    for h in dis:
+        fig.add_vrect(x0=h - 0.5, x1=h + 0.5, fillcolor=C_DIS, opacity=0.32, line_width=0)
+    fig.add_scatter(x=q.index, y=q[0.9], mode="lines", line=dict(width=0), showlegend=False, hoverinfo="skip")
+    fig.add_scatter(x=q.index, y=q[0.1], fill="tonexty", fillcolor=ui.rgba(OURS, 0.16), mode="lines",
+                    line=dict(width=0), showlegend=False, hoverinfo="skip")
+    fig.add_scatter(x=prof.index, y=prof.values, mode="lines", line=dict(color=INK, width=2.5), showlegend=False,
+                    hovertemplate="%{x}:00 · %{y:.2f}<extra></extra>")
+    fig.add_hline(y=1, line=dict(color=GRAY, width=1, dash="dot"))
+    fig = ui.style(fig, 240, legend=False)
+    fig.update_xaxes(title="hora del dia", dtick=1, range=[-0.5, 23.5], tickfont=dict(size=11))
+    fig.update_yaxes(side="right")
+    ui.show(fig, box)
+
+    _, _, best = best_timetable()
+    ui.note("Què en traiem.",
+            f"El millor horari fix que hem trobat, buscat directament sobre aquestes mateixes setmanes i amb els avantatges "
+            f"que et donem, arriba a <b>{fmt(best, 2)}</b> punts. La {models.REF} en fa <b>{fmt(ref['score'], 2)}</b> sense haver "
+            f"vist mai aquestes setmanes: preveure el CO₂, el preu, el consum i la solar de cada dia val, com a mínim, "
+            f"<b>{fmt(ref['score'] - best, 2)} punts</b>. Per a UPC Sostenible la conclusió és pràctica: programar la "
+            f"bateria amb un rellotge deixaria sobre la taula el {fmt(100 * (1 - best / ref['score']), 0)} % de l'estalvi "
+            "que aconsegueix l'agent.")
+
+    with ui.more("Més detall: el teu horari setmana a setmana"):
         wk = pd.DataFrame({"tu": me["weeks"], "ref": ref["weeks"], "opt": opt["weeks"]})
         wins = int((wk["tu"] > wk["ref"]).sum())
         x = [pd.Timestamp(d).strftime("%d/%m/%y") for d in wk.index]
-        box = ui.panel(f"Guanyes la {models.REF} en {wins} de {len(wk)} setmanes",
-                       "Puntuació de cada setmana de validació. Un horari fix s'ajusta a unes estacions i falla a "
-                       "les altres; l'agent s'adapta a cada dia.")
+        box = st.container()
+        box.markdown(f"<p class='ct'>Guanyes la {models.REF} en {wins} de {len(wk)} setmanes</p><p class='cc'>Puntuació de cada "
+                     "setmana de validació. Un horari fix s'ajusta a unes estacions i falla a les altres.</p>",
+                     unsafe_allow_html=True)
         fig = go.Figure()
         for xi, a, b in zip(x, wk["tu"], wk["ref"]):
             fig.add_scatter(x=[xi, xi], y=[a, b], mode="lines", line=dict(color=GRAY_LIGHT, width=2), showlegend=False,
@@ -152,12 +158,3 @@ def render():
         fig.update_yaxes(rangemode="tozero", side="right")
         fig.update_layout(hovermode="x unified")
         ui.show(fig, box)
-
-    _, _, best = best_timetable()
-    ui.note("Què en traiem.",
-            f"El millor horari fix que hem trobat, buscat directament sobre aquestes mateixes setmanes i amb els avantatges "
-            f"que et donem, arriba a <b>{fmt(best, 2)}</b> punts. La {models.REF} en fa <b>{fmt(ref['score'], 2)}</b> sense haver "
-            f"vist mai aquestes setmanes: preveure el CO₂, el preu, el consum i la solar de cada dia val, com a mínim, "
-            f"<b>{fmt(ref['score'] - best, 2)} punts</b>. Per a UPC Sostenible la conclusió és pràctica: programar la "
-            f"bateria amb un rellotge deixaria sobre la taula el {fmt(100 * (1 - best / ref['score']), 0)} % de l'estalvi "
-            "que aconsegueix l'agent.")
