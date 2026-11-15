@@ -7,7 +7,7 @@ Resumen para continuar en una sesión nueva sin repetir pruebas. Las instruccion
 | | |
 |---|---|
 | **Mejor entrega (base)** | v9 con historial inicial completo: **23,45** en el ranking público (7.º) |
-| Zip exacto | `dificil/lliuraments/hard_v9_public_23.45.zip` (= `submissions_hard_diag/hard_v9_hist0ext.zip`) |
+| Zip exacto | `dificil/lliuraments/hard_v9_public_23.45.zip` (= `dificil/arxiu/submissions_hard_diag/hard_v9_hist0ext.zip`) |
 | Validación de referencia | **20,52** (modelos `fit`, validación del equipo; óptimo con previsión perfecta 22,34) |
 | Tiempo | ~16–18 ms/paso en local → ~35 s para las 2.016 h (**límite del servidor: 60 s**) |
 | Líder | SanHackobos_v7 **24,10** (CO₂ 22,86 %, coste 26,99 %); máximo anunciado ~25 |
@@ -66,10 +66,31 @@ Sobre la v9 (validación del equipo, ref. 20,52):
   (−0,04/−0,11/−0,06: el calibrado sigue haciendo falta); media proper/original +0,02; modelos por franjas
   (3-5, 6-8, 9-11) +0,02. **v19 + CO₂ proper: 19,230 (+0,21; +0,30/+0,24/+0,09)** frente a v19 solo 19,177
   (+0,16): los dos cambios se suman. Candidato a subir una vez (cambiar solo si supera 23,53).
+- **Features nuevas de meteo/calendario** (15/11, `dificil/diag/extra_feats.py`, sobre v19 + hora solar, 3 pliegues, base
+  21,13/17,78/19,23 = 19,380; grupos opcionales `JAMM_EXTRA` de `feats.py`, apagados por defecto): olas de calor/frío
+  (temp. media 24/72 h y máx. 24 h en precio, CO₂ y consumo) −0,003 (0,00/−0,02/+0,01); umbrales 19/27 °C en consumo
+  +0,003 (0,00/−0,01/+0,02); altura del sol en consumo +0,013 (+0,01/+0,01/+0,02); festivos estatales, vísperas, puentes
+  y Navidad en precio/CO₂ −0,030 (+0,01/0,00/−0,10); temperatura del panel en consumo/neto de la hora actual 0,000
+  (0,00/−0,02/+0,02). Todo dentro del redondeo: no subir. Horas del cambio de hora: no se puede validar (el train no
+  contiene ningún cambio de hora) y afecta a 2 noches; no tocado.
 - **Ensemble de semillas de CO₂**: 2 semillas 20,54 (+0,02, ruido) a 21 ms/paso; 3 semillas 20,52 a 25 ms/paso
   (riesgo con el límite de 60 s). No adoptado.
 
-Sobre el agente MPC antiguo (`submission_hard/`, 22,95 en el público), conclusiones que también aplican:
+Sobre la v12 (calibratge online del CO₂, públic **23,53**, validació 20,74):
+- **Constant de decaïment del calibratge**: 4 h 20,70 · 6 h 20,72 · 8 h (v12) 20,74 · 11 h 20,74 · 16 h 20,71; guany ×0,75 20,69 · ×1,5 20,65; límit 0,1 20,74. **11 h al públic: 23,49 (−0,04)** → es queda 8 h. Diferències de ±0,05 al públic són soroll d'ajust.
+- **Diagnòstic nou (bitàcola, `docs/bitacora_mode_dificil.html`)**: la v12 carrega de la xarxa de nit (21–7 h) ~26 % més que l'òptim (166 vs 132 MWh a la validació) i menys de dia; passa sobretot a les setmanes amb més pèrdua (17/04: 11,4 vs 1,3 MWh; 18/12, 18/03, 17/09).
+- **Llindar general de cicle** (sumar `wd` a tots els pesos, penalitza les pèrdues): 0,01 20,73 · 0,025 20,71 · 0,05 20,63 · 0,1 20,44. No.
+- **Penalització de les hores de nit** (`wn`, 21–7 h): 0,0025 20,73 · 0,0035 20,77 · 0,005 20,76 · 0,0075 20,61 · 0,01 20,48. +0,03 com a màxim i no monòton (soroll); puja CO₂ (+0,2) i baixa cost. No adoptat.
+
+Línia hora solar / canvi d'hora (15/11, base v12 + taula de cel clar en hora estàndard del company, +0,1 al públic):
+- **Banc de proves nou** `scripts/eval_dst_emul.py`: simula el canvi d'hora en 4 setmanes de validació (sol, meteo i mercat desplaçats 1 h; consum al rellotge; dst forçat). Detecta la millora del company: sense correcció 18,34 → amb correcció 18,69 (les mateixes setmanes sense canvi: 18,77). Queda ~0,08 de marge en aquesta línia.
+- **Hora solar a les features de preu, CO₂ i solar** (consum amb rellotge): validació 20,70 (base 20,72), simulació 18,67 (base 18,69). No.
+- **Calibratge en línia de la baixada del CO₂ amb el sol** (regressió de l'error h+3..+11 contra el sol relatiu): g 0,5 20,68 · g 1 20,54 · finestra 24 h 20,43. Empitjora i és més lent. No.
+- **Incertesa de l'hora actual segons l'estat del cel** (escenaris del net triats entre hores passades amb variabilitat de la claredat semblant, `scen_vq`, i/o errors normalitzats pel cel clar, `scen_cs`): vq 0,5 20,72 · vq 0,3 20,71 · cs 20,67 · vq+cs 20,69 · amb `scen_win` 3–6 entre 20,65 i 20,71 (base 20,72). No.
+- **Calendari nacional + tarifa 2.0TD a preu i CO₂ (`natcal`: 2, zip `dificil/lliuraments/hard_v12B_natcal.zip`)**. El preu és PVPC amb peatges: salts fixos als laborables (+44 a les 10 h, −68 a les 14 h, +87 a les 18 h, −78 a les 22 h) i vall tot el dia només els caps de setmana i els festius nacionals de data fixa; Diada, Divendres Sant, Dilluns de Pasqua, vacances UPC i agost tenen peatges de laborable. El model de mercat feia servir el calendari local UPC (`off`/`fest`). Canvi: `off` → cap de setmana o festiu nacional (+ Dijous i Divendres Sant, demanda nacional baixa) i `fest` → període tarifari. Validació 20,75 (base 20,72); setmanes de festius apartades (`train_v7.py hol` + `scripts/eval_weeks.py`) 19,10 vs 18,99 (8/12 +0,10, 2/1 +0,26, Setmana Santa +0,29, Diada i agost =); simulació del canvi d'hora 18,69 (=). Al test afecta ~9 laborables: 24/9, 26/12, 29–31/12, 30–31/3, 25/5, 24/6. Pendent del públic.
+- La durada del dia ja hi és: taula de cel clar 366×24 (per dia de l'any, ara en hora solar), `cs_tau` i `doy` a les features de CO₂/preu i solar.
+
+Sobre el agente MPC antiguo (`dificil/arxiu/submission_hard/`, 22,95 en el público), conclusiones que también aplican:
 - **Horizonte**: 8 h 16,16 · 12 h 16,94 · 16–24 h 17,00 · 30/36/48 h (modelos hasta 48 h) 16,90. 24 h es suficiente.
 - **Valor terminal**: no cambia la primera decisión (el LP llena la batería en las horas más baratas, normalmente más
   tarde). No es un bug.
@@ -94,6 +115,15 @@ Sobre el agente MPC antiguo (`submission_hard/`, 22,95 en el público), conclusi
   explicaría un salto así, pero es usar información del futuro (prohibido; el jurado audita el código).
 
 ## 6. Ideas pendientes (no probadas)
+
+**Factors externs pendents (15/11), de més a menys probabilitat de millora.** Base: v19 + hora solar (`dificil/arxiu/v19_dst/`, públic 23,75). Adoptar només si la validació puja > +0,05 i no empitjora `scripts/eval_weeks.py` ni `scripts/eval_dst_emul.py`.
+1. Onades de calor/fred: temperatura mitjana de 24/72 h i màxima d'ahir a les features de preu/CO₂ (`mkt_features2`) i consum.
+2. ~~Llindars de climatització~~ **provat (15/11)**: graus per sota de 19 °C i per sobre de 27 °C (temperatura de l'última hora i mitjana 24 h) al model de consum, sobre v19 + hora solar: validació 20,73 vs 20,72. **Públic 23,78 (+0,03 sobre 23,75), el millor de l'equip**, però dins del soroll.
+3. Llum natural → il·luminació: elevació solar o hores des de la posta a `tau` al model de consum (`load_features2`).
+4. Hores del canvi d'hora: 25/10 té l'hora 02:00 repetida (`hist.put` la sobreescriu) i el 29/3 en falta una; blindar-ho.
+5. Temperatura del panell (`temp_panel_c`, ≈ −0,4 %/°C) a la previsió solar de l'hora actual.
+6. Vigílies i ponts nacionals al mercat (dia abans/després d'un festiu nacional).
+7. Nadal i Cap d'Any al mercat (laborables 26–31/12 amb demanda nacional baixa). El consum ja té els règims de Nadal i els festius nacionals ja són a `natcal`: només cobreix el que falta i afecta una sola setmana.
 
 - Mejorar el modelo de la hora actual (+0,7 de margen teórico): p. ej. usar más señales de corto plazo (meteo de la
   última hora, tendencia de las últimas 3 h) en `net0`, o ajustar la mezcla `net0_mix`.

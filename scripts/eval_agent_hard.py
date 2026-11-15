@@ -1,4 +1,4 @@
-"""Avalua submission_hard/agent.py al Mode Difícil (setmanes de validació, models sense aquestes setmanes)."""
+"""Avalua dificil/arxiu/submission_hard/agent.py al Mode Difícil (setmanes de validació, models sense aquestes setmanes)."""
 import sys, time, json, importlib.util
 from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
@@ -7,7 +7,7 @@ from src.data import load_hourly, validation_weeks
 from src.hard_env import run
 
 def load_agent_cls():
-    spec = importlib.util.spec_from_file_location("agent_hard", ROOT / "submission_hard/agent.py")
+    spec = importlib.util.spec_from_file_location("agent_hard", ROOT / "dificil/arxiu/submission_hard/agent.py")
     m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m); return m.BatteryAgent
 
 if __name__ == "__main__":

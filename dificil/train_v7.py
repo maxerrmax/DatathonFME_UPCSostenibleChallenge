@@ -12,9 +12,13 @@ import feats
 from train_forecast import full_hist, epoch_hours, make_cs, build, COLS
 
 N = feats.MKT2_NAMES
+if "pan" in feats.EXTRA:                                  # temperatura del panell a l'historial (només amb JAMM_EXTRA=pan)
+    COLS["tpan"] = "temp_panel_c"
 FS = {"no168": [n for n in N[:35] if n not in ("lag168", "wk7", "wk7_o")],
       "core": ["h", "hod", "dow", "doy_s", "doy_c", "k0", "k1", "k2", "lag24", "lag48", "shift", "x_shift", "m24",
                "mn24", "mx24", "sd24", "rel24", "o_k2", "o_lag24", "o_shift", "o_m24", "hod_t"]}
+for _v in FS.values():                                   # features opcionals de mercat (JAMM_EXTRA)
+    _v += N[len(feats._MKT2_BASE):]
 P = dict(n_estimators=500, learning_rate=0.04, num_leaves=63, min_child_samples=20,
          subsample=0.8, subsample_freq=1, colsample_bytree=0.9, verbose=-1)
 
@@ -48,10 +52,21 @@ def mkt2_matrix(tr, key, src=None):
 
 if __name__ == "__main__":
     which = sys.argv[1] if len(sys.argv) > 1 else "fit"
+    seed = int(sys.argv[2]) if len(sys.argv) > 2 and sys.argv[2].isdigit() else 0
+    if seed:
+        P["random_state"] = seed
     df = load_hard(); fit, val = split_val(df); tr = fit if which == "fit" else df
     if which.startswith("f") and which[1:].isdigit():   # plec k de la validació multi-plec (folds.py)
         from folds import split_fold
         tr = split_fold(df, int(which[1:]))[0]
+    if which == "hol":            # fit sense les setmanes de prova de festius (scripts/eval_weeks.py)
+        HOL = [("2025-09-08", "2025-09-14"), ("2025-12-08", "2025-12-14"), ("2026-01-02", "2026-01-08"),
+               ("2026-03-30", "2026-04-06"), ("2026-08-03", "2026-08-09")]
+        m = np.zeros(len(fit), bool)
+        for a_, b_ in HOL:
+            m |= (fit.index >= pd.Timestamp(a_)) & (fit.index < pd.Timestamp(b_) + pd.Timedelta("1D"))
+        tr = fit[~m]
+    feats.NATCAL = 2 if "natcal" in sys.argv[2:] else 0   # calendari nacional + tarifa (cal "natcal": 2 a parametres)
     CS = make_cs(tr); feats.set_cs(CS); t0 = time.time()
     dump = {"pv_cs": CS, "mkt2": {}}
     REE = "ree" in sys.argv[2:]                      # + historial REE com a files extra (pes W_REE)
@@ -113,5 +128,9 @@ if __name__ == "__main__":
         dump[k + "_res"] = lgb.LGBMRegressor(**P).fit(X[ok], (y - lag)[ok]).booster_.model_to_string()
     eh = epoch_hours(tr.index).values
     dump["hist0"] = {k: (eh.astype(np.int64), tr[c].values.astype(float)) for k, c in COLS.items()}
-    out = HERE / "agent_hard" / f"models_{which}7{'ree' if REE else ''}.pkl"; joblib.dump(dump, out, compress=3)
+    sfx = f"_s{seed}" if seed else ""
+    sfx += "nat" if feats.NATCAL else ""
+    if feats.EXTRA:
+        dump["extra"] = sorted(feats.EXTRA); sfx += "_x" + "-".join(sorted(feats.EXTRA))
+    out = HERE / "agent_hard" / f"models_{which}7{'ree' if REE else ''}{sfx}.pkl"; joblib.dump(dump, out, compress=3)
     print("desat", out, f"{time.time()-t0:.0f}s", f"{out.stat().st_size/1e6:.1f} MB")

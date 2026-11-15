@@ -18,11 +18,14 @@ dificil/referencia_company/
 dificil/results/*.pkl
 
 # Models de validació (es regeneren amb scripts/train_forecast.py)
-submission_hard/val_model_*.txt
+dificil/arxiu/submission_hard/val_model_*.txt
 
-submission_hard/val_solar*.json
+dificil/arxiu/submission_hard/val_solar*.json
 .kaggle_stage/
 data/external/
 
 # Claus d API locals (no versionar)
 .streamlit/secrets.toml
+
+# Sortida per defecte de scripts/package_final.py
+entrega_final/*.regenerat.zip

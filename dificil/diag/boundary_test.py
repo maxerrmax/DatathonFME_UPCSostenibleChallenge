@@ -19,7 +19,7 @@ import pandas as pd
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(ROOT / "dificil"), str(ROOT / "estandard"), str(ROOT / "dificil" / "arena"), str(ROOT / "scripts")]
-V18 = ROOT / "dificil" / "v19"
+V18 = ROOT / "dificil" / "arxiu" / "v19"
 
 
 def agent_cls(k):

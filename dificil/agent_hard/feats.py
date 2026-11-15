@@ -16,7 +16,7 @@ KNOWN_MEAS = -1    # última hora mesurada: t-1
 class Hist:
     """Historial per hora (clau = hora entera des d'epoch)."""
     def __init__(self):
-        self.d = {k: {} for k in ("price", "co2", "load", "pv", "irr", "temp", "vent")}
+        self.d = {k: {} for k in ("price", "co2", "load", "pv", "irr", "temp", "vent", "tpan")}
 
     def put(self, key, hour, val):
         if val is not None and np.isfinite(val):
@@ -50,12 +50,41 @@ def set_cs(table):
     _CS = None if table is None else np.asarray(table, dtype=float)
 
 
+from functools import lru_cache
+
+
+def _last_sunday(year, month):
+    """Dia (des d'epoch) de l'últim diumenge del mes (març=3, octubre=10)."""
+    d = int(np.datetime64(f"{year:04d}-{month:02d}-31", "D").astype(np.int64))
+    dow = (d + 3) % 7                          # dilluns=0 ... diumenge=6
+    return d - (dow + 1) % 7
+
+
+@lru_cache(maxsize=None)
+def _dst_bounds(year):
+    return _last_sunday(year, 3) * 24 + 2, _last_sunday(year, 10) * 24 + 3
+
+
+def dst(hour_epoch):
+    """1 si l'hora de rellotge (local, naive) és hora d'estiu (CEST), 0 si hivern (CET). Només amb el calendari."""
+    e = int(hour_epoch)
+    year = int(np.datetime64(e // 24, "D").astype("datetime64[Y]").astype(np.int64)) + 1970
+    a, b = _dst_bounds(year)
+    return 1 if a <= e < b else 0
+
+
+def std_epoch(hour_epoch):
+    """Hora des d'epoch en hora ESTÀNDARD (hivern): el sol hi és sempre a la mateixa hora per a un dia de l'any."""
+    return int(hour_epoch) - dst(hour_epoch)
+
+
 def cs_value(hour_epoch):
     if _CS is None:
         return np.nan
-    day = np.datetime64(int(hour_epoch // 24), "D")
+    es = std_epoch(hour_epoch)
+    day = np.datetime64(int(es // 24), "D")
     doy = int((day - day.astype("datetime64[Y]")).astype(np.int64))
-    return float(_CS[min(doy, 365), int(hour_epoch % 24)])
+    return float(_CS[min(doy, 365), int(es % 24)])
 
 
 def cs_table(day_of_year, hour, pv, win=12, q=0.95):
@@ -97,6 +126,38 @@ REDUIT = _range("2025-12-22", "2025-12-24") | _range("2026-06-22", "2026-07-31")
 EXAMENS = _range("2025-10-30", "2025-11-05") | _range("2026-01-07", "2026-01-19") | \
           _range("2026-04-07", "2026-04-13") | _range("2026-06-04", "2026-06-19")
 CLASSES = _range("2025-09-08", "2025-12-19") | _range("2026-02-09", "2026-05-29")
+
+
+# Mercat (preu PVPC 2.0TD i CO2 peninsular). El preu porta els peatges 2.0TD: vall tot el dia només els caps de
+# setmana i els festius NACIONALS de data fixa (Circular CNMC 3/2020); els festius catalans/locals, Divendres Sant i
+# les vacances UPC són laborables per a la tarifa (comprovat als salts de preu de les dades).
+NATCAL = 0         # 0: calendari local UPC (v12) · 2: calendari nacional + període tarifari a preu i CO2
+NAT_FEST = _days("2025-10-12", "2025-11-01", "2025-12-06", "2025-12-08", "2025-12-25", "2026-01-01", "2026-01-06",
+                 "2026-05-01", "2026-08-15", "2026-10-12", "2026-11-01", "2026-12-06", "2026-12-08", "2026-12-25")
+# demanda nacional baixa: festius nacionals + Dijous i Divendres Sant (festius a gairebé tota Espanya)
+NAT_DEM = NAT_FEST | _days("2026-04-02", "2026-04-03")
+
+
+def nat_off(hour_epoch):
+    d = int(hour_epoch // 24)
+    return float(d in NAT_FEST or (d + 3) % 7 >= 5)
+
+
+def nat_dem_off(hour_epoch):
+    d = int(hour_epoch // 24)
+    return float(d in NAT_DEM or (d + 3) % 7 >= 5)
+
+
+def tariff(hour_epoch):
+    """Període 2.0TD: 0 vall, 1 pla, 2 punta (hora de rellotge)."""
+    if nat_off(hour_epoch):
+        return 0.0
+    h = int(hour_epoch) % 24
+    if h < 8:
+        return 0.0
+    if 10 <= h < 14 or 18 <= h < 22:
+        return 2.0
+    return 1.0
 
 
 def day_flags(hour_epoch):
@@ -167,6 +228,62 @@ MKT2_NAMES = ["h", "hod", "dow", "doy_s", "doy_c", "k0", "k1", "k2", "lag24", "l
               "hod_t", "d2_24", "wk7_o", "km1", "km2", "km3", "slope", "l23", "l25", "o_k0", "wk3", "o_l23", "o_l25"]
 
 
+# ---------------------------------------------------------------- features opcionals (experiments del 15/11)
+# Grups: heat (onades de calor/fred), thr (llindars de climatització 19/27 °C), sun (alçada del sol),
+#        nat (festius estatals, vigílies, ponts i Nadal per al mercat), pan (temperatura del panell).
+# S'activen amb la variable d'entorn JAMM_EXTRA="heat,sun" en entrenar; el fitxer de models desa la llista ("extra")
+# i l'agent la torna a activar amb set_extra(). Sense res activat, les features són exactament les de sempre.
+import os as _os
+
+EXTRA = set()
+_MKT2_BASE = list(MKT2_NAMES)
+_EX_MKT = {"heat": ["t_m24", "t_m72", "t_mx24"], "nat": ["nat", "nat_eve", "nat_aft", "nat_pont", "xmas"]}
+_EX_LOAD = {"heat": ["t_m72", "t_mx24"], "thr": ["cdd", "hdd", "cdd24", "hdd24"], "sun": ["elev", "d_elev"],
+            "pan": ["tpan", "tpan_d"]}
+_ORDER = ("heat", "thr", "sun", "nat", "pan")
+
+NACIONALS = _days("2025-10-12", "2025-11-01", "2025-12-06", "2025-12-08", "2025-12-25", "2026-01-01", "2026-01-06",
+                  "2026-04-02", "2026-04-03", "2026-05-01", "2026-08-15", "2026-10-12", "2026-11-01")
+NADAL = _range("2025-12-24", "2026-01-06")
+
+
+def _nat_flags(hour_epoch):
+    d = int(hour_epoch // 24); dow = (d + 3) % 7
+    nat = d in NACIONALS
+    pont = (not nat) and ((dow == 0 and (d + 1) in NACIONALS) or (dow == 4 and (d - 1) in NACIONALS))
+    return [float(nat), float((d + 1) in NACIONALS), float((d - 1) in NACIONALS), float(pont), float(d in NADAL)]
+
+
+def sun_elev(hour_epoch):
+    """Alçada del sol (graus) a Barcelona a mitja hora, calculada només amb el calendari (hora estàndard = UTC+1)."""
+    es = std_epoch(hour_epoch)
+    day = np.datetime64(int(es // 24), "D")
+    doy = int((day - day.astype("datetime64[Y]")).astype(np.int64)) + 1
+    b = 2 * np.pi * (doy - 81) / 364.0
+    eot = 9.87 * np.sin(2 * b) - 7.53 * np.cos(b) - 1.5 * np.sin(b)             # minuts
+    st = (es % 24) + 0.5 - 1.0 + 2.11 / 15.0 + eot / 60.0                       # hora solar
+    dec = np.radians(23.44) * np.sin(2 * np.pi * (284 + doy) / 365.0)
+    lat = np.radians(41.39); ha = np.radians(15.0 * (st - 12.0))
+    return float(np.degrees(np.arcsin(np.sin(lat) * np.sin(dec) + np.cos(lat) * np.cos(dec) * np.cos(ha))))
+
+
+def _temp_stats(hist, lm):
+    g = hist.d["temp"].get
+    w = np.array([g(lm - i, np.nan) for i in range(72)], float)
+    a, b = w[:24][np.isfinite(w[:24])], w[np.isfinite(w)]
+    return (a.mean() if len(a) else np.nan, b.mean() if len(b) else np.nan, a.max() if len(a) else np.nan,
+            np.maximum(a - 27.0, 0).mean() if len(a) else np.nan, np.maximum(19.0 - a, 0).mean() if len(a) else np.nan)
+
+
+def set_extra(groups):
+    """Activa els grups de features opcionals (i actualitza les llistes de noms)."""
+    global EXTRA
+    EXTRA = set(g for g in (groups or []) if g in _ORDER)
+    MKT2_NAMES[:] = _MKT2_BASE + [n for g in _ORDER if g in EXTRA for n in _EX_MKT.get(g, [])]
+    if "_LOAD2_BASE" in globals():
+        LOAD2_NAMES[:] = _LOAD2_BASE + [n for g in _ORDER if g in EXTRA for n in _EX_LOAD.get(g, [])]
+
+
 def _nanmean(v):
     v = [x for x in v if np.isfinite(x)]
     return float(np.mean(v)) if v else np.nan
@@ -193,6 +310,7 @@ def mkt_features2(hist, key, t, hs):
     kt = num / den if den > 0 else nan
     irr, vent, temp = hist.get("irr", lm), hist.get("vent", lm), hist.get("temp", lm)
     vm24 = hist.mean_back("vent", lm, 24)
+    ts = _temp_stats(hist, lm) if "heat" in EXTRA else None
     rows = []
     for h in hs:
         tau = t + h; hod, dow, s, c = calendar(tau); fl = day_flags(tau)
@@ -201,10 +319,11 @@ def mkt_features2(hist, key, t, hs):
         wko = _nanmean([go(tau - 24 * d, nan) for d in range(1, 8)])
         rows.append([h, hod, dow, s, c, k0, k1, k2, l24, g(tau - 48, nan), g(tau - 168, nan), wk,
                      shift, l24 + shift, m24, mn, mx, sd, l24 - m24, ok2, go(tau - 24, nan), oshift, om24,
-                     fl[6], fl[0], cs_value(tau), kt, irr, vent, temp, vm24, hist.get("irr", tau - 24),
+                     *((nat_dem_off(tau), tariff(tau)) if NATCAL else (fl[6], fl[0])), cs_value(tau), kt, irr, vent, temp, vm24, hist.get("irr", tau - 24),
                      t % 24, l24 - g(tau - 48, nan), wko, g(t - 1, nan), g(t - 2, nan), g(t - 3, nan), k2 - k0,
                      g(tau - 23, nan), g(tau - 25, nan), go(t, nan),
-                     _nanmean([g(tau - 24 * d, nan) for d in range(1, 4)]), go(tau - 23, nan), go(tau - 25, nan)])
+                     _nanmean([g(tau - 24 * d, nan) for d in range(1, 4)]), go(tau - 23, nan), go(tau - 25, nan)]
+                    + (list(ts[:3]) if "heat" in EXTRA else []) + (_nat_flags(tau) if "nat" in EXTRA else []))
     return np.array(rows, dtype=float)
 
 
@@ -228,6 +347,17 @@ def load_features2(hist, t, hs):
     for d in range(1, 8):
         if day_flags(lm - 24 * d)[6] == off_lm and np.isfinite(g(lm - 24 * d, nan)):
             same_lm = g(lm - 24 * d, nan); break
+    ex = []; exp = []
+    if "heat" in EXTRA or "thr" in EXTRA:
+        ts = _temp_stats(hist, lm)
+        if "heat" in EXTRA:
+            ex += [ts[1], ts[2]]
+        if "thr" in EXTRA:
+            ex += [max(temp - 27.0, 0.0) if np.isfinite(temp) else nan, max(19.0 - temp, 0.0) if np.isfinite(temp) else nan,
+                   ts[3], ts[4]]
+    if "pan" in EXTRA:
+        tp = hist.d["tpan"].get(lm, nan)
+        exp = [tp, tp - temp]
     rows = []
     for h in hs:
         tau = t + h; hod, dow, s, c = calendar(tau); fl = day_flags(tau)
@@ -238,5 +368,10 @@ def load_features2(hist, t, hs):
         rows.append([h, hod, dow, s, c, last, last2, last3, last - last2, l24, g(tau - 48, nan), lm24,
                      shift, l24 + shift, l24 * last / lm24 if (np.isfinite(lm24) and lm24 > 50) else nan,
                      m24, mn, mx, temp, tm24, irr, *fl, day_flags(tau - 24)[6], off_lm, same, same_m,
-                     same + (last - same_lm), lm % 24, _nanmean([v for v, _ in vals])])
+                     same + (last - same_lm), lm % 24, _nanmean([v for v, _ in vals])] + ex
+                    + ([sun_elev(tau), sun_elev(tau) - sun_elev(tau - 1)] if "sun" in EXTRA else []) + exp)
     return np.array(rows, dtype=float)
+
+
+_LOAD2_BASE = list(LOAD2_NAMES)
+set_extra([g for g in _os.environ.get("JAMM_EXTRA", "").split(",") if g])

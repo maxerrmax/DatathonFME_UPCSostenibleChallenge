@@ -1,12 +1,28 @@
 # Lliuraments del Mode Difícil
 
-| Fitxer | Score públic | Observació |
+> **Els lliuraments finals són a [`../../entrega_final/`](../../entrega_final/README.md).** Aquesta carpeta guarda la resta de zips
+> de referència (v8, v9, v12). Les variants descartades són a [`../arxiu/`](../arxiu/README.md).
+
+Puntuació al rànquing públic (50 % de cada setmana de test; soroll entre llavors ≈ ±0,2):
+
+| Fitxer | Públic | Observació |
 |---|---:|---|
-| **`hard_v12_public_23.53.zip`** | **23,53** | **Millor versió de JAMM (14/11/2026)**; calibratge online causal del CO₂ |
-| `hard_v9_public_23.45.zip` | 23,45 | Predictor directe de demanda neta |
-| `hard_v8_public_23.41.zip` | 23,41 | MPC i previsions LightGBM |
-| v10 (no desat) | 22,95 | Millorava localment però va empitjorar al públic |
+| `hard_v12B_natcal.zip` | pendent | Solució B + calendari nacional i període tarifari 2.0TD a preu i CO₂ (val 20,75; setmanes de festius 19,10 vs 18,99). Candidat |
+| `../../entrega_final/solucio_B_v12_hora_solar.zip` | **23,63** | v12 + taula de cel clar en hora estàndard (canvi d'hora). **Final B** |
+| `hard_v12_public_23.53.zip` | **23,53** | v12: calibratge causal en línia del CO₂. **Final A** |
+| `hard_v19dst_hvac.zip` | **23,78** | v19 + hora solar + llindars de climatització (19 °C / 27 °C) al model de consum. **Millor públic** (+0,03, dins del soroll). Mateixa dependència del final del test que la v19. Codi a `../arxiu/v19_dst_hvac/` |
+| `../arxiu/lliuraments/hard_v19_dst.zip` | **23,75** | v19 + hora solar (`agent.py` de la v19, `feats.py` i models de la B). **Millor públic, però depèn de conèixer el final del test; pendent de validar amb els organitzadors.** Codi a `../arxiu/v19_dst/` |
+| v19 + hora solar + CO₂ proper (zip no desat; codi a `../arxiu/v19_dst_near/`) | 23,63 | Models de CO₂ només h+3..+11 i correcció del canvi de setmana. Validació +0,08, públic −0,12 respecte a la v19 + hora solar. Descartat |
+| `../arxiu/lliuraments/hard_v15.zip` | 23,53 | v12 + final del test conegut; el guany cau a la meitat privada. No seleccionat |
+| `hard_v9_public_23.45.zip` | 23,45 | Predictor directe del consum net de l'hora actual |
+| `hard_v8_public_23.41.zip` | 23,41 | MPC + previsions LightGBM amb historial inicial |
+| `../arxiu/lliuraments/hard_v17.zip` | 23,29 | |
+| `../arxiu/lliuraments/hard_v18.zip` | 23,13 | Hipòtesi de reinici de SOC per setmana (falsa) |
+| `../arxiu/lliuraments/hard_v13.zip` | 23,07 | |
+| `../arxiu/lliuraments/hard_v16.zip` | 22,97 | Amb xarxa neuronal |
+| v10 (no desat) | 22,95 | Millorava la validació (20,85) i va baixar al públic |
+| `../arxiu/lliuraments/hard_v19.zip` | 23,64 | v15 + previsions conscients del canvi de setmana (sense hora solar). No seleccionat |
+| `../arxiu/lliuraments/hard_v14.zip` | — | Sense puntuació pública anotada; no seleccionat |
+| `../probe/probe_diag.zip` | — | Sonda de format del servidor (no és un agent) |
 
-Consulteu [`JAMM_v12_RESUM.md`](JAMM_v12_RESUM.md) per l'explicació de v12 i les comparacions en validació.
-
-Els ZIP anteriors es conserven per traçabilitat. El directori `dificil/agent_hard/` conté la versió v12, amb `agent.py`, `feats.py`, `parametres.json` i `models_all7.pkl`.
+Explicació de la v12: [`JAMM_v12_RESUM.md`](JAMM_v12_RESUM.md).
