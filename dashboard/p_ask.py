@@ -18,13 +18,12 @@ from ui import fmt
 
 DEFAULT_MODEL = "qwen3.6"
 TABS = (
-    "Veredicte",
+    "Resum",
     "Decidir",
     "Com triem",
     "Cara a cara",
     "On són els punts",
     "Campus i xarxa",
-    "Prova-ho tu",
 )
 
 
@@ -174,7 +173,7 @@ l'agent v12 i amb l'òptim del plec 1 (les seves puntuacions són a execucions_p
 - Per a "val la pena enviar / substituir per la versió X": si X és a versions_no_enviades, cita la seva regla; si no, fes servir regla_de_decisio_per_aspirant[X] (condicions que falla i conclusió). No atribueixis a una versió la puntuació d'una altra.
 - "validation" és la validació del plec 1; "public" és el rànquing públic real (només una part del test). Cap de les dues mana sola: digues sempre el grau d'incertesa.
 - No facis càlculs propis si la xifra ja és a les dades (distàncies, recomptes, conclusions).
-- Acaba amb una línia "On mirar-ho:" i el nom d'una d'aquestes pestanyes, cap altra: Veredicte, Decidir, Com triem, Cara a cara, On són els punts, Campus i xarxa o Prova-ho tu.
+- Acaba amb una línia "On mirar-ho:" i el nom d'una d'aquestes pestanyes, cap altra: Resum, Decidir, Com triem, Cara a cara, On són els punts o Campus i xarxa.
 
 DADES (JSON):
 """

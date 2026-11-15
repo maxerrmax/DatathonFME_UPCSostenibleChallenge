@@ -44,6 +44,11 @@ un sol episodi continu de 12 setmanes (SOC arrossegat; la hipòtesi de reinici p
 `ultim_consum_kw` i `ultima_solar_kw` són l'hora anterior (mesurat píxel a píxel). El moment de les dades meteo no importa
 (v12 igual amb t, t-1, t-2). No cal fer més sondes de format.
 
+**Rànquing públic (15/11/2026, captura de l'equip):** Ommetje **27,98** (era 23,59 abans), Low BaterIA **27,60**, Riviera Maya Boys **27,36**;
+després SSA Gourmet 24,37, Fanboy & Chum Chum 24,25, SanHackobos 24,15, manguets 23,89, TeamName2/HelloWorld/Equip1/sisoev 23,84; JAMM 16a
+entrada amb 23,78 (CO₂ 22,43 %, cost 26,93 %). **Tres equips han saltat ~3,5 punts per sobre del grup de 24:** la bretxa ja no és de ~0,8 sinó
+de ~4. El rànquing de sota és anterior a aquest salt; CO₂/cost (15/11 11:40, 56 equips, 466 lliuraments): Ommetje 27,05 % / 30,15 %, Low BaterIA 26,61 / 29,91, Riviera Maya Boys 26,37 / 29,65 (ens guanyen +4,6 punts de CO₂ i +3,2 de cost). No s'ha investigat què han canviat.
+
 **Bretxa amb els líders** (~0,8): SSA Gourmet 24,36 (CO2 22,94 % / cost 27,69 %), Fanboy & Chum Chum 24,25, SanHackobos 24,15,
 manguets 23,89, TeamName2 23,84; nosaltres 23,53 (22,34 / 26,31). Ens guanyen en CO2 i en cost alhora: és sistemàtic.
 Valor de la informació perfecta sobre v12 als 3 plecs (`dificil/diag/voi_folds.py`, mitjana 19,02): net (consum−solar) de
@@ -70,3 +75,8 @@ Ni els plecs ni el pseudo-test van predir cap de les pèrdues al públic (biaix 
 **Forma de treballar**: ser crític i no excessivament confiat; donar guanys com a rangs amb l'evidència, dir què no està
 verificat i proposar regles de decisió ("canviar només si el públic > X"), no promeses. D'altres equips, només inspiració, sense
 copiar. Els notebooks d'entrenament s'executen a Kaggle (autocontinguts), mai en local.
+
+**Dashboard** (`dashboard/`, vegeu `dashboard/README.md`): eina per comparar i decidir, sense conclusions escrites als títols;
+cada gràfic té icona (?) amb l'explicació i etiqueta d'origen (VALIDACIÓ / PÚBLIC / CAMPUS / CALCULAT). Per refrescar-ho tot amb l'estat
+del repo: `python dashboard/refresh.py` (arena, traces de totes les estratègies, `voi.json`); després només cal omplir
+`dashboard/submissions.json` (lliuraments) i `dashboard/live_feed.json` (rànquing). «Cara a cara» compara qualsevol de les estratègies de l'arena.

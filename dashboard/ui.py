@@ -6,6 +6,8 @@ descripcions micro-tipogràfiques (11 px) i xat compacte amb entrada sempre visi
 from __future__ import annotations
 
 import hashlib
+import re
+
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
@@ -39,10 +41,6 @@ DARK = dict(
     dash="#334155", rival="#F59E0B", up="#7DD3FC", upbg="#082F49", upln="#0369A1", dn="#FBBF24", dnbg="#451A03",
     dnln="#78350F", verdict="#1E293B", bubble="#1E293B", seg="#1E293B", outline="#334155", onacc="#090D16"
 )
-
-
-def is_explain() -> bool:
-    return bool(st.session_state.get("explain", True))
 
 
 def is_dark() -> bool:
@@ -80,8 +78,8 @@ footer, [data-testid="stStatusWidget"], [data-testid="stAppDeployButton"], [data
 .lab, .tile .l { font: 600 10.5px/14px var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--mute); }
 .ct { font: 600 14.5px/19px var(--font); letter-spacing: -.01em; color: var(--ink); margin: 0 0 3px; }
 .cc {
-    font: 400 11px/15px var(--font); color: var(--mute) !important; margin: 0 0 8px;
-    padding-left: 7px; border-left: 2px solid var(--line); max-width: 78ch;
+    font: 400 10px/13px var(--font); color: var(--mute) !important; margin: 0 0 8px; max-width: 78ch;
+    overflow-wrap: anywhere;
 }
 .src { font: 400 10.5px/14px var(--font); color: var(--mute) !important; margin: 2px 0 4px; }
 code, .stApp code { font-family: var(--mono); font-size: 11px; background: var(--grid); color: var(--ink); border-radius: 4px; padding: 1px 5px; }
@@ -112,6 +110,7 @@ div[data-testid="stCheckbox"] label p { font: 500 12px/16px var(--font) !importa
     border: 1px solid var(--line) !important; width: fit-content; max-width: 100%; margin-bottom: 20px;
     position: sticky; top: 8px; z-index: 60; box-shadow: 0 2px 6px rgba(15,23,42,.06); flex-wrap: wrap;
 }
+.stTabs { margin-top: 14px; }
 .stTabs [role="tablist"]::before, .stTabs [role="tablist"]::after, .stTabs .react-aria-SelectionIndicator { display: none !important; }
 .stTabs [data-testid="stTab"] {
     min-height: 32px; padding: 0 12px; border: 0; border-radius: 6px; color: var(--mute); background: transparent;
@@ -131,14 +130,14 @@ div[data-testid="stCheckbox"] label p { font: 500 12px/16px var(--font) !importa
 }
 .sec:first-of-type { margin-top: 16px; }
 .sec h2 { font: 700 15px/20px var(--font); letter-spacing: -.01em; text-transform: uppercase; color: var(--ink); margin: 0; }
-.sec p { font: 400 11.5px/16px var(--font); color: var(--mute) !important; margin: 2px 0 0; max-width: 80ch; }
+.sec p { font: 400 10.5px/14px var(--font); color: var(--mute) !important; margin: 2px 0 0; max-width: 80ch; }
 
 .intro {
     margin: 4px 0 16px; padding: 12px 16px; background: var(--card);
     border: 1px solid var(--line); border-left: 4px solid var(--ink); border-radius: 6px;
 }
 .intro h3 { font: 700 16px/20px var(--font); letter-spacing: -.01em; margin: 0 0 2px; }
-.intro p { font: 400 11.5px/16px var(--font); color: var(--mute) !important; margin: 0; max-width: 85ch; }
+.intro p { font: 400 10.5px/14px var(--font); color: var(--mute) !important; margin: 0; max-width: 85ch; }
 
 div[data-testid="stVerticalBlock"][class*="st-key-card"], .box, .tiles, [data-testid="stExpander"] details {
     background: var(--card); border: 1px solid var(--line) !important;
@@ -176,13 +175,13 @@ div[data-testid="stVerticalBlock"][class*="st-key-card"] { padding: 14px 18px 10
 [data-testid="stExpander"] summary p { font: 600 12.5px/18px var(--font); color: var(--ink); }
 
 /* Taules d'enginyeria denses */
-.tw { overflow-x: auto; border-radius: 6px; border: 1px solid var(--line_soft); }
+.tw { overflow: auto; border-radius: 6px; border: 1px solid var(--line_soft); }
 table.t { width: 100%; border-collapse: collapse; font-size: 12px; font-family: var(--mono); }
 table.t, table.t th, table.t td { border-left: 0 !important; border-right: 0 !important; border-top: 0 !important; }
 table.t th {
     text-align: right; font: 600 10.5px var(--mono); letter-spacing: .05em; text-transform: uppercase; color: var(--mute);
     border-bottom: 1px solid var(--line); padding: 8px 12px 8px 0; background: color-mix(in srgb, var(--bg) 55%, var(--card));
-    position: sticky; top: 0;
+    position: sticky; top: 0; z-index: 2;
 }
 table.t td { text-align: right; padding: 7px 12px 7px 0; border-bottom: 1px solid var(--line_soft); color: var(--ink); }
 table.t th.L, table.t td.L { text-align: left; white-space: normal; font-family: var(--font); }
@@ -334,6 +333,7 @@ div[data-baseweb="popover"]:has([data-testid="stPopoverBody"]) {
 [data-testid="stPopoverBody"] [data-testid="stHorizontalBlock"]:first-of-type {
     padding: 10px 14px; border-bottom: 1px solid var(--line); align-items: center; gap: 8px; background: var(--card);
 }
+[data-testid="stPopoverBody"] [data-testid="stHorizontalBlock"]:first-of-type .stButton { display: flex; justify-content: flex-end; }
 .chat-h { display: flex; flex-direction: row; align-items: center; gap: 10px; }
 .chat-h div { display: flex; flex-direction: column; }
 .chat-h .av { width: 30px; height: 30px; border-radius: 50%; background: var(--acc); color: #fff; font: 600 13px/30px var(--mono); text-align: center; font-style: normal; flex: none; }
@@ -350,7 +350,10 @@ div[data-baseweb="popover"]:has([data-testid="stPopoverBody"]) {
 [class*="st-key-ba_"][class*="st-key-ba_"] {
     width: fit-content !important; max-width: 90%; margin-right: auto;
     background: var(--card); border: 1px solid var(--line_soft); border-radius: 12px 12px 12px 3px; padding: 8px 12px !important;
+    flex: 0 0 auto !important; height: auto !important; min-height: 0; overflow: visible !important;
 }
+[class*="st-key-bu_"] { flex: 0 0 auto !important; height: auto !important; overflow: visible !important; }
+[class*="st-key-ba_"] > div, [class*="st-key-ba_"] [data-testid="stVerticalBlock"] { height: auto !important; overflow: visible !important; }
 [class*="st-key-ba_"] p, [class*="st-key-ba_"] li { color: var(--ink) !important; margin: 0 0 3px; font-size: 13px !important; line-height: 18px !important; }
 [class*="st-key-ba_"] p:last-child { margin-bottom: 0; }
 [class*="st-key-ba_"] p.sim { font: 11px/14px var(--mono) !important; color: var(--mute) !important; margin-top: 4px; }
@@ -379,6 +382,8 @@ div[data-baseweb="popover"]:has([data-testid="stPopoverBody"]) {
 [data-testid="stPopoverBody"] [data-testid="stChatInput"] {
     padding: 8px 10px 10px !important; border-top: 1px solid var(--line); background: var(--card) !important;
 }
+[data-testid="stChatInput"] { background: transparent !important; }
+[data-testid="stChatInput"] > div > div, [data-testid="stChatInput"] > div > div > div { background: transparent !important; border: 0 !important; box-shadow: none !important; }
 [data-testid="stChatInput"] > div {
     border-radius: 8px !important; background: var(--bg) !important; border: 1px solid var(--line) !important; min-height: 38px !important;
 }
@@ -391,7 +396,6 @@ div[data-baseweb="popover"]:has([data-testid="stPopoverBody"]) {
 .typing i:nth-child(3) { animation-delay: .4s; }
 @keyframes blink { 0%, 60%, 100% { opacity: .3 } 30% { opacity: 1 } }
 
-.foot { font: 400 11px/15px var(--font); color: var(--mute); margin-top: 48px; padding-top: 12px; border-top: 1px solid var(--line); }
 
 @media (max-width: 900px) {
     .ed-hero, .ed-kpis { grid-template-columns: 1fr; gap: 16px; }
@@ -399,12 +403,59 @@ div[data-baseweb="popover"]:has([data-testid="stPopoverBody"]) {
     .verdict .ver, .scoreblk .big { font-size: 52px; }
     .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
-__HIDE__
+/* ---- descripcions amb (?), etiquetes d'origen de la dada, desbordament, animacions ---- */
+.ph { display: flex; align-items: flex-start; gap: 8px; flex-wrap: wrap; }
+.ph .ct { margin: 0; overflow-wrap: anywhere; min-width: 0; flex: 1 1 12rem; }
+.help { position: relative; display: inline-flex; flex: none; width: 16px; height: 16px; margin-top: 1px; align-items: center;
+    justify-content: center; border: 1px solid var(--line); border-radius: 50%; font: 600 10px/1 var(--font);
+    color: var(--mute); background: var(--card); cursor: help; }
+.help:hover, .help:focus { color: var(--onacc); background: var(--acc); border-color: var(--acc); outline: none; }
+.help .tip { display: none; position: absolute; z-index: 80; top: 22px; right: -8px; width: min(340px, 78vw);
+    padding: 10px 12px; border-radius: 6px; background: var(--ink); color: var(--card); font: 400 11.5px/16px var(--font);
+    text-align: left; box-shadow: 0 6px 18px rgba(15,23,42,.25); white-space: normal; }
+.help:hover .tip, .help:focus .tip { display: block; animation: rise .15s ease-out; }
+.chip { flex: none; font: 600 9.5px/1 var(--mono); letter-spacing: .06em; text-transform: uppercase; padding: 3px 6px;
+    border-radius: 4px; margin-top: 2px; white-space: nowrap; }
+.chip.val { color: var(--acc); background: var(--accbg); border: 1px solid var(--acc); }
+.chip.pub { color: var(--card); background: var(--rival); border: 1px solid var(--rival); }
+.chip.camp { color: var(--mute); background: transparent; border: 1px solid var(--line); }
+.chip.calc { color: var(--ink2); background: transparent; border: 1px dashed var(--mute); }
+.tile .l, .lab, .sec h2, .intro h3 { overflow-wrap: anywhere; }
+.tile .s, .kn, .note2, .scoreblk .note2, .verdict .line, .verdict .cand { overflow-wrap: anywhere; min-width: 0; }
+.tile, .ed-kpis > div, .scoreblk, .verdict { min-width: 0; }
+.verdict .chip.calc { color: #CBD5E1; border-color: #64748B; }
+.verdict .ver { overflow-wrap: anywhere; }
+.scoreblk .big { font-size: clamp(40px, 5.2vw, 64px); flex-wrap: wrap; }
+.tile .v { overflow-wrap: anywhere; white-space: normal; }
+div[data-testid="stVerticalBlock"][class*="st-key-card"] { overflow: visible; }
+.tile .chip { display: inline-block; margin-top: 6px; }
+.stApp p.src { font-size: 9px !important; line-height: 12px !important; }
+.stApp p.cc, .stApp .sec p, .stApp .intro p { font-size: 10px !important; line-height: 13px !important; font-weight: 400 !important; }
+.stApp p.ct { font-size: 14px !important; }
+.lab + .chip, .lab .chip { margin-left: 6px; }
+.ph .lab { margin: 0; }
+table.lbt th { text-align: left; font: 600 10px var(--mono); letter-spacing: .05em; text-transform: uppercase;
+    color: var(--mute); padding: 7px 10px; border-bottom: 1px solid var(--line); background: color-mix(in srgb, var(--bg) 55%, var(--card)); }
+table.lbt th.n { text-align: right; }
+table.lbt td.n { width: 90px; }
+.kv, .scoreblk .big { min-width: 0; }
+@keyframes rise { from { opacity: 0; transform: translateY(10px) } to { opacity: 1; transform: none } }
+@keyframes grow { from { transform: scaleX(0) } to { transform: scaleX(1) } }
+@media (prefers-reduced-motion: no-preference) {
+    .ed-hero, .ed-kpis, .tiles, .note, .sec, .intro, .lbt, .tw, .pbxs,
+    div[data-testid="stVerticalBlock"][class*="st-key-card"], [data-testid="stPlotlyChart"],
+    [data-testid="stExpander"] details { animation: rise .45s ease-out both; }
+    .cmp b, .pbx b, table.t .bar i, table.lbt td.g i { transform-origin: left; animation: grow .7s ease-out both; }
+    @supports (animation-timeline: view()) {
+        div[data-testid="stVerticalBlock"][class*="st-key-card"], .tw, .lbt, .ed-kpis, .tiles, .note, .sec,
+        [data-testid="stExpander"] details {
+            animation: rise linear both; animation-timeline: view(); animation-range: entry 0% entry 28%;
+        }
+    }
+}
+
 </style>
 """
-
-HIDE_RULES = """.cc, .src, .sec p, .intro p, .foot, div[data-testid="stCaptionContainer"] { display: none !important; }"""
-
 
 def _css(theme: dict) -> str:
     vars_ = ";".join(f"--{k}:{v}" for k, v in theme.items())
@@ -412,7 +463,6 @@ def _css(theme: dict) -> str:
         CSS_TEMPLATE.replace("__VARS__", vars_)
         .replace("__FONT__", FONT)
         .replace("__MONO__", MONO)
-        .replace("__HIDE__", "" if is_explain() else HIDE_RULES)
     )
 
 
@@ -438,17 +488,52 @@ def badge(text: str, kind: str = "nt") -> str:
     return f"<span class='badge {kind}'>{arrow}{text}</span>"
 
 
-def section(title: str, sub: str | None = None):
-    st.markdown(f"<div class='sec'><h2>{title}</h2>" + (f"<p>{sub}</p>" if sub else "") + "</div>", unsafe_allow_html=True)
+SRC = {"val": "Validació", "pub": "Públic", "camp": "Campus", "calc": "Calculat"}
 
 
-def intro(title: str, text: str):
-    st.markdown(f"<div class='intro'><h3>{title}</h3><p>{text}</p></div>", unsafe_allow_html=True)
+def _short(text: str, n: int = 90) -> str:
+    """Primera frase d'una descripció, sense etiquetes i retallada: és la línia petita sota el títol."""
+    t = re.sub(r"<[^>]+>", "", text).strip()
+    first = re.split(r"(?<=[.!?])\s", t, maxsplit=1)[0]
+    return first if len(first) <= n else first[: n - 1].rsplit(" ", 1)[0] + "…"
 
 
-def panel(title: str, caption: str | None = None, key: str | None = None):
+def tag(kind: str) -> str:
+    """Etiqueta d'origen d'una xifra: val = validació (setmanes apartades de data/train), pub = rànquing públic,
+    camp = dades del campus, calc = càlcul del dashboard a partir d'altres xifres."""
+    return f"<span class='chip {kind}' title='{SRC[kind]}'>{SRC[kind]}</span>"
+
+
+def helpicon(text: str) -> str:
+    return f"<span class='help' tabindex='0'>?<span class='tip'>{text}</span></span>"
+
+
+def head(title: str, caption: str | None = None, src: str | None = None) -> str:
+    """Capçalera d'un gràfic o taula: títol, etiqueta d'origen, icona (?) amb l'explicació completa i, a sota,
+    una descripció curta."""
+    h = f"<div class='ph'><p class='ct'>{title}</p>{tag(src) if src else ''}{helpicon(caption) if caption else ''}</div>"
+    return h + (f"<p class='cc'>{_short(caption)}</p>" if caption else "")
+
+
+def heading(title: str, caption: str | None = None, src: str | None = None, where=st):
+    where.markdown(head(title, caption, src), unsafe_allow_html=True)
+
+
+def section(title: str, sub: str | None = None, src: str | None = None):
+    st.markdown(
+        f"<div class='sec'><div class='ph'><h2>{title}</h2>{tag(src) if src else ''}{helpicon(sub) if sub else ''}</div>"
+        + (f"<p>{_short(sub, 120)}</p>" if sub else "") + "</div>", unsafe_allow_html=True)
+
+
+def intro(title: str, text: str, src: str | None = None):
+    st.markdown(
+        f"<div class='intro'><div class='ph'><h3>{title}</h3>{tag(src) if src else ''}{helpicon(text)}</div>"
+        f"<p>{_short(text, 120)}</p></div>", unsafe_allow_html=True)
+
+
+def panel(title: str, caption: str | None = None, key: str | None = None, src: str | None = None):
     box = st.container(border=True, key="card_" + (key or hashlib.md5(title.encode()).hexdigest()[:10]))
-    box.markdown(f"<p class='ct'>{title}</p>" + (f"<p class='cc'>{caption}</p>" if caption else ""), unsafe_allow_html=True)
+    box.markdown(head(title, caption, src), unsafe_allow_html=True)
     return box
 
 
@@ -460,9 +545,9 @@ def source(text: str, where=st):
     where.markdown(f"<p class='src'>{text}</p>", unsafe_allow_html=True)
 
 
-def tiles(items: list[tuple], cols: int = 4, where=st):
+def tiles(items: list[tuple], cols: int = 4, where=st, src: str | None = None):
     cells = "".join(
-        f"<div class='tile'><div class='l'>{it[0]}</div>"
+        f"<div class='tile'><div class='l'>{it[0]}</div>{tag(it[3] if len(it) > 3 and it[3] in SRC else src) if (src or (len(it) > 3 and it[3] in SRC)) else ''}"
         f"<div class='v'>{it[1]}</div><div class='s'>{it[2]}</div></div>"
         for it in items
     )

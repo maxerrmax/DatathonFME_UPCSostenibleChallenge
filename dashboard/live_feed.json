@@ -1,162 +1,176 @@
 {
- "as_of": "2026-11-15T09:02:29",
+ "as_of": "2026-11-15T11:33:28",
  "us": "JAMM",
- "n_teams": 51,
- "n_submissions": 358,
+ "n_teams": 56,
+ "n_submissions": 466,
  "standings": [
   {
-   "rank": 1,
-   "team": "SSA Gourmet",
-   "score": 24.36,
-   "co2": 22.94,
-   "cost": 27.69
+   "team": "Ommetje",
+   "score": 27.98,
+   "co2": 27.05,
+   "cost": 30.15,
+   "rank": 1
   },
   {
-   "rank": 2,
+   "team": "Low BaterIA",
+   "score": 27.6,
+   "co2": 26.61,
+   "cost": 29.91,
+   "rank": 2
+  },
+  {
+   "team": "Riviera Maya Boys",
+   "score": 27.36,
+   "co2": 26.37,
+   "cost": 29.65,
+   "rank": 3
+  },
+  {
+   "team": "SSA Gourmet",
+   "score": 24.37,
+   "co2": 22.95,
+   "cost": 27.68,
+   "rank": 4
+  },
+  {
    "team": "SSA Gourme",
    "score": 24.32,
    "co2": 22.87,
-   "cost": 27.69
+   "cost": 27.69,
+   "rank": 5
   },
   {
-   "rank": 3,
    "team": "Fanboy & Chum Chum",
    "score": 24.25,
    "co2": 22.98,
-   "cost": 27.23
+   "cost": 27.23,
+   "rank": 6
   },
   {
-   "rank": 4,
    "team": "SanHackobos",
    "score": 24.15,
    "co2": 22.92,
-   "cost": 27.02
+   "cost": 27.02,
+   "rank": 7
   },
   {
-   "rank": 5,
    "team": "SanHackobos_v7",
-   "score": 24.1,
-   "co2": 22.86,
-   "cost": 26.99
+   "score": 24.13,
+   "co2": 22.87,
+   "cost": 27.08,
+   "rank": 8
   },
   {
-   "rank": 6,
    "team": "SanHackobos_v9",
    "score": 24.1,
    "co2": 22.94,
-   "cost": 26.82
+   "cost": 26.82,
+   "rank": 9
   },
   {
-   "rank": 7,
    "team": "SanHackobos_v8",
    "score": 24.06,
    "co2": 22.88,
-   "cost": 26.79
+   "cost": 26.79,
+   "rank": 10
   },
   {
-   "rank": 8,
    "team": "manguets",
    "score": 23.89,
    "co2": 22.66,
-   "cost": 26.76
+   "cost": 26.76,
+   "rank": 11
   },
   {
-   "rank": 9,
    "team": "TeamName2",
    "score": 23.84,
    "co2": 23.06,
-   "cost": 25.65
+   "cost": 25.65,
+   "rank": 12
   },
   {
-   "rank": 10,
    "team": "HelloWorld",
    "score": 23.84,
    "co2": 23.06,
-   "cost": 25.65
+   "cost": 25.65,
+   "rank": 13
   },
   {
-   "rank": 11,
    "team": "Equip1",
    "score": 23.84,
    "co2": 23.06,
-   "cost": 25.65
+   "cost": 25.65,
+   "rank": 14
   },
   {
-   "rank": 12,
+   "team": "sisoev",
+   "score": 23.84,
+   "co2": 23.06,
+   "cost": 25.65,
+   "rank": 15
+  },
+  {
+   "team": "JAMM",
+   "score": 23.78,
+   "co2": 22.43,
+   "cost": 26.93,
+   "rank": 16
+  },
+  {
    "team": "AAAA",
    "score": 23.75,
    "co2": 22.99,
-   "cost": 25.53
+   "cost": 25.53,
+   "rank": 17
   },
   {
-   "rank": 13,
    "team": "Dos enginyers i mig",
    "score": 23.73,
    "co2": 22.62,
-   "cost": 26.34
+   "cost": 26.34,
+   "rank": 18
   },
   {
-   "rank": 14,
+   "team": "ASCII",
+   "score": 23.73,
+   "co2": 22.53,
+   "cost": 26.51,
+   "rank": 19
+  },
+  {
    "team": "AAA",
    "score": 23.71,
    "co2": 22.89,
-   "cost": 25.63
+   "cost": 25.63,
+   "rank": 20
   },
   {
-   "rank": 15,
    "team": "Sanhackobos_v6",
    "score": 23.7,
    "co2": 22.58,
-   "cost": 26.3
+   "cost": 26.3,
+   "rank": 21
   },
   {
-   "rank": 16,
    "team": "robertocarlos2",
    "score": 23.63,
    "co2": 22.38,
-   "cost": 26.55
+   "cost": 26.55,
+   "rank": 22
   },
   {
-   "rank": 17,
-   "team": "Ommetje",
-   "score": 23.59,
-   "co2": 22.17,
-   "cost": 26.9
-  },
-  {
-   "rank": 18,
    "team": "TeamName3",
    "score": 23.56,
    "co2": 22.83,
-   "cost": 25.25
+   "cost": 25.25,
+   "rank": 23
   },
   {
-   "rank": 19,
-   "team": "JAMM",
-   "score": 23.53,
-   "co2": 22.34,
-   "cost": 26.31
-  },
-  {
-   "rank": 20,
    "team": "t1",
    "score": 23.53,
    "co2": 22.34,
-   "cost": 26.31
-  },
-  {
-   "rank": 21,
-   "team": "ASCII",
-   "score": 23.52,
-   "co2": 22.26,
-   "cost": 26.47
-  },
-  {
-   "rank": 22,
-   "team": "Riviera Maya Boys",
-   "score": 23.45,
-   "co2": 22.47,
-   "cost": 25.73
+   "cost": 26.31,
+   "rank": 24
   }
  ]
 }
