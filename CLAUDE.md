@@ -32,7 +32,7 @@
 
 ## Estat del Mode Difícil i memòria de la sessió (15/11/2026)
 Públic: **v12 + hora solar 23,63 (millor)** · v12 23,53 · v15 23,53 (v12 + final conegut del test; el guany cau a la meitat privada) · v18 23,13 ·
-v17 23,29 · v16 22,97 · v13 23,07 · v10 22,95. **LLIURAMENT FINAL (decisió del 15/11): dues solucions, `entrega_final/solucio_A_v12_original.zip` (23,53) i `entrega_final/solucio_B_v12_hora_solar.zip` (23,63).** Vegeu `entrega_final/README.md`. La v15 no es selecciona (el seu guany depèn de conèixer el final del test).
+v17 23,29 · v16 22,97 · v13 23,07 · v10 22,95. **LLIURAMENT FINAL (decisió definitiva del 15/11, 11:50): `entrega_final/solucio_C_v19_hora_solar_hvac.zip` (23,78) i `entrega_final/solucio_B_v12_hora_solar.zip` (23,63); la A (23,53) queda com a referència.** Vegeu `entrega_final/README.md`. La v15 no es selecciona (el seu guany depèn de conèixer el final del test).
 v19 (`dificil/arxiu/lliuraments/hard_v19.zip`, v15 + previsions conscients del canvi de setmana, plecs +0,22/+0,17/+0,08): públic **23,64**.
 **v19 + hora solar + llindars de climatització (`dificil/lliuraments/hard_v19dst_hvac.zip`, codi a `dificil/arxiu/v19_dst_hvac/`): públic 23,78 (CO₂ 22,43 %, cost 26,93 %), el millor** (+0,03 sobre la v19 + hora solar, dins del soroll; validació 20,73 vs 20,72). Mateixa dependència del final del test que la v19.
 **v19 + hora solar (`dificil/arxiu/lliuraments/hard_v19_dst.zip`, codi a `dificil/arxiu/v19_dst/`): públic 23,75.** Depèn de conèixer el final del test (31/8/2026 23:00) i l'encadenament de setmanes; no s'ha seleccionat fins que els organitzadors confirmin que és vàlid (A i B són les finals nets).

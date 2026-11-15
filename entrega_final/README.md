@@ -1,5 +1,16 @@
 # Entrega final — Mode Difícil · equip JAMM
 
+> ## Selecció definitiva (15/11, 11:50) — les dues finals que s'han penjat a la plataforma
+> | | Fitxer | Públic | SHA-256 |
+> |---|---|---:|---|
+> | **Final 1** — v19 + hora solar + llindars de climatització | [`solucio_C_v19_hora_solar_hvac.zip`](solucio_C_v19_hora_solar_hvac.zip) | **23,78** (CO₂ −22,43 %, cost −26,93 %) | `285836228a4e…42dff3c` |
+> | **Final 2** — v12 + hora solar (la neta) | [`solucio_B_v12_hora_solar.zip`](solucio_B_v12_hora_solar.zip) | **23,63** | `d17dacd92169…18dcefb2` |
+>
+> La Final 1 té codificats la data final del test (31/8/2026 23:00, que es dedueix de l'enunciat: «els últims 7 dies de cada mes, 2.016 h») i l'encadenament
+> de les setmanes; no fa servir cap valor del test. La Final 2 no depèn de res d'això i és la que protegeix si la Final 1 es considerés inadequada.
+> La solució A (v12 original, 23,53) queda com a referència. La diferència 23,78 vs 23,63 és **dins del soroll** (±0,1–0,2). Codi de la Final 1: `dificil/arxiu/v19_dst_hvac/`.
+> Més avall, el text original de l'entrega A + B.
+
 Les dues solucions que triem per a l'avaluació final del **Mode Difícil** (6.000 kWh, ±1.500 kW, solar ×12,
 finestra de mercat de 3 h). Les dues són el mateix agent amb una única diferència (vegeu «Diferència entre A i B»).
 
