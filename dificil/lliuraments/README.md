@@ -10,6 +10,7 @@ Puntuació al rànquing públic (50 % de cada setmana de test; soroll entre llav
 | `hard_v12B_natcal.zip` | pendent | Solució B + calendari nacional i període tarifari 2.0TD a preu i CO₂ (val 20,75; setmanes de festius 19,10 vs 18,99). Candidat |
 | `../../entrega_final/solucio_B_v12_hora_solar.zip` | **23,63** | v12 + taula de cel clar en hora estàndard (canvi d'hora). **Final B** |
 | `hard_v12_public_23.53.zip` | **23,53** | v12: calibratge causal en línia del CO₂. **Final A** |
+| `hard_v19dst_hvac.zip` | **23,78** | v19 + hora solar + llindars de climatització (19 °C / 27 °C) al model de consum. **Millor públic** (+0,03, dins del soroll). Mateixa dependència del final del test que la v19. Codi a `../arxiu/v19_dst_hvac/` |
 | `../arxiu/lliuraments/hard_v19_dst.zip` | **23,75** | v19 + hora solar (`agent.py` de la v19, `feats.py` i models de la B). **Millor públic, però depèn de conèixer el final del test; pendent de validar amb els organitzadors.** Codi a `../arxiu/v19_dst/` |
 | v19 + hora solar + CO₂ proper (zip no desat; codi a `../arxiu/v19_dst_near/`) | 23,63 | Models de CO₂ només h+3..+11 i correcció del canvi de setmana. Validació +0,08, públic −0,12 respecte a la v19 + hora solar. Descartat |
 | `../arxiu/lliuraments/hard_v15.zip` | 23,53 | v12 + final del test conegut; el guany cau a la meitat privada. No seleccionat |
